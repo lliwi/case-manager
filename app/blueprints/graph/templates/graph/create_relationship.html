@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Crear Relación - Caso {{ case.numero_orden }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.index') }}">Casos</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.detail', case_id=case.id) }}">{{ case.numero_orden }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('graph.case_graph', case_id=case.id) }}">Grafo</a></li>
+            <li class="breadcrumb-item active">Crear Relación</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="bi bi-arrow-left-right"></i> Crear Relación entre Nodos</h2>
+            <p class="text-muted">
+                <strong>Caso:</strong> {{ case.numero_orden }}
+            </p>
+        </div>
+    </div>
+
+    <!-- Information Alert -->
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> <strong>Instrucciones:</strong>
+        <ul class="mb-0 mt-2">
+            <li>Ingrese los IDs de los nodos que desea conectar (puede obtenerlos del grafo)</li>
+            <li>Seleccione el tipo de relación apropiado</li>
+            <li>El nivel de confianza indica qué tan segura es la relación (1.0 = 100% seguro)</li>
+        </ul>
+    </div>
+
+    <!-- Form -->
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            <i class="bi bi-pencil"></i> Datos de la Relación
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+
+                <!-- Node IDs -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="from_node_id" class="form-label">
+                            <i class="bi bi-circle"></i> {{ form.from_node_id.label.text }} <span class="text-danger">*</span>
+                        </label>
+                        {{ form.from_node_id(class="form-control") }}
+                        <div class="form-text">{{ form.from_node_id.description }}</div>
+                        {% if form.from_node_id.errors %}
+                            <div class="text-danger">{{ form.from_node_id.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="to_node_id" class="form-label">
+                            <i class="bi bi-circle"></i> {{ form.to_node_id.label.text }} <span class="text-danger">*</span>
+                        </label>
+                        {{ form.to_node_id(class="form-control") }}
+                        <div class="form-text">{{ form.to_node_id.description }}</div>
+                        {% if form.to_node_id.errors %}
+                            <div class="text-danger">{{ form.to_node_id.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Relationship Type -->
+                <div class="mb-3">
+                    <label for="relationship_type" class="form-label">
+                        <i class="bi bi-tag"></i> {{ form.relationship_type.label.text }} <span class="text-danger">*</span>
+                    </label>
+                    {{ form.relationship_type(class="form-select") }}
+                    {% if form.relationship_type.errors %}
+                        <div class="text-danger">{{ form.relationship_type.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Confidence -->
+                <div class="mb-3">
+                    <label for="confidence" class="form-label">
+                        <i class="bi bi-speedometer"></i> {{ form.confidence.label.text }}
+                    </label>
+                    {{ form.confidence(class="form-control", min="0", max="1", step="0.01") }}
+                    <div class="form-text">{{ form.confidence.description }}</div>
+                    {% if form.confidence.errors %}
+                        <div class="text-danger">{{ form.confidence.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Dates -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="start_date" class="form-label">
+                            <i class="bi bi-calendar"></i> {{ form.start_date.label.text }}
+                        </label>
+                        {{ form.start_date(class="form-control", type="date") }}
+                        <div class="form-text">{{ form.start_date.description }}</div>
+                        {% if form.start_date.errors %}
+                            <div class="text-danger">{{ form.start_date.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="end_date" class="form-label">
+                            <i class="bi bi-calendar"></i> {{ form.end_date.label.text }}
+                        </label>
+                        {{ form.end_date(class="form-control", type="date") }}
+                        <div class="form-text">{{ form.end_date.description }}</div>
+                        {% if form.end_date.errors %}
+                            <div class="text-danger">{{ form.end_date.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="mb-3">
+                    <label for="notes" class="form-label">
+                        <i class="bi bi-journal-text"></i> {{ form.notes.label.text }}
+                    </label>
+                    {{ form.notes(class="form-control", rows=4) }}
+                    <div class="form-text">{{ form.notes.description }}</div>
+                    {% if form.notes.errors %}
+                        <div class="text-danger">{{ form.notes.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="row">
+                    <div class="col-md-12 text-end">
+                        <a href="{{ url_for('graph.case_graph', case_id=case.id) }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-save"></i> Crear Relación
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

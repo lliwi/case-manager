@@ -1,0 +1,55 @@
+# Environment
+.env
+venv/
+env/
+ENV/
+*.pyc
+__pycache__/
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Flask
+instance/
+.webassets-cache
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+migrations/versions/*.py
+!migrations/versions/.gitkeep
+
+# Docker volumes
+volumes/
+data/evidence/*
+data/uploads/*
+data/exports/*
+!data/evidence/.gitkeep
+!data/uploads/.gitkeep
+!data/exports/.gitkeep
+
+# Logs
+*.log
+logs/
+celery*.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db

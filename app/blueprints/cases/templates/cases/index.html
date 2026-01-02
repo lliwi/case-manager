@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Casos{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="bi bi-folder"></i> Mis Casos</h2>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('cases.create') }}" class="btn btn-primary">
+                <i class="bi bi-folder-plus"></i> Nuevo Caso
+            </a>
+            <a href="{{ url_for('cases.search') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-search"></i> Buscar
+            </a>
+        </div>
+    </div>
+
+    <!-- Status Filter -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('cases.index') }}" class="btn btn-sm {{ 'btn-primary' if not request.args.get('status') else 'btn-outline-primary' }}">
+                    Todos
+                </a>
+                {% for status in CaseStatus %}
+                <a href="{{ url_for('cases.index', status=status.name) }}"
+                   class="btn btn-sm {{ 'btn-primary' if request.args.get('status') == status.name else 'btn-outline-primary' }}">
+                    {{ status.value }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Cases Table -->
+    <div class="card">
+        <div class="card-body">
+            {% if cases %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nº Orden</th>
+                            <th>Cliente</th>
+                            <th>Objeto</th>
+                            <th>Estado</th>
+                            <th>Fecha Inicio</th>
+                            <th>Prioridad</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for case in cases %}
+                        <tr class="{{ 'table-warning' if case.crime_detected else '' }}">
+                            <td>
+                                <strong>{{ case.numero_orden }}</strong>
+                                {% if case.crime_detected %}
+                                <span class="badge bg-danger" title="Posibles delitos detectados">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                </span>
+                                {% endif %}
+                                {% if not case.legitimacy_validated %}
+                                <span class="badge bg-warning" title="Legitimidad pendiente">
+                                    <i class="bi bi-hourglass"></i>
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div>{{ case.cliente_nombre }}</div>
+                                <small class="text-muted">{{ case.cliente_dni_cif }}</small>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 300px;">
+                                    {{ case.objeto_investigacion }}
+                                </div>
+                                <small class="text-muted">{{ case.legitimacy_type.value }}</small>
+                            </td>
+                            <td>
+                                {% if case.status.name == 'PENDIENTE_VALIDACION' %}
+                                <span class="badge bg-warning">{{ case.status.value }}</span>
+                                {% elif case.status.name == 'EN_INVESTIGACION' %}
+                                <span class="badge bg-success">{{ case.status.value }}</span>
+                                {% elif case.status.name == 'CERRADO' %}
+                                <span class="badge bg-secondary">{{ case.status.value }}</span>
+                                {% elif case.status.name == 'ARCHIVADO' %}
+                                <span class="badge bg-dark">{{ case.status.value }}</span>
+                                {% else %}
+                                <span class="badge bg-info">{{ case.status.value }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ case.fecha_inicio.strftime('%d/%m/%Y') }}</small>
+                                {% if case.fecha_cierre %}
+                                <br><small class="text-muted">Cerrado: {{ case.fecha_cierre.strftime('%d/%m/%Y') }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if case.priority %}
+                                {% if case.priority.name == 'URGENTE' %}
+                                <span class="badge bg-danger">{{ case.priority.value }}</span>
+                                {% elif case.priority.name == 'ALTA' %}
+                                <span class="badge bg-warning">{{ case.priority.value }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ case.priority.value }}</span>
+                                {% endif %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('cases.detail', case_id=case.id) }}"
+                                       class="btn btn-outline-primary" title="Ver detalles">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('cases.edit', case_id=case.id) }}"
+                                       class="btn btn-outline-secondary" title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if pagination.pages > 1 %}
+            <nav>
+                <ul class="pagination justify-content-center">
+                    <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+                        <a class="page-link" href="{{ url_for('cases.index', page=pagination.prev_num, status=request.args.get('status')) }}">
+                            Anterior
+                        </a>
+                    </li>
+                    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                        <li class="page-item {{ 'active' if page_num == pagination.page }}">
+                            <a class="page-link" href="{{ url_for('cases.index', page=page_num, status=request.args.get('status')) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+                        <a class="page-link" href="{{ url_for('cases.index', page=pagination.next_num, status=request.args.get('status')) }}">
+                            Siguiente
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-folder-x text-muted" style="font-size: 3rem;"></i>
+                <p class="text-muted mt-3">No hay casos para mostrar.</p>
+                <a href="{{ url_for('cases.create') }}" class="btn btn-primary">
+                    <i class="bi bi-folder-plus"></i> Crear Primer Caso
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

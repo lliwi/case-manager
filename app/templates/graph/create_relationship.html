@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Crear Relación{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h4 mb-0">Crear Nueva Relación</h1>
+            <a href="{{ url_for('graph.case_graph', case_id=case.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <form method="POST">
+            {{ form.hidden_tag() }}
+
+            <div class="card shadow">
+                <div class="card-body">
+                    <div class="mb-3">
+                        {{ form.source_node.label(class="form-label") }}
+                        {{ form.source_node(class="form-select" + (" is-invalid" if form.source_node.errors else "")) }}
+                        {% if form.source_node.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.source_node.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="text-center my-3">
+                        <i class="bi bi-arrow-down-circle text-primary" style="font-size: 2rem;"></i>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.relationship_type.label(class="form-label") }}
+                        {{ form.relationship_type(class="form-select" + (" is-invalid" if form.relationship_type.errors else "")) }}
+                        {% if form.relationship_type.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.relationship_type.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="text-center my-3">
+                        <i class="bi bi-arrow-down-circle text-primary" style="font-size: 2rem;"></i>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.target_node.label(class="form-label") }}
+                        {{ form.target_node(class="form-select" + (" is-invalid" if form.target_node.errors else "")) }}
+                        {% if form.target_node.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.target_node.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    {% if form.description %}
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="3") }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.description.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-3">
+                <a href="{{ url_for('graph.case_graph', case_id=case.id) }}" class="btn btn-outline-secondary">
+                    Cancelar
+                </a>
+                {{ form.submit(class="btn btn-primary") }}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

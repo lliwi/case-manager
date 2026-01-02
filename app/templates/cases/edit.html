@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Caso {{ case.numero_orden }} - Case Manager{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0">Editar Caso {{ case.numero_orden }}</h1>
+            <a href="{{ url_for('cases.detail', case_id=case.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            <strong>Nota:</strong> Solo se pueden editar campos específicos. Los datos del libro-registro
+            (cliente, legitimidad, etc.) son inmutables por razones legales.
+        </div>
+
+        <form method="POST">
+            {{ form.hidden_tag() }}
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Información Editable</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        {{ form.descripcion_detallada.label(class="form-label") }}
+                        {{ form.descripcion_detallada(class="form-control" + (" is-invalid" if form.descripcion_detallada.errors else ""), rows="5") }}
+                        {% if form.descripcion_detallada.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.descripcion_detallada.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.status.label(class="form-label") }}
+                            {{ form.status(class="form-select" + (" is-invalid" if form.status.errors else "")) }}
+                            {% if form.status.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.status.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            {{ form.priority.label(class="form-label") }}
+                            {{ form.priority(class="form-select" + (" is-invalid" if form.priority.errors else "")) }}
+                            {% if form.priority.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.priority.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.ubicacion_principal.label(class="form-label") }}
+                        {{ form.ubicacion_principal(class="form-control" + (" is-invalid" if form.ubicacion_principal.errors else "")) }}
+                        {% if form.ubicacion_principal.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.ubicacion_principal.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.presupuesto_estimado.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.presupuesto_estimado(class="form-control" + (" is-invalid" if form.presupuesto_estimado.errors else "")) }}
+                                <span class="input-group-text">€</span>
+                            </div>
+                            {% if form.presupuesto_estimado.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.presupuesto_estimado.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            {{ form.honorarios.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.honorarios(class="form-control" + (" is-invalid" if form.honorarios.errors else "")) }}
+                                <span class="input-group-text">€</span>
+                            </div>
+                            {% if form.honorarios.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.honorarios.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.notas_internas.label(class="form-label") }}
+                        {{ form.notas_internas(class="form-control" + (" is-invalid" if form.notas_internas.errors else ""), rows="4") }}
+                        {% if form.notas_internas.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.notas_internas.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">Las nuevas notas se añadirán a las existentes</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('cases.detail', case_id=case.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </a>
+                {{ form.submit(class="btn btn-primary") }}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

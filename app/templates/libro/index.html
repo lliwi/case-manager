@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Libro-Registro - Case Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Libro-Registro Oficial</h1>
+    <div>
+        <a href="{{ url_for('libro_registro.export_csv', year=year, detective_id=selected_detective_id) }}" class="btn btn-success me-2">
+            <i class="bi bi-download"></i> Exportar CSV
+        </a>
+        {% if current_user.is_admin() %}
+            <a href="{{ url_for('libro_registro.compliance_check') }}" class="btn btn-warning">
+                <i class="bi bi-shield-check"></i> Verificar Cumplimiento
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <h6 class="alert-heading"><i class="bi bi-book"></i> Libro-Registro Obligatorio (Ley 5/2014 Art. 25)</h6>
+    <p class="mb-0 small">
+        Registro cronológico oficial de investigaciones conforme al Reglamento de Seguridad Privada.
+        Este registro es inmutable y debe conservarse durante 3 años.
+    </p>
+</div>
+
+<!-- Filters -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Año</label>
+                <select name="year" class="form-select" onchange="this.form.submit()">
+                    {% for y in available_years if y %}
+                        <option value="{{ y }}" {{ 'selected' if y == year else '' }}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {% if current_user.is_admin() %}
+                <div class="col-md-4">
+                    <label class="form-label">Detective</label>
+                    <select name="detective_id" class="form-select" onchange="this.form.submit()">
+                        <option value="">Todos</option>
+                        {% for detective in detectives %}
+                            <option value="{{ detective.id }}" {{ 'selected' if detective.id == selected_detective_id else '' }}>
+                                {{ detective.nombre }} (TIP: {{ detective.tip_number }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            {% endif %}
+
+            <div class="col-md-3">
+                <label class="form-label">Estado</label>
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="">Todos</option>
+                    {% for status in CaseStatus %}
+                        <option value="{{ status.name }}">{{ status.value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h6 class="text-uppercase small">Total Casos {{ year }}</h6>
+                <div class="h3">{{ stats.total_cases }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h6 class="text-uppercase small">Activos</h6>
+                <div class="h3">{{ stats.active_cases }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h6 class="text-uppercase small">Cerrados</h6>
+                <div class="h3">{{ stats.closed_cases }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <h6 class="text-uppercase small">Pendientes</h6>
+                <div class="h3">{{ stats.pending_cases }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Libro-Registro Table -->
+<div class="card shadow">
+    <div class="card-header">
+        <h5 class="mb-0">Registro de Casos {{ year }}</h5>
+    </div>
+    <div class="card-body">
+        {% if cases %}
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>N° Orden</th>
+                            <th>Fecha Inicio</th>
+                            <th>Cliente</th>
+                            <th>DNI/CIF Cliente</th>
+                            <th>Objeto</th>
+                            <th>Legitimidad</th>
+                            <th>TIP Detective</th>
+                            <th>Estado</th>
+                            <th>Fecha Cierre</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for case in cases %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('cases.detail', case_id=case.id) }}">{{ case.numero_orden }}</a>
+                                </td>
+                                <td>{{ case.fecha_inicio.strftime('%d/%m/%Y') if case.fecha_inicio else '-' }}</td>
+                                <td>{{ case.cliente_nombre }}</td>
+                                <td>{{ case.cliente_dni_cif }}</td>
+                                <td class="text-truncate" style="max-width: 200px;">{{ case.objeto_investigacion }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if case.legitimacy_validated else 'warning' }} small">
+                                        {{ case.legitimacy_type.value }}
+                                    </span>
+                                </td>
+                                <td>{{ case.detective_tip }}</td>
+                                <td>
+                                    {% if case.status.name == 'CERRADO' %}
+                                        <span class="badge bg-secondary small">{{ case.status.value }}</span>
+                                    {% elif case.status.name == 'ACTIVO' or case.status.name == 'EN_CURSO' %}
+                                        <span class="badge bg-success small">{{ case.status.value }}</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark small">{{ case.status.value }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ case.fecha_cierre.strftime('%d/%m/%Y') if case.fecha_cierre else '-' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-inbox display-4"></i>
+                <h5 class="mt-3">No hay casos registrados para {{ year }}</h5>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

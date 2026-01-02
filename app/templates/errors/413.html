@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}413 - Archivo demasiado grande{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center align-items-center" style="min-height: 70vh;">
+        <div class="col-md-6 text-center">
+            <h1 class="display-1">413</h1>
+            <h2 class="mb-4">Archivo demasiado grande</h2>
+            <p class="text-muted mb-4">El archivo que intenta subir excede el tamaño máximo permitido (500 MB).</p>
+            <a href="javascript:history.back()" class="btn btn-primary">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

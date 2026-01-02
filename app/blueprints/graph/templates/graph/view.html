@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+
+{% block title %}Grafo de Relaciones - Caso {{ case.numero_orden }}{% endblock %}
+
+{% block extra_css %}
+<!-- Vis.js Network -->
+<link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" type="text/css" />
+<style>
+    #graph-container {
+        width: 100%;
+        height: 600px;
+        border: 1px solid #ddd;
+        background-color: #fafafa;
+    }
+
+    .graph-toolbar {
+        margin-bottom: 15px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+    }
+
+    .node-type-badge {
+        display: inline-block;
+        margin: 5px;
+        padding: 5px 10px;
+        border-radius: 3px;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.index') }}">Casos</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.detail', case_id=case.id) }}">{{ case.numero_orden }}</a></li>
+            <li class="breadcrumb-item active">Grafo de Relaciones</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="bi bi-diagram-3"></i> Grafo de Relaciones</h2>
+            <p class="text-muted">
+                <strong>Caso:</strong> {{ case.numero_orden }} - {{ case.descripcion[:100] }}...
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="bi bi-plus-circle"></i> Añadir Nodo
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ url_for('graph.create_node', case_id=case.id, node_type='person') }}">
+                        <i class="bi bi-person"></i> Persona
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('graph.create_node', case_id=case.id, node_type='company') }}">
+                        <i class="bi bi-building"></i> Empresa
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('graph.create_node', case_id=case.id, node_type='phone') }}">
+                        <i class="bi bi-telephone"></i> Teléfono
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('graph.create_node', case_id=case.id, node_type='email') }}">
+                        <i class="bi bi-envelope"></i> Email
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('graph.create_node', case_id=case.id, node_type='vehicle') }}">
+                        <i class="bi bi-truck"></i> Vehículo
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('graph.create_node', case_id=case.id, node_type='address') }}">
+                        <i class="bi bi-geo-alt"></i> Dirección
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('graph.create_node', case_id=case.id, node_type='social') }}">
+                        <i class="bi bi-share"></i> Perfil Social
+                    </a></li>
+                </ul>
+                <a href="{{ url_for('graph.create_relationship', case_id=case.id) }}" class="btn btn-success">
+                    <i class="bi bi-arrow-left-right"></i> Añadir Relación
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h6>Total Nodos</h6>
+                    <h3>{{ stats.total_nodes }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h6>Total Relaciones</h6>
+                    <h3>{{ stats.total_relationships }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6>Tipos de Nodos</h6>
+                    {% for node_type, count in stats.node_types.items() %}
+                        <span class="node-type-badge bg-secondary text-white">
+                            {{ node_type }}: {{ count }}
+                        </span>
+                    {% endfor %}
+                    {% if not stats.node_types %}
+                        <span class="text-muted">No hay nodos en el grafo</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="graph-toolbar">
+        <div class="row">
+            <div class="col-md-6">
+                <form method="GET" action="{{ url_for('graph.case_graph', case_id=case.id) }}" class="d-flex">
+                    {{ search_form.query(class="form-control me-2", placeholder="Buscar nodos...") }}
+                    {{ search_form.node_type(class="form-select me-2", style="max-width: 200px;") }}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </form>
+            </div>
+            <div class="col-md-6 text-end">
+                <button id="fit-button" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrows-angle-expand"></i> Ajustar Vista
+                </button>
+                <button id="physics-toggle" class="btn btn-outline-secondary">
+                    <i class="bi bi-pause-circle"></i> Física
+                </button>
+                <button id="fullscreen-button" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrows-fullscreen"></i> Pantalla Completa
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graph Visualization -->
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+            <i class="bi bi-diagram-3"></i> Visualización del Grafo
+        </div>
+        <div class="card-body p-0">
+            <div id="graph-container"></div>
+        </div>
+        <div class="card-footer">
+            <small class="text-muted">
+                <i class="bi bi-info-circle"></i>
+                Haga clic en un nodo para ver detalles. Arrastre para reorganizar. Use la rueda del ratón para zoom.
+            </small>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="card">
+        <div class="card-header">
+            <i class="bi bi-palette"></i> Leyenda
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <span class="node-type-badge" style="background-color: #3498db;">Persona</span>
+                </div>
+                <div class="col-md-3">
+                    <span class="node-type-badge" style="background-color: #e74c3c;">Empresa</span>
+                </div>
+                <div class="col-md-3">
+                    <span class="node-type-badge" style="background-color: #2ecc71;">Teléfono</span>
+                </div>
+                <div class="col-md-3">
+                    <span class="node-type-badge" style="background-color: #f39c12;">Email</span>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-md-3">
+                    <span class="node-type-badge" style="background-color: #9b59b6;">Vehículo</span>
+                </div>
+                <div class="col-md-3">
+                    <span class="node-type-badge" style="background-color: #1abc9c;">Dirección</span>
+                </div>
+                <div class="col-md-3">
+                    <span class="node-type-badge" style="background-color: #34495e;">Evidencia</span>
+                </div>
+                <div class="col-md-3">
+                    <span class="node-type-badge" style="background-color: #e67e22;">Perfil Social</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Node Details Modal -->
+<div class="modal fade" id="nodeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="nodeModalTitle">Detalles del Nodo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="nodeModalBody">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Vis.js Network -->
+<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+<script>
+    let network = null;
+    let physicsEnabled = true;
+
+    // Load graph data from API
+    async function loadGraph() {
+        try {
+            const response = await fetch('{{ url_for("graph.api_graph_data", case_id=case.id) }}');
+            const data = await response.json();
+
+            if (data.error) {
+                console.error('Error loading graph:', data.error);
+                alert('Error al cargar el grafo: ' + data.error);
+                return;
+            }
+
+            // Create vis.js network
+            const container = document.getElementById('graph-container');
+
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    size: 20,
+                    font: {
+                        size: 14,
+                        color: '#333'
+                    },
+                    borderWidth: 2,
+                    borderWidthSelected: 4
+                },
+                edges: {
+                    width: 2,
+                    color: {
+                        color: '#848484',
+                        highlight: '#2B7CE9',
+                        hover: '#2B7CE9'
+                    },
+                    arrows: {
+                        to: {
+                            enabled: true,
+                            scaleFactor: 0.5
+                        }
+                    },
+                    font: {
+                        size: 12,
+                        align: 'middle'
+                    },
+                    smooth: {
+                        type: 'continuous'
+                    }
+                },
+                physics: {
+                    stabilization: {
+                        iterations: 200
+                    },
+                    barnesHut: {
+                        gravitationalConstant: -8000,
+                        springConstant: 0.001,
+                        springLength: 200
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    navigationButtons: true,
+                    keyboard: true
+                }
+            };
+
+            network = new vis.Network(container, data, options);
+
+            // Event handlers
+            network.on('click', function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    showNodeDetails(nodeId, data);
+                }
+            });
+
+            network.on('doubleClick', function(params) {
+                if (params.nodes.length > 0) {
+                    network.focus(params.nodes[0], {
+                        scale: 1.5,
+                        animation: true
+                    });
+                }
+            });
+
+        } catch (error) {
+            console.error('Error loading graph:', error);
+            alert('Error al cargar el grafo. Verifique la conexión con Neo4j.');
+        }
+    }
+
+    function showNodeDetails(nodeId, graphData) {
+        const node = graphData.nodes.find(n => n.id === nodeId);
+
+        if (!node) return;
+
+        const modal = new bootstrap.Modal(document.getElementById('nodeModal'));
+        document.getElementById('nodeModalTitle').textContent = `${node.group}: ${node.label}`;
+
+        let html = '<table class="table table-borderless">';
+        html += `<tr><th style="width: 30%;">ID:</th><td>${node.id}</td></tr>`;
+        html += `<tr><th>Tipo:</th><td><span class="badge bg-secondary">${node.group}</span></td></tr>`;
+
+        // Display properties
+        for (const [key, value] of Object.entries(node.properties)) {
+            if (key !== 'case_id' && key !== 'created_at' && key !== 'updated_at') {
+                html += `<tr><th>${key}:</th><td>${value}</td></tr>`;
+            }
+        }
+
+        html += '</table>';
+
+        // Add action buttons
+        html += '<div class="mt-3">';
+        html += `<a href="{{ url_for('graph.create_relationship', case_id=case.id) }}?from_node=${nodeId}" class="btn btn-primary btn-sm">`;
+        html += '<i class="bi bi-arrow-right"></i> Crear Relación desde este Nodo</a> ';
+        html += `<form method="POST" action="{{ url_for('graph.delete_node', node_id='NODE_ID') }}" style="display: inline;" onsubmit="return confirm('¿Eliminar este nodo y todas sus relaciones?');">`;
+        html = html.replace('NODE_ID', nodeId);
+        html += '<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">';
+        html += '<input type="hidden" name="case_id" value="{{ case.id }}">';
+        html += `<input type="hidden" name="node_type" value="${node.group}">`;
+        html += '<button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> Eliminar Nodo</button>';
+        html += '</form>';
+        html += '</div>';
+
+        document.getElementById('nodeModalBody').innerHTML = html;
+        modal.show();
+    }
+
+    // Toolbar buttons
+    document.getElementById('fit-button').addEventListener('click', function() {
+        if (network) {
+            network.fit({
+                animation: {
+                    duration: 1000,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
+        }
+    });
+
+    document.getElementById('physics-toggle').addEventListener('click', function() {
+        if (network) {
+            physicsEnabled = !physicsEnabled;
+            network.setOptions({physics: {enabled: physicsEnabled}});
+            this.innerHTML = physicsEnabled
+                ? '<i class="bi bi-pause-circle"></i> Física'
+                : '<i class="bi bi-play-circle"></i> Física';
+        }
+    });
+
+    document.getElementById('fullscreen-button').addEventListener('click', function() {
+        const container = document.getElementById('graph-container');
+        if (container.requestFullscreen) {
+            container.requestFullscreen();
+        }
+    });
+
+    // Load graph on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadGraph();
+    });
+</script>
+{% endblock %}

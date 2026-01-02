@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+
+{% block title %}Caso {{ case.numero_orden }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.index') }}">Casos</a></li>
+            <li class="breadcrumb-item active">{{ case.numero_orden }}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>
+                <i class="bi bi-folder"></i> Caso {{ case.numero_orden }}
+                {% if case.status.value == 'ABIERTO' %}
+                    <span class="badge bg-success">Abierto</span>
+                {% elif case.status.value == 'EN_INVESTIGACION' %}
+                    <span class="badge bg-primary">En Investigación</span>
+                {% elif case.status.value == 'CERRADO' %}
+                    <span class="badge bg-secondary">Cerrado</span>
+                {% elif case.status.value == 'ARCHIVADO' %}
+                    <span class="badge bg-dark">Archivado</span>
+                {% endif %}
+            </h2>
+            <p class="lead">{{ case.descripcion }}</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('cases.edit', case_id=case.id) }}" class="btn btn-primary">
+                <i class="bi bi-pencil"></i> Editar
+            </a>
+            {% if not case.status.value == 'CERRADO' %}
+                <a href="{{ url_for('cases.close', case_id=case.id) }}" class="btn btn-warning">
+                    <i class="bi bi-x-circle"></i> Cerrar
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Case Details -->
+        <div class="col-md-8">
+            <!-- Basic Information -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-info-circle"></i> Información del Caso
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th style="width: 30%;">Número de Orden:</th>
+                            <td><strong>{{ case.numero_orden }}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Fecha de Inicio:</th>
+                            <td>{{ case.fecha_inicio.strftime('%Y-%m-%d') }}</td>
+                        </tr>
+                        {% if case.fecha_fin %}
+                        <tr>
+                            <th>Fecha de Fin:</th>
+                            <td>{{ case.fecha_fin.strftime('%Y-%m-%d') }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Prioridad:</th>
+                            <td>
+                                {% if case.priority.value == 'ALTA' %}
+                                    <span class="badge bg-danger">Alta</span>
+                                {% elif case.priority.value == 'MEDIA' %}
+                                    <span class="badge bg-warning">Media</span>
+                                {% else %}
+                                    <span class="badge bg-info">Baja</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Detective Asignado:</th>
+                            <td>{{ case.detective.nombre }} (TIP: {{ case.detective.tip_number }})</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Subject Information -->
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-person"></i> Información del Sujeto
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th style="width: 30%;">Nombre:</th>
+                            <td>{{ case.nombre_sujeto }}</td>
+                        </tr>
+                        {% if case.dni_cif_sujeto %}
+                        <tr>
+                            <th>DNI/CIF:</th>
+                            <td><code>{{ case.dni_cif_sujeto }}</code></td>
+                        </tr>
+                        {% endif %}
+                        {% if case.direccion_sujeto %}
+                        <tr>
+                            <th>Dirección:</th>
+                            <td>{{ case.direccion_sujeto }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if case.telefono_sujeto %}
+                        <tr>
+                            <th>Teléfono:</th>
+                            <td>{{ case.telefono_sujeto }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- Client Information -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <i class="bi bi-briefcase"></i> Información del Cliente
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th style="width: 30%;">Nombre:</th>
+                            <td>{{ case.nombre_cliente }}</td>
+                        </tr>
+                        {% if case.dni_cif_cliente %}
+                        <tr>
+                            <th>DNI/CIF:</th>
+                            <td><code>{{ case.dni_cif_cliente }}</code></td>
+                        </tr>
+                        {% endif %}
+                        {% if case.direccion_cliente %}
+                        <tr>
+                            <th>Dirección:</th>
+                            <td>{{ case.direccion_cliente }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- Legitimacy Information -->
+            <div class="card mb-4">
+                <div class="card-header {% if case.legitimacy_validated %}bg-success{% else %}bg-danger{% endif %} text-white">
+                    <i class="bi bi-shield-check"></i> Legitimación (Ley 5/2014 Art. 48)
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th style="width: 30%;">Tipo:</th>
+                            <td>{{ case.legitimacy_type.value }}</td>
+                        </tr>
+                        <tr>
+                            <th>Estado:</th>
+                            <td>
+                                {% if case.legitimacy_validated %}
+                                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> Validada</span>
+                                {% else %}
+                                    <span class="badge bg-danger"><i class="bi bi-x-circle"></i> No Validada</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if case.legitimacy_evidence %}
+                        <tr>
+                            <th>Evidencia:</th>
+                            <td>{{ case.legitimacy_evidence }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if case.legitimacy_notes %}
+                        <tr>
+                            <th>Notas:</th>
+                            <td>{{ case.legitimacy_notes }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+
+                    {% if legitimacy_reqs %}
+                    <div class="alert alert-info mt-3 mb-0">
+                        <strong>Requisitos de {{ case.legitimacy_type.value }}:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for req in legitimacy_reqs %}
+                                <li>{{ req }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Evidence Section -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-file-earmark-text"></i> Evidencias
+                    <a href="{{ url_for('evidence.upload_evidence', case_id=case.id) }}" class="btn btn-sm btn-light float-end">
+                        <i class="bi bi-cloud-upload"></i> Subir Evidencia
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% set evidences = case.evidences.filter_by(is_deleted=False).all() %}
+                    {% if evidences %}
+                        <p class="mb-3">
+                            <strong>Total:</strong> {{ evidences|length }} evidencia(s)
+                        </p>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Archivo</th>
+                                        <th>Tipo</th>
+                                        <th>Tamaño</th>
+                                        <th>Fecha</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for evidence in evidences[:5] %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('evidence.evidence_detail', evidence_id=evidence.id) }}">
+                                                {{ evidence.original_filename }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ evidence.evidence_type.value }}</span>
+                                        </td>
+                                        <td>{{ "%.2f"|format(evidence.file_size / 1024 / 1024) }} MB</td>
+                                        <td>{{ evidence.uploaded_at.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            <a href="{{ url_for('evidence.evidence_detail', evidence_id=evidence.id) }}"
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if evidences|length > 5 %}
+                            <a href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}" class="btn btn-sm btn-outline-secondary w-100">
+                                Ver todas las {{ evidences|length }} evidencias
+                            </a>
+                        {% else %}
+                            <a href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}" class="btn btn-sm btn-outline-secondary w-100">
+                                Ver listado completo
+                            </a>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle"></i> No hay evidencias para este caso.
+                            <a href="{{ url_for('evidence.upload_evidence', case_id=case.id) }}" class="alert-link">Suba la primera evidencia</a>.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Status and Actions -->
+        <div class="col-md-4">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">
+                    <i class="bi bi-lightning"></i> Acciones Rápidas
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('evidence.upload_evidence', case_id=case.id) }}" class="btn btn-primary">
+                            <i class="bi bi-cloud-upload"></i> Subir Evidencia
+                        </a>
+                        <a href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}" class="btn btn-outline-primary">
+                            <i class="bi bi-file-earmark-text"></i> Ver Evidencias
+                        </a>
+                        <hr>
+                        <a href="#" class="btn btn-outline-secondary">
+                            <i class="bi bi-clock-history"></i> Timeline
+                        </a>
+                        <a href="{{ url_for('graph.case_graph', case_id=case.id) }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-diagram-3"></i> Grafo de Relaciones
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary">
+                            <i class="bi bi-file-pdf"></i> Generar Informe
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Crime Detection -->
+            {% if case.crime_detected %}
+            <div class="card mb-4 border-danger">
+                <div class="card-header bg-danger text-white">
+                    <i class="bi bi-exclamation-triangle"></i> Delito Detectado
+                </div>
+                <div class="card-body">
+                    {% if case.crime_reported %}
+                        <p class="mb-0">
+                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Denunciado</span><br>
+                            Fecha: {{ case.crime_reported_date.strftime('%Y-%m-%d') if case.crime_reported_date else 'No especificada' }}
+                        </p>
+                    {% else %}
+                        <div class="alert alert-danger mb-0">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>ATENCIÓN:</strong> Se ha detectado un posible delito perseguible de oficio.
+                            Debe denunciarse según Ley 5/2014.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Case Statistics -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-graph-up"></i> Estadísticas
+                </div>
+                <div class="card-body">
+                    {% set evidence_count = case.evidences.filter_by(is_deleted=False).count() %}
+                    <p><strong>Evidencias:</strong> {{ evidence_count }}</p>
+                    <p><strong>Días activo:</strong>
+                        {% if case.fecha_fin %}
+                            {{ (case.fecha_fin - case.fecha_inicio).days }}
+                        {% else %}
+                            {{ (now() - case.fecha_inicio).days }}
+                        {% endif %}
+                    </p>
+                    <p class="mb-0"><strong>Última actualización:</strong><br>
+                        <small class="text-muted">{{ case.fecha_ultima_actualizacion.strftime('%Y-%m-%d %H:%M') if case.fecha_ultima_actualizacion else 'N/A' }}</small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Cerrar Caso {{ case.numero_orden }} - Case Manager{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h4 mb-0">Cerrar Caso {{ case.numero_orden }}</h1>
+            <a href="{{ url_for('cases.detail', case_id=case.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <div class="alert alert-warning">
+            <h6 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Advertencia: Cierre de Caso</h6>
+            <p class="mb-0">
+                El cierre de un caso es una acción permanente que quedará registrada en el libro-registro.
+                Asegúrese de que toda la evidencia ha sido recopilada y documentada antes de proceder.
+            </p>
+        </div>
+
+        <!-- Case Summary -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Información del Caso</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Número de Orden:</dt>
+                    <dd class="col-sm-8">{{ case.numero_orden }}</dd>
+
+                    <dt class="col-sm-4">Cliente:</dt>
+                    <dd class="col-sm-8">{{ case.cliente_nombre }}</dd>
+
+                    <dt class="col-sm-4">Objeto:</dt>
+                    <dd class="col-sm-8">{{ case.objeto_investigacion }}</dd>
+
+                    <dt class="col-sm-4">Fecha de Inicio:</dt>
+                    <dd class="col-sm-8">{{ case.fecha_inicio.strftime('%d/%m/%Y') if case.fecha_inicio else '-' }}</dd>
+
+                    <dt class="col-sm-4">Estado Actual:</dt>
+                    <dd class="col-sm-8">
+                        <span class="badge bg-info">{{ case.status.value }}</span>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Evidence Summary -->
+        {% if case.evidence %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-file-earmark-lock"></i> Evidencias Asociadas</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">Este caso tiene <strong>{{ case.evidence|length }}</strong> evidencia(s) asociada(s).</p>
+                    <a href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}" class="btn btn-sm btn-outline-info" target="_blank">
+                        <i class="bi bi-folder2-open"></i> Revisar Evidencias
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Closure Form -->
+        <form method="POST">
+            {{ form.hidden_tag() }}
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-x-circle"></i> Notas de Cierre</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        {{ form.closure_notes.label(class="form-label") }}
+                        {{ form.closure_notes(class="form-control" + (" is-invalid" if form.closure_notes.errors else ""), rows="6") }}
+                        {% if form.closure_notes.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.closure_notes.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if form.closure_notes.description %}
+                            <small class="form-text text-muted">{{ form.closure_notes.description }}</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="alert alert-info mb-0">
+                        <h6 class="alert-heading">Recomendaciones para el Cierre:</h6>
+                        <ul class="mb-0 small">
+                            <li>Resuma los hallazgos principales de la investigación</li>
+                            <li>Indique si se cumplieron los objetivos establecidos</li>
+                            <li>Mencione cualquier evidencia relevante recopilada</li>
+                            <li>Añada conclusiones o recomendaciones finales</li>
+                            <li>Documente cualquier limitación o impedimento encontrado</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-danger">
+                <p class="mb-0">
+                    <i class="bi bi-exclamation-octagon"></i>
+                    <strong>Importante:</strong> Una vez cerrado el caso, no se podrá volver a activar.
+                    Esta acción quedará permanentemente registrada en el libro-registro.
+                </p>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('cases.detail', case_id=case.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver Sin Cerrar
+                </a>
+                {{ form.submit(class="btn btn-danger btn-lg") }}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

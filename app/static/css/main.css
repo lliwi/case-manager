@@ -1,0 +1,190 @@
+/* Case Manager - Custom Styles */
+
+:root {
+    --primary-color: #0d6efd;
+    --secondary-color: #6c757d;
+    --success-color: #198754;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #0dcaf0;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+.footer {
+    margin-top: auto;
+}
+
+/* Card styles */
+.card-stat {
+    border-left: 4px solid var(--primary-color);
+}
+
+.card-stat.success {
+    border-left-color: var(--success-color);
+}
+
+.card-stat.warning {
+    border-left-color: var(--warning-color);
+}
+
+.card-stat.danger {
+    border-left-color: var(--danger-color);
+}
+
+/* Login page */
+.login-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.login-card {
+    max-width: 400px;
+    width: 100%;
+}
+
+/* Timeline styles */
+.timeline-container {
+    position: relative;
+    padding: 20px 0;
+}
+
+/* Graph visualization */
+#cy {
+    width: 100%;
+    height: 600px;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+}
+
+/* Evidence preview */
+.evidence-preview {
+    max-width: 200px;
+    max-height: 200px;
+    object-fit: cover;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.evidence-preview:hover {
+    transform: scale(1.05);
+}
+
+/* Badge styles for hash verification */
+.hash-badge {
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+}
+
+/* Chain of custody timeline */
+.custody-timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.custody-timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--primary-color);
+}
+
+.custody-event {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.custody-event::before {
+    content: '';
+    position: absolute;
+    left: -24px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    border: 2px solid white;
+}
+
+/* Utility classes */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.text-monospace {
+    font-family: 'Courier New', monospace;
+}
+
+.border-dashed {
+    border-style: dashed !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .navbar-brand {
+        font-size: 1rem;
+    }
+
+    #cy {
+        height: 400px;
+    }
+}
+
+/* Loading spinner */
+.spinner-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+/* File upload drag and drop */
+.file-drop-zone {
+    border: 2px dashed #dee2e6;
+    border-radius: 0.25rem;
+    padding: 40px;
+    text-align: center;
+    transition: all 0.3s;
+}
+
+.file-drop-zone.drag-over {
+    border-color: var(--primary-color);
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+.file-drop-zone:hover {
+    border-color: var(--primary-color);
+}
+
+/* MFA QR Code */
+.qr-code-container {
+    text-align: center;
+    padding: 20px;
+}
+
+.qr-code-container img {
+    max-width: 250px;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+}
+/* Required field indicators are handled by JavaScript in main.js */

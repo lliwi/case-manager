@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Subir Evidencia - Caso {{ case.numero_orden }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.index') }}">Casos</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.detail', case_id=case.id) }}">{{ case.numero_orden }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}">Evidencias</a></li>
+            <li class="breadcrumb-item active">Subir</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="bi bi-cloud-upload"></i> Subir Evidencia</h2>
+            <p class="text-muted">
+                <strong>Caso:</strong> {{ case.numero_orden }} - {{ case.descripcion[:100] }}...
+            </p>
+        </div>
+    </div>
+
+    <!-- Information Alert -->
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> <strong>Proceso de Subida de Evidencia (UNE 71506):</strong>
+        <ol class="mb-0 mt-2">
+            <li>El archivo será <strong>hasheado</strong> (SHA-256 y SHA-512) para garantizar integridad</li>
+            <li>Se <strong>encriptará</strong> con AES-256-GCM antes de almacenarse</li>
+            <li>Se registrará en la <strong>cadena de custodia</strong> inmutable</li>
+            <li>Todos los accesos serán auditados</li>
+        </ol>
+    </div>
+
+    <!-- Upload Form -->
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <i class="bi bi-file-earmark-plus"></i> Datos de la Evidencia
+        </div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+
+                <!-- File Selection -->
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="file" class="form-label">
+                            <i class="bi bi-paperclip"></i> {{ form.file.label.text }} <span class="text-danger">*</span>
+                        </label>
+                        {{ form.file(class="form-control", accept="*/*") }}
+                        <div class="form-text">{{ form.file.description }}</div>
+                        {% if form.file.errors %}
+                            <div class="text-danger">{{ form.file.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="description" class="form-label">
+                            <i class="bi bi-card-text"></i> {{ form.description.label.text }} <span class="text-danger">*</span>
+                        </label>
+                        {{ form.description(class="form-control", rows=4) }}
+                        <div class="form-text">{{ form.description.description }}</div>
+                        {% if form.description.errors %}
+                            <div class="text-danger">{{ form.description.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Tags -->
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="tags" class="form-label">
+                            <i class="bi bi-tags"></i> {{ form.tags.label.text }}
+                        </label>
+                        {{ form.tags(class="form-control") }}
+                        <div class="form-text">{{ form.tags.description }}</div>
+                        {% if form.tags.errors %}
+                            <div class="text-danger">{{ form.tags.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <hr>
+
+                <h5 class="mb-3"><i class="bi bi-clipboard-data"></i> Metadata de Adquisición</h5>
+
+                <!-- Acquisition Date and Method -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="acquisition_date" class="form-label">
+                            <i class="bi bi-calendar"></i> {{ form.acquisition_date.label.text }}
+                        </label>
+                        {{ form.acquisition_date(class="form-control", type="datetime-local") }}
+                        <div class="form-text">{{ form.acquisition_date.description }}</div>
+                        {% if form.acquisition_date.errors %}
+                            <div class="text-danger">{{ form.acquisition_date.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="acquisition_method" class="form-label">
+                            <i class="bi bi-gear"></i> {{ form.acquisition_method.label.text }}
+                        </label>
+                        {{ form.acquisition_method(class="form-select") }}
+                        {% if form.acquisition_method.errors %}
+                            <div class="text-danger">{{ form.acquisition_method.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Source Device and Location -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="source_device" class="form-label">
+                            <i class="bi bi-phone"></i> {{ form.source_device.label.text }}
+                        </label>
+                        {{ form.source_device(class="form-control") }}
+                        <div class="form-text">{{ form.source_device.description }}</div>
+                        {% if form.source_device.errors %}
+                            <div class="text-danger">{{ form.source_device.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="source_location" class="form-label">
+                            <i class="bi bi-geo-alt"></i> {{ form.source_location.label.text }}
+                        </label>
+                        {{ form.source_location(class="form-control") }}
+                        <div class="form-text">{{ form.source_location.description }}</div>
+                        {% if form.source_location.errors %}
+                            <div class="text-danger">{{ form.source_location.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Geolocation -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="latitude" class="form-label">
+                            <i class="bi bi-geo"></i> {{ form.latitude.label.text }}
+                        </label>
+                        {{ form.latitude(class="form-control", step="0.000001") }}
+                        <div class="form-text">{{ form.latitude.description }}</div>
+                        {% if form.latitude.errors %}
+                            <div class="text-danger">{{ form.latitude.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="longitude" class="form-label">
+                            <i class="bi bi-geo"></i> {{ form.longitude.label.text }}
+                        </label>
+                        {{ form.longitude(class="form-control", step="0.000001") }}
+                        <div class="form-text">{{ form.longitude.description }}</div>
+                        {% if form.longitude.errors %}
+                            <div class="text-danger">{{ form.longitude.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Acquisition Notes -->
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="acquisition_notes" class="form-label">
+                            <i class="bi bi-journal-text"></i> {{ form.acquisition_notes.label.text }}
+                        </label>
+                        {{ form.acquisition_notes(class="form-control", rows=4) }}
+                        <div class="form-text">{{ form.acquisition_notes.description }}</div>
+                        {% if form.acquisition_notes.errors %}
+                            <div class="text-danger">{{ form.acquisition_notes.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="row">
+                    <div class="col-md-12 text-end">
+                        <a href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-cloud-upload"></i> Subir Evidencia
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

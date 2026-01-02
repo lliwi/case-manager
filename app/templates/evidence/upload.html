@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Subir Evidencia - Caso {{ case.numero_orden }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h4 mb-0">Subir Evidencia - Caso {{ case.numero_orden }}</h1>
+            <a href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <div class="alert alert-info">
+            <h6 class="alert-heading"><i class="bi bi-shield-check"></i> Cadena de Custodia Automática</h6>
+            <p class="mb-0 small">
+                Al subir la evidencia, el sistema calculará automáticamente los hashes SHA-256 y SHA-512,
+                cifrará el archivo con AES-256, y registrará la acción en la cadena de custodia conforme a UNE 71506.
+            </p>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+            {{ form.hidden_tag() }}
+
+            <!-- File Upload Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-upload"></i> Archivo de Evidencia</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        {{ form.file.label(class="form-label") }}
+                        {{ form.file(class="form-control" + (" is-invalid" if form.file.errors else "")) }}
+                        {% if form.file.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.file.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if form.file.description %}
+                            <small class="form-text text-muted">{{ form.file.description }}</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="3") }}
+                        {% if form.description.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.description.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if form.description.description %}
+                            <small class="form-text text-muted">{{ form.description.description }}</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.tags.label(class="form-label") }}
+                        {{ form.tags(class="form-control" + (" is-invalid" if form.tags.errors else "")) }}
+                        {% if form.tags.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.tags.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if form.tags.description %}
+                            <small class="form-text text-muted">{{ form.tags.description }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Acquisition Metadata Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> Metadatos de Adquisición</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.acquisition_date.label(class="form-label") }}
+                            {{ form.acquisition_date(class="form-control" + (" is-invalid" if form.acquisition_date.errors else ""), type="datetime-local") }}
+                            {% if form.acquisition_date.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.acquisition_date.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            {{ form.acquisition_method.label(class="form-label") }}
+                            {{ form.acquisition_method(class="form-select" + (" is-invalid" if form.acquisition_method.errors else "")) }}
+                            {% if form.acquisition_method.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.acquisition_method.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.source_device.label(class="form-label") }}
+                            {{ form.source_device(class="form-control" + (" is-invalid" if form.source_device.errors else "")) }}
+                            {% if form.source_device.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.source_device.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.source_device.description %}
+                                <small class="form-text text-muted">{{ form.source_device.description }}</small>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            {{ form.source_location.label(class="form-label") }}
+                            {{ form.source_location(class="form-control" + (" is-invalid" if form.source_location.errors else "")) }}
+                            {% if form.source_location.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.source_location.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.source_location.description %}
+                                <small class="form-text text-muted">{{ form.source_location.description }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.acquisition_notes.label(class="form-label") }}
+                        {{ form.acquisition_notes(class="form-control" + (" is-invalid" if form.acquisition_notes.errors else ""), rows="3") }}
+                        {% if form.acquisition_notes.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.acquisition_notes.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if form.acquisition_notes.description %}
+                            <small class="form-text text-muted">{{ form.acquisition_notes.description }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Geolocation Section (Optional) -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-geo-alt"></i> Geolocalización (Opcional)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.latitude.label(class="form-label") }}
+                            {{ form.latitude(class="form-control" + (" is-invalid" if form.latitude.errors else ""), step="0.000001") }}
+                            {% if form.latitude.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.latitude.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.latitude.description %}
+                                <small class="form-text text-muted">{{ form.latitude.description }}</small>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            {{ form.longitude.label(class="form-label") }}
+                            {{ form.longitude(class="form-control" + (" is-invalid" if form.longitude.errors else ""), step="0.000001") }}
+                            {% if form.longitude.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.longitude.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.longitude.description %}
+                                <small class="form-text text-muted">{{ form.longitude.description }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="alert alert-warning small mb-0">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Importante:</strong> Conforme a STS 278/2021, el uso de rastreadores GPS requiere justificación legal.
+                        Solo introduzca coordenadas obtenidas legítimamente.
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-upload"></i> Subir Evidencia
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

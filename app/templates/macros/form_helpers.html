@@ -1,0 +1,50 @@
+{% macro render_field(field, label_class='form-label', field_class='form-control', placeholder='', rows=None, step=None) %}
+    <div class="mb-3">
+        {% if field.type != 'HiddenField' and field.type != 'CSRFTokenField' %}
+            <label for="{{ field.id }}" class="{{ label_class }}">
+                {{ field.label.text }}
+                {% if field.flags.required %}
+                    <span class="text-danger">*</span>
+                {% endif %}
+            </label>
+        {% endif %}
+
+        {% if field.type == 'TextAreaField' %}
+            {{ field(class=field_class + (" is-invalid" if field.errors else ""), rows=rows or 3, placeholder=placeholder) }}
+        {% elif field.type == 'SelectField' or field.type == 'SelectMultipleField' %}
+            {{ field(class="form-select" + (" is-invalid" if field.errors else "")) }}
+        {% elif field.type == 'BooleanField' %}
+            <div class="form-check">
+                {{ field(class="form-check-input" + (" is-invalid" if field.errors else "")) }}
+                <label class="form-check-label" for="{{ field.id }}">
+                    {{ field.label.text }}
+                </label>
+            </div>
+        {% elif field.type == 'FileField' %}
+            {{ field(class=field_class + (" is-invalid" if field.errors else "")) }}
+        {% elif field.type == 'DecimalField' or field.type == 'IntegerField' or field.type == 'FloatField' %}
+            {{ field(class=field_class + (" is-invalid" if field.errors else ""), step=step, placeholder=placeholder) }}
+        {% elif field.type == 'DateTimeField' or field.type == 'DateField' %}
+            {{ field(class=field_class + (" is-invalid" if field.errors else ""), placeholder=placeholder) }}
+        {% else %}
+            {{ field(class=field_class + (" is-invalid" if field.errors else ""), placeholder=placeholder) }}
+        {% endif %}
+
+        {% if field.errors %}
+            <div class="invalid-feedback">
+                {% for error in field.errors %}{{ error }}{% endfor %}
+            </div>
+        {% endif %}
+
+        {% if field.description %}
+            <small class="form-text text-muted">{{ field.description }}</small>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% macro render_field_inline(field, label_text=None) %}
+    {{ field.label.text if not label_text else label_text }}
+    {% if field.flags.required %}
+        <span class="text-danger">*</span>
+    {% endif %}
+{% endmacro %}

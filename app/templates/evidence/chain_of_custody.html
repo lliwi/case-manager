@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Cadena de Custodia - {{ evidence.original_filename }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h4 mb-0">Cadena de Custodia</h1>
+                <p class="mb-0 text-muted">{{ evidence.original_filename }}</p>
+                <small class="text-muted">Caso: {{ case.numero_orden }}</small>
+            </div>
+            <div>
+                <a href="{{ url_for('evidence.evidence_detail', evidence_id=evidence.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver a Evidencia
+                </a>
+            </div>
+        </div>
+
+        <div class="alert alert-info">
+            <h6 class="alert-heading"><i class="bi bi-info-circle"></i> Registro Inmutable de Cadena de Custodia</h6>
+            <p class="mb-0 small">
+                Este registro documenta todas las interacciones con la evidencia conforme al estándar UNE 71506.
+                Cada entrada incluye marca temporal, usuario, acción realizada y verificación de integridad cuando aplica.
+            </p>
+        </div>
+
+        <!-- Evidence Summary -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-lock"></i> Resumen de Evidencia</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-5">Archivo:</dt>
+                            <dd class="col-sm-7">{{ evidence.original_filename }}</dd>
+
+                            <dt class="col-sm-5">Tipo:</dt>
+                            <dd class="col-sm-7"><span class="badge bg-info">{{ evidence.evidence_type.value }}</span></dd>
+
+                            <dt class="col-sm-5">Tamaño:</dt>
+                            <dd class="col-sm-7">{{ "%.2f"|format(evidence.file_size / 1024 / 1024) }} MB</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-5">SHA-256:</dt>
+                            <dd class="col-sm-7"><code class="small">{{ evidence.sha256_hash[:32] }}...</code></dd>
+
+                            <dt class="col-sm-5">Subida:</dt>
+                            <dd class="col-sm-7">{{ evidence.uploaded_at.strftime('%d/%m/%Y %H:%M') }}</dd>
+
+                            <dt class="col-sm-5">Por:</dt>
+                            <dd class="col-sm-7">{{ evidence.uploaded_by.nombre }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chain of Custody Timeline -->
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i>
+                    Registro Cronológico
+                    <span class="badge bg-secondary">{{ custody_entries|length }} entradas</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if custody_entries %}
+                    <div class="custody-timeline">
+                        {% for entry in custody_entries %}
+                            <div class="custody-entry mb-4 pb-4 {{ 'border-bottom' if not loop.last else '' }}">
+                                <div class="row">
+                                    <div class="col-md-2 text-end">
+                                        <div class="timestamp">
+                                            <strong>{{ entry.timestamp.strftime('%d/%m/%Y') }}</strong><br>
+                                            <small class="text-muted">{{ entry.timestamp.strftime('%H:%M:%S') }}</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1 text-center">
+                                        <div class="timeline-marker">
+                                            {% if entry.action == 'UPLOADED' %}
+                                                <i class="bi bi-upload text-primary fs-4"></i>
+                                            {% elif entry.action == 'VIEWED' %}
+                                                <i class="bi bi-eye text-info fs-4"></i>
+                                            {% elif entry.action == 'DOWNLOADED' %}
+                                                <i class="bi bi-download text-success fs-4"></i>
+                                            {% elif entry.action == 'VERIFIED' %}
+                                                <i class="bi bi-shield-check text-warning fs-4"></i>
+                                            {% elif entry.action == 'DELETED' %}
+                                                <i class="bi bi-trash text-danger fs-4"></i>
+                                            {% else %}
+                                                <i class="bi bi-circle-fill text-secondary"></i>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-9">
+                                        <div class="entry-content">
+                                            <h6 class="mb-1">
+                                                <strong>{{ entry.action }}</strong>
+                                            </h6>
+                                            <p class="mb-1">
+                                                <i class="bi bi-person-badge"></i>
+                                                {{ entry.user.nombre }}
+                                                <small class="text-muted">(TIP: {{ entry.user.tip_number }})</small>
+                                            </p>
+
+                                            {% if entry.notes %}
+                                                <p class="mb-1 text-muted">
+                                                    <i class="bi bi-journal-text"></i>
+                                                    {{ entry.notes }}
+                                                </p>
+                                            {% endif %}
+
+                                            {% if entry.hash_verified %}
+                                                <div class="mt-2">
+                                                    {% if entry.hash_match %}
+                                                        <span class="badge bg-success">
+                                                            <i class="bi bi-check-circle"></i> Hash Verificado: Coincide
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="badge bg-danger">
+                                                            <i class="bi bi-x-circle"></i> Hash Verificado: NO COINCIDE
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
+                                            {% endif %}
+
+                                            {% if entry.sha256 %}
+                                                <details class="mt-2">
+                                                    <summary class="small text-muted cursor-pointer">Ver hashes calculados</summary>
+                                                    <div class="bg-light p-2 rounded mt-1">
+                                                        <div class="mb-1">
+                                                            <strong class="small">SHA-256:</strong>
+                                                            <code class="small d-block">{{ entry.sha256 }}</code>
+                                                        </div>
+                                                        {% if entry.sha512 %}
+                                                            <div>
+                                                                <strong class="small">SHA-512:</strong>
+                                                                <code class="small d-block" style="word-break: break-all;">{{ entry.sha512 }}</code>
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </details>
+                                            {% endif %}
+
+                                            {% if entry.ip_address %}
+                                                <p class="mb-0 mt-1 small text-muted">
+                                                    <i class="bi bi-hdd-network"></i> IP: {{ entry.ip_address }}
+                                                </p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-inbox display-4"></i>
+                        <h5 class="mt-3">No hay entradas en la cadena de custodia</h5>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Legal Notice -->
+        <div class="alert alert-secondary mt-4">
+            <h6 class="alert-heading"><i class="bi bi-shield-check"></i> Validez Forense</h6>
+            <p class="mb-0 small">
+                Este registro de cadena de custodia cumple con el estándar <strong>UNE 71506</strong> de análisis forense digital
+                y la <strong>Ley 5/2014 de Seguridad Privada (Art. 25)</strong>. Todas las entradas son inmutables y están
+                protegidas con sellos temporales criptográficos para garantizar su admisibilidad judicial.
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+.custody-timeline {
+    position: relative;
+}
+
+.custody-entry {
+    position: relative;
+}
+
+.timeline-marker {
+    position: relative;
+}
+
+.timeline-marker::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 40px;
+    bottom: -40px;
+    width: 2px;
+    background-color: #dee2e6;
+    transform: translateX(-50%);
+}
+
+.custody-entry:last-child .timeline-marker::before {
+    display: none;
+}
+
+details summary {
+    cursor: pointer;
+}
+</style>
+{% endblock %}

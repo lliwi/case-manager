@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -e
+
+echo "Waiting for PostgreSQL..."
+while ! pg_isready -h postgres -p 5432 -U ${POSTGRES_USER:-postgres}; do
+  sleep 1
+done
+echo "PostgreSQL is ready!"
+
+echo "Waiting for Neo4j..."
+# Wait for Neo4j port to be available
+while ! nc -z neo4j 7687 2>/dev/null; do
+  sleep 2
+done
+echo "Neo4j is ready!"
+
+# Run database migrations
+echo "Running database migrations..."
+flask db upgrade || echo "No migrations to run"
+
+# Execute the main command
+exec "$@"

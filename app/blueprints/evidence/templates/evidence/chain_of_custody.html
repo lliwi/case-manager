@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Cadena de Custodia - {{ evidence.original_filename }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.index') }}">Casos</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.detail', case_id=case.id) }}">{{ case.numero_orden }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}">Evidencias</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('evidence.evidence_detail', evidence_id=evidence.id) }}">{{ evidence.original_filename }}</a></li>
+            <li class="breadcrumb-item active">Cadena de Custodia</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="bi bi-clock-history"></i> Cadena de Custodia</h2>
+            <p class="text-muted">
+                <strong>Evidencia:</strong> {{ evidence.original_filename }}<br>
+                <strong>Caso:</strong> <a href="{{ url_for('cases.detail', case_id=case.id) }}">{{ case.numero_orden }}</a>
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('evidence.evidence_detail', evidence_id=evidence.id) }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Volver a Evidencia
+            </a>
+        </div>
+    </div>
+
+    <!-- Information Alert -->
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> <strong>Registro Inmutable:</strong>
+        La cadena de custodia es un registro inmutable de todos los accesos y operaciones realizadas sobre la evidencia.
+        Cada entrada incluye fecha/hora, usuario, acción realizada y verificación de hash cuando aplica.
+        Este registro cumple con los estándares forenses UNE 71506.
+    </div>
+
+    <!-- Chain of Custody Timeline -->
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <i class="bi bi-list-ol"></i> Historial Completo de Custodia ({{ custody_entries|length }} entradas)
+        </div>
+        <div class="card-body">
+            {% if custody_entries %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">#</th>
+                                <th style="width: 15%;">Fecha/Hora</th>
+                                <th style="width: 15%;">Usuario</th>
+                                <th style="width: 15%;">Acción</th>
+                                <th style="width: 10%;">Verificación</th>
+                                <th style="width: 20%;">Notas</th>
+                                <th style="width: 20%;">Metadatos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in custody_entries %}
+                            <tr>
+                                <td class="text-muted">{{ loop.index }}</td>
+                                <td>
+                                    <strong>{{ entry.timestamp.strftime('%Y-%m-%d') }}</strong><br>
+                                    <small class="text-muted">{{ entry.timestamp.strftime('%H:%M:%S') }}</small>
+                                </td>
+                                <td>
+                                    <strong>{{ entry.user.nombre }}</strong><br>
+                                    <small class="text-muted">TIP: {{ entry.user.tip_number }}</small>
+                                </td>
+                                <td>
+                                    {% if entry.action == 'UPLOADED' %}
+                                        <span class="badge bg-success"><i class="bi bi-cloud-upload"></i> SUBIDA</span>
+                                    {% elif entry.action == 'VIEWED' %}
+                                        <span class="badge bg-info"><i class="bi bi-eye"></i> VISTA</span>
+                                    {% elif entry.action == 'DOWNLOADED' %}
+                                        <span class="badge bg-primary"><i class="bi bi-download"></i> DESCARGA</span>
+                                    {% elif entry.action == 'HASH_VERIFIED' %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-shield-check"></i> VERIFICACIÓN</span>
+                                    {% elif entry.action == 'DELETED' %}
+                                        <span class="badge bg-danger"><i class="bi bi-trash"></i> ELIMINADA</span>
+                                    {% elif entry.action == 'METADATA_EXTRACTION_REQUESTED' %}
+                                        <span class="badge bg-secondary"><i class="bi bi-gear"></i> METADATA</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ entry.action }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if entry.hash_verified %}
+                                        {% if entry.hash_match %}
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check-circle"></i> OK
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i class="bi bi-x-circle"></i> FALLO
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if entry.notes %}
+                                        {{ entry.notes }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if entry.metadata_json %}
+                                        <button class="btn btn-sm btn-outline-secondary" type="button"
+                                                data-bs-toggle="collapse"
+                                                data-bs-target="#metadata-{{ loop.index }}"
+                                                aria-expanded="false">
+                                            <i class="bi bi-code-square"></i> Ver JSON
+                                        </button>
+                                        <div class="collapse mt-2" id="metadata-{{ loop.index }}">
+                                            <pre class="bg-light p-2 small"><code>{{ entry.metadata_json }}</code></pre>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+
+                                    {% if entry.hash_verified and entry.sha256 %}
+                                        <div class="mt-2">
+                                            <small class="text-muted">
+                                                SHA-256: <code class="small">{{ entry.sha256[:16] }}...</code>
+                                            </small>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> No hay entradas en la cadena de custodia para esta evidencia.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Hash Summary -->
+    {% if custody_entries %}
+    <div class="card mt-4">
+        <div class="card-header bg-success text-white">
+            <i class="bi bi-fingerprint"></i> Resumen de Verificaciones de Hash
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5>Total Verificaciones</h5>
+                            <h2>{{ custody_entries | selectattr('hash_verified', 'equalto', True) | list | length }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h5>Verificaciones OK</h5>
+                            <h2>{{ custody_entries | selectattr('hash_match', 'equalto', True) | list | length }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body text-center">
+                            <h5>Verificaciones Fallidas</h5>
+                            <h2>{{ custody_entries | selectattr('hash_verified', 'equalto', True) | selectattr('hash_match', 'equalto', False) | list | length }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

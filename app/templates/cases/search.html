@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Buscar Casos - Case Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Buscar Casos</h1>
+    <a href="{{ url_for('cases.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Volver a Lista
+    </a>
+</div>
+
+<div class="row">
+    <!-- Search Form -->
+    <div class="col-md-4">
+        <div class="card shadow-sm sticky-top" style="top: 20px;">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-funnel"></i> Filtros de Búsqueda</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.numero_orden.label(class="form-label") }}
+                        {{ form.numero_orden(class="form-control") }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.cliente_nombre.label(class="form-label") }}
+                        {{ form.cliente_nombre(class="form-control") }}
+                    </div>
+
+                    {% if current_user.is_admin() %}
+                        <div class="mb-3">
+                            {{ form.detective.label(class="form-label") }}
+                            {{ form.detective(class="form-select") }}
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        {{ form.status.label(class="form-label") }}
+                        {{ form.status(class="form-select") }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.legitimacy_type.label(class="form-label") }}
+                        {{ form.legitimacy_type(class="form-select") }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.fecha_desde.label(class="form-label") }}
+                        {{ form.fecha_desde(class="form-control", type="date") }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.fecha_hasta.label(class="form-label") }}
+                        {{ form.fecha_hasta(class="form-control", type="date") }}
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a href="{{ url_for('cases.search') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Limpiar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Results -->
+    <div class="col-md-8">
+        {% if results is defined %}
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-list-check"></i>
+                        Resultados de Búsqueda
+                        <span class="badge bg-secondary">{{ results|length }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if results %}
+                        <div class="list-group">
+                            {% for case in results %}
+                                <a href="{{ url_for('cases.detail', case_id=case.id) }}"
+                                   class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1">
+                                                <strong>{{ case.numero_orden }}</strong>
+                                                {% if case.confidencial %}
+                                                    <i class="bi bi-lock-fill text-muted small"></i>
+                                                {% endif %}
+                                            </h6>
+                                            <p class="mb-1">
+                                                <strong>Cliente:</strong> {{ case.cliente_nombre }}
+                                            </p>
+                                            <p class="mb-1 text-truncate" style="max-width: 500px;">
+                                                <strong>Objeto:</strong> {{ case.objeto_investigacion }}
+                                            </p>
+                                            <small class="text-muted">
+                                                <i class="bi bi-calendar"></i>
+                                                {{ case.fecha_inicio.strftime('%d/%m/%Y') if case.fecha_inicio else '-' }}
+                                                |
+                                                <i class="bi bi-person-badge"></i>
+                                                TIP: {{ case.detective_tip }}
+                                            </small>
+                                        </div>
+                                        <div class="text-end">
+                                            {% if case.status.name == 'ACTIVO' %}
+                                                <span class="badge bg-success mb-1">{{ case.status.value }}</span>
+                                            {% elif case.status.name == 'PENDIENTE_VALIDACION' %}
+                                                <span class="badge bg-warning text-dark mb-1">{{ case.status.value }}</span>
+                                            {% elif case.status.name == 'EN_CURSO' %}
+                                                <span class="badge bg-info mb-1">{{ case.status.value }}</span>
+                                            {% elif case.status.name == 'CERRADO' %}
+                                                <span class="badge bg-secondary mb-1">{{ case.status.value }}</span>
+                                            {% elif case.status.name == 'BLOQUEADO' %}
+                                                <span class="badge bg-danger mb-1">{{ case.status.value }}</span>
+                                            {% endif %}
+                                            <br>
+                                            {% if case.priority == 'alta' %}
+                                                <span class="badge bg-danger small">
+                                                    <i class="bi bi-exclamation-triangle-fill"></i> Alta
+                                                </span>
+                                            {% elif case.priority == 'media' %}
+                                                <span class="badge bg-warning text-dark small">
+                                                    <i class="bi bi-dash-circle-fill"></i> Media
+                                                </span>
+                                            {% elif case.priority == 'baja' %}
+                                                <span class="badge bg-secondary small">
+                                                    <i class="bi bi-arrow-down-circle-fill"></i> Baja
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-search display-4"></i>
+                            <h5 class="mt-3">No se encontraron casos</h5>
+                            <p>Intente ajustar los criterios de búsqueda</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% else %}
+            <div class="card shadow-sm bg-light">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-search display-1 text-muted"></i>
+                    <h4 class="mt-3">Buscar Casos</h4>
+                    <p class="text-muted">
+                        Utilice los filtros de la izquierda para buscar casos específicos.
+                        Puede combinar múltiples criterios de búsqueda.
+                    </p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

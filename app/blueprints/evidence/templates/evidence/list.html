@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Evidencias - Caso {{ case.numero_orden }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.index') }}">Casos</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.detail', case_id=case.id) }}">{{ case.numero_orden }}</a></li>
+            <li class="breadcrumb-item active">Evidencias</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="bi bi-file-earmark-text"></i> Evidencias del Caso</h2>
+            <p class="text-muted">
+                <strong>Caso:</strong> {{ case.numero_orden }} - {{ case.descripcion[:100] }}...
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('evidence.upload_evidence', case_id=case.id) }}" class="btn btn-primary">
+                <i class="bi bi-cloud-upload"></i> Subir Evidencia
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Evidencias</h6>
+                    <h3>{{ stats.total_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Tamaño Total</h6>
+                    <h3>{{ stats.total_size_mb }} MB</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Verificadas</h6>
+                    <h3>{{ stats.verified_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h6 class="card-title">Tasa Verificación</h6>
+                    <h3>{{ stats.verification_rate }}%</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-funnel"></i> Filtros de Búsqueda
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}">
+                <div class="row">
+                    <div class="col-md-4">
+                        {{ search_form.query.label(class="form-label") }}
+                        {{ search_form.query(class="form-control") }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ search_form.evidence_type.label(class="form-label") }}
+                        {{ search_form.evidence_type(class="form-select") }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ search_form.integrity_status.label(class="form-label") }}
+                        {{ search_form.integrity_status(class="form-select") }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ search_form.date_from.label(class="form-label") }}
+                        {{ search_form.date_from(class="form-control", type="date") }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ search_form.date_to.label(class="form-label") }}
+                        {{ search_form.date_to(class="form-control", type="date") }}
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12 text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Buscar
+                        </button>
+                        <a href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Limpiar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Evidence List -->
+    {% if evidences %}
+    <div class="card">
+        <div class="card-header">
+            <i class="bi bi-list-ul"></i> Listado de Evidencias ({{ evidences|length }})
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Nombre</th>
+                            <th>Descripción</th>
+                            <th>Tamaño</th>
+                            <th>Fecha Subida</th>
+                            <th>Integridad</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for evidence in evidences %}
+                        <tr>
+                            <td>
+                                {% if evidence.evidence_type == EvidenceType.IMAGEN %}
+                                    <span class="badge bg-primary"><i class="bi bi-image"></i> Imagen</span>
+                                {% elif evidence.evidence_type == EvidenceType.VIDEO %}
+                                    <span class="badge bg-info"><i class="bi bi-camera-video"></i> Video</span>
+                                {% elif evidence.evidence_type == EvidenceType.AUDIO %}
+                                    <span class="badge bg-success"><i class="bi bi-music-note"></i> Audio</span>
+                                {% elif evidence.evidence_type == EvidenceType.DOCUMENTO %}
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-file-text"></i> Documento</span>
+                                {% elif evidence.evidence_type == EvidenceType.EMAIL %}
+                                    <span class="badge bg-secondary"><i class="bi bi-envelope"></i> Email</span>
+                                {% elif evidence.evidence_type == EvidenceType.CAPTURA_WEB %}
+                                    <span class="badge bg-dark"><i class="bi bi-globe"></i> Web</span>
+                                {% else %}
+                                    <span class="badge bg-secondary"><i class="bi bi-file"></i> Otro</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('evidence.evidence_detail', evidence_id=evidence.id) }}">
+                                    {{ evidence.original_filename }}
+                                </a>
+                                {% if evidence.is_encrypted %}
+                                    <i class="bi bi-lock text-success" title="Encriptada"></i>
+                                {% endif %}
+                            </td>
+                            <td>{{ evidence.description[:80] }}{% if evidence.description|length > 80 %}...{% endif %}</td>
+                            <td>{{ "%.2f"|format(evidence.file_size / 1024 / 1024) }} MB</td>
+                            <td>{{ evidence.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                {% if evidence.integrity_verified %}
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle"></i> Verificada
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning">
+                                        <i class="bi bi-exclamation-triangle"></i> No Verificada
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('evidence.evidence_detail', evidence_id=evidence.id) }}"
+                                       class="btn btn-outline-primary" title="Ver detalles">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('evidence.download_evidence', evidence_id=evidence.id) }}"
+                                       class="btn btn-outline-success" title="Descargar">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                    <a href="{{ url_for('evidence.chain_of_custody', evidence_id=evidence.id) }}"
+                                       class="btn btn-outline-info" title="Cadena de custodia">
+                                        <i class="bi bi-clock-history"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> No se encontraron evidencias para este caso.
+        <a href="{{ url_for('evidence.upload_evidence', case_id=case.id) }}" class="alert-link">Suba la primera evidencia</a>.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

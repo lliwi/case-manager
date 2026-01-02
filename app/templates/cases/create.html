@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo Caso - Case Manager{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0">Crear Nuevo Caso</h1>
+            <a href="{{ url_for('cases.index') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <div class="alert alert-warning">
+            <h6 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Validación de Legitimidad Obligatoria</h6>
+            <p class="mb-0 small">
+                Conforme al Art. 48 del Reglamento de Seguridad Privada, el detective debe verificar que el cliente
+                tiene un interés legítimo para la investigación. El caso quedará en estado "Pendiente de Validación" hasta su aprobación.
+            </p>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+            {{ form.hidden_tag() }}
+
+            <!-- Client Information Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-person-badge"></i> Datos del Cliente</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.cliente_nombre.label(class="form-label") }}
+                            {{ form.cliente_nombre(class="form-control" + (" is-invalid" if form.cliente_nombre.errors else "")) }}
+                            {% if form.cliente_nombre.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.cliente_nombre.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            {{ form.cliente_dni_cif.label(class="form-label") }}
+                            {{ form.cliente_dni_cif(class="form-control" + (" is-invalid" if form.cliente_dni_cif.errors else "")) }}
+                            {% if form.cliente_dni_cif.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.cliente_dni_cif.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">DNI, NIE o CIF</small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.cliente_telefono.label(class="form-label") }}
+                            {{ form.cliente_telefono(class="form-control" + (" is-invalid" if form.cliente_telefono.errors else "")) }}
+                            {% if form.cliente_telefono.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.cliente_telefono.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            {{ form.cliente_email.label(class="form-label") }}
+                            {{ form.cliente_email(class="form-control" + (" is-invalid" if form.cliente_email.errors else ""), type="email") }}
+                            {% if form.cliente_email.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.cliente_email.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.cliente_direccion.label(class="form-label") }}
+                        {{ form.cliente_direccion(class="form-control" + (" is-invalid" if form.cliente_direccion.errors else ""), rows="2") }}
+                        {% if form.cliente_direccion.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.cliente_direccion.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Investigation Subject Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-person-lines-fill"></i> Sujeto(s) Investigado(s)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        {{ form.sujeto_nombres.label(class="form-label") }}
+                        {{ form.sujeto_nombres(class="form-control" + (" is-invalid" if form.sujeto_nombres.errors else ""), rows="3") }}
+                        {% if form.sujeto_nombres.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.sujeto_nombres.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if form.sujeto_nombres.description %}
+                            <small class="form-text text-muted">{{ form.sujeto_nombres.description }}</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.sujeto_dni_nie.label(class="form-label") }}
+                        {{ form.sujeto_dni_nie(class="form-control" + (" is-invalid" if form.sujeto_dni_nie.errors else ""), rows="2") }}
+                        {% if form.sujeto_dni_nie.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.sujeto_dni_nie.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if form.sujeto_dni_nie.description %}
+                            <small class="form-text text-muted">{{ form.sujeto_dni_nie.description }}</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.sujeto_descripcion.label(class="form-label") }}
+                        {{ form.sujeto_descripcion(class="form-control" + (" is-invalid" if form.sujeto_descripcion.errors else ""), rows="3") }}
+                        {% if form.sujeto_descripcion.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.sujeto_descripcion.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">Características físicas, alias, profesión, etc.</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Investigation Purpose Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Objeto de la Investigación</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        {{ form.objeto_investigacion.label(class="form-label") }}
+                        {{ form.objeto_investigacion(class="form-control" + (" is-invalid" if form.objeto_investigacion.errors else ""), rows="4") }}
+                        {% if form.objeto_investigacion.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.objeto_investigacion.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">Descripción clara y concisa del objetivo de la investigación</small>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.descripcion_detallada.label(class="form-label") }}
+                        {{ form.descripcion_detallada(class="form-control" + (" is-invalid" if form.descripcion_detallada.errors else ""), rows="5") }}
+                        {% if form.descripcion_detallada.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.descripcion_detallada.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">Detalles adicionales, antecedentes, contexto relevante</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legitimacy Section -->
+            <div class="card shadow-sm mb-4 border-warning">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0"><i class="bi bi-shield-check"></i> Legitimidad (Art. 48 Reglamento)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <small>
+                            <strong>IMPORTANTE:</strong> El detective debe validar que el cliente tiene un interés legítimo
+                            conforme a la normativa. El caso no podrá activarse sin esta validación.
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.legitimacy_type.label(class="form-label") }}
+                        {{ form.legitimacy_type(class="form-select" + (" is-invalid" if form.legitimacy_type.errors else "")) }}
+                        {% if form.legitimacy_type.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.legitimacy_type.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.legitimacy_description.label(class="form-label") }}
+                        {{ form.legitimacy_description(class="form-control" + (" is-invalid" if form.legitimacy_description.errors else ""), rows="4") }}
+                        {% if form.legitimacy_description.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.legitimacy_description.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">
+                            Justificación detallada del interés legítimo del cliente
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.legitimacy_document.label(class="form-label") }}
+                        {{ form.legitimacy_document(class="form-control" + (" is-invalid" if form.legitimacy_document.errors else "")) }}
+                        {% if form.legitimacy_document.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.legitimacy_document.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">
+                            Documento que acredite el interés legítimo (contrato, poder, sentencia, etc.)
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Information Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> Información Adicional</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.ubicacion_principal.label(class="form-label") }}
+                            {{ form.ubicacion_principal(class="form-control" + (" is-invalid" if form.ubicacion_principal.errors else "")) }}
+                            {% if form.ubicacion_principal.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.ubicacion_principal.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">Ubicación geográfica principal de la investigación</small>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            {{ form.priority.label(class="form-label") }}
+                            {{ form.priority(class="form-select" + (" is-invalid" if form.priority.errors else "")) }}
+                            {% if form.priority.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.priority.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.presupuesto_estimado.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.presupuesto_estimado(class="form-control" + (" is-invalid" if form.presupuesto_estimado.errors else "")) }}
+                                <span class="input-group-text">€</span>
+                            </div>
+                            {% if form.presupuesto_estimado.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.presupuesto_estimado.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="form-check">
+                                {{ form.confidencial(class="form-check-input") }}
+                                {{ form.confidencial.label(class="form-check-label") }}
+                            </div>
+                            <small class="form-text text-muted">Los casos confidenciales tienen acceso restringido</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.notas_internas.label(class="form-label") }}
+                        {{ form.notas_internas(class="form-control" + (" is-invalid" if form.notas_internas.errors else ""), rows="3") }}
+                        {% if form.notas_internas.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.notas_internas.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">Notas visibles solo para el detective asignado</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div class="d-flex justify-content-between mb-4">
+                <a href="{{ url_for('cases.index') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </a>
+                {{ form.submit(class="btn btn-primary btn-lg") }}
+            </div>
+        </form>
+
+        <!-- Crime Detection Warning -->
+        <div class="alert alert-danger">
+            <h6 class="alert-heading"><i class="bi bi-exclamation-octagon"></i> Detección Automática de Delitos</h6>
+            <p class="mb-0 small">
+                El sistema escaneará automáticamente el caso en busca de indicadores de delitos perseguibles de oficio
+                (asesinato, tráfico de drogas, terrorismo, etc.). Si se detectan, el caso será bloqueado para revisión
+                conforme al deber de denunciar del Art. 450 del Código Penal.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

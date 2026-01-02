@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Evidencia: {{ evidence.original_filename }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-9">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h4 mb-0">{{ evidence.original_filename }}</h1>
+                <small class="text-muted">Caso: {{ case.numero_orden }} - {{ case.cliente_nombre }}</small>
+            </div>
+            <div>
+                <a href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver a Evidencias
+                </a>
+            </div>
+        </div>
+
+        <!-- Integrity Status -->
+        {% if evidence.integrity_verified %}
+            <div class="alert alert-success">
+                <h6 class="alert-heading"><i class="bi bi-shield-check"></i> Integridad Verificada</h6>
+                <p class="mb-0 small">
+                    Última verificación: {{ evidence.last_verification_date.strftime('%d/%m/%Y %H:%M') if evidence.last_verification_date else 'Nunca' }}
+                </p>
+            </div>
+        {% else %}
+            <div class="alert alert-warning">
+                <h6 class="alert-heading"><i class="bi bi-shield-exclamation"></i> Integridad No Verificada</h6>
+                <p class="mb-1 small">Esta evidencia no ha sido verificada recientemente.</p>
+                <form method="POST" action="{{ url_for('evidence.verify_integrity', evidence_id=evidence.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-warning">
+                        <i class="bi bi-shield-check"></i> Verificar Ahora
+                    </button>
+                </form>
+            </div>
+        {% endif %}
+
+        <!-- Evidence Details -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Información de la Evidencia</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-3">Nombre Original:</dt>
+                    <dd class="col-sm-9">{{ evidence.original_filename }}</dd>
+
+                    <dt class="col-sm-3">Tipo:</dt>
+                    <dd class="col-sm-9"><span class="badge bg-info">{{ evidence.evidence_type.value }}</span></dd>
+
+                    <dt class="col-sm-3">Tamaño:</dt>
+                    <dd class="col-sm-9">{{ "%.2f"|format(evidence.file_size / 1024 / 1024) }} MB</dd>
+
+                    <dt class="col-sm-3">MIME Type:</dt>
+                    <dd class="col-sm-9"><code>{{ evidence.mime_type }}</code></dd>
+
+                    <dt class="col-sm-3">Descripción:</dt>
+                    <dd class="col-sm-9">{{ evidence.description }}</dd>
+
+                    {% if evidence.tags %}
+                        <dt class="col-sm-3">Etiquetas:</dt>
+                        <dd class="col-sm-9">
+                            {% for tag in evidence.tags.split(',') %}
+                                <span class="badge bg-secondary">{{ tag.strip() }}</span>
+                            {% endfor %}
+                        </dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+
+        <!-- Cryptographic Hashes -->
+        <div class="card shadow-sm mb-4 border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Hashes Criptográficos</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>SHA-256:</strong>
+                    <div class="bg-light p-2 rounded mt-1">
+                        <code class="small">{{ evidence.sha256_hash }}</code>
+                    </div>
+                </div>
+                <div>
+                    <strong>SHA-512:</strong>
+                    <div class="bg-light p-2 rounded mt-1">
+                        <code class="small" style="word-break: break-all;">{{ evidence.sha512_hash }}</code>
+                    </div>
+                </div>
+                <div class="alert alert-info mt-3 mb-0 small">
+                    <i class="bi bi-info-circle"></i>
+                    Estos hashes garantizan la integridad forense de la evidencia conforme a UNE 71506.
+                </div>
+            </div>
+        </div>
+
+        <!-- Acquisition Metadata -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Metadatos de Adquisición</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Fecha de Adquisición:</dt>
+                    <dd class="col-sm-8">{{ evidence.acquisition_date.strftime('%d/%m/%Y %H:%M:%S') if evidence.acquisition_date else '-' }}</dd>
+
+                    <dt class="col-sm-4">Método:</dt>
+                    <dd class="col-sm-8">{{ evidence.acquisition_method or '-' }}</dd>
+
+                    {% if evidence.source_device %}
+                        <dt class="col-sm-4">Dispositivo Origen:</dt>
+                        <dd class="col-sm-8">{{ evidence.source_device }}</dd>
+                    {% endif %}
+
+                    {% if evidence.source_location %}
+                        <dt class="col-sm-4">Ubicación Origen:</dt>
+                        <dd class="col-sm-8">{{ evidence.source_location }}</dd>
+                    {% endif %}
+
+                    {% if evidence.geolocation_lat and evidence.geolocation_lon %}
+                        <dt class="col-sm-4">Coordenadas GPS:</dt>
+                        <dd class="col-sm-8">
+                            {{ "%.6f"|format(evidence.geolocation_lat) }}, {{ "%.6f"|format(evidence.geolocation_lon) }}
+                            <a href="https://www.google.com/maps?q={{ evidence.geolocation_lat }},{{ evidence.geolocation_lon }}"
+                               target="_blank" class="btn btn-sm btn-outline-primary ms-2">
+                                <i class="bi bi-geo-alt"></i> Ver en Mapa
+                            </a>
+                        </dd>
+                    {% endif %}
+
+                    <dt class="col-sm-4">Subida por:</dt>
+                    <dd class="col-sm-8">{{ evidence.uploaded_by.nombre }} (TIP: {{ evidence.uploaded_by.tip_number }})</dd>
+
+                    <dt class="col-sm-4">Fecha de Subida:</dt>
+                    <dd class="col-sm-8">{{ evidence.uploaded_at.strftime('%d/%m/%Y %H:%M:%S') }}</dd>
+                </dl>
+
+                {% if evidence.acquisition_notes %}
+                    <hr>
+                    <h6>Notas de Adquisición:</h6>
+                    <p class="mb-0 text-muted">{{ evidence.acquisition_notes }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Chain of Custody Preview -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Cadena de Custodia (Últimas 5 Acciones)</h5>
+                    <a href="{{ url_for('evidence.chain_of_custody', evidence_id=evidence.id) }}" class="btn btn-sm btn-outline-primary">
+                        Ver Completa
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if custody_entries %}
+                    <div class="timeline">
+                        {% for entry in custody_entries[:5] %}
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <strong>{{ entry.action }}</strong>
+                                        <span class="text-muted">por {{ entry.user.nombre }}</span>
+                                    </div>
+                                    <small class="text-muted">{{ entry.timestamp.strftime('%d/%m/%Y %H:%M') }}</small>
+                                </div>
+                                {% if entry.notes %}
+                                    <small class="text-muted">{{ entry.notes }}</small>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">No hay entradas en la cadena de custodia.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-md-3">
+        <!-- Actions -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-lightning-charge"></i> Acciones</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('evidence.download_evidence', evidence_id=evidence.id) }}" class="btn btn-success">
+                        <i class="bi bi-download"></i> Descargar
+                    </a>
+
+                    <form method="POST" action="{{ url_for('evidence.verify_integrity', evidence_id=evidence.id) }}">
+                        <button type="submit" class="btn btn-outline-warning w-100">
+                            <i class="bi bi-shield-check"></i> Verificar Integridad
+                        </button>
+                    </form>
+
+                    <a href="{{ url_for('evidence.chain_of_custody', evidence_id=evidence.id) }}" class="btn btn-outline-info">
+                        <i class="bi bi-clock-history"></i> Cadena Completa
+                    </a>
+
+                    <hr>
+
+                    <a href="{{ url_for('cases.detail', case_id=case.id) }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-folder"></i> Ver Caso
+                    </a>
+
+                    <form method="POST" action="{{ url_for('evidence.delete_evidence', evidence_id=evidence.id) }}"
+                          onsubmit="return confirm('¿Está seguro de eliminar esta evidencia?')">
+                        <button type="submit" class="btn btn-outline-danger w-100">
+                            <i class="bi bi-trash"></i> Eliminar
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Encryption Status -->
+        <div class="card shadow-sm bg-light">
+            <div class="card-body text-center">
+                <i class="bi bi-lock-fill text-success display-4"></i>
+                <h6 class="mt-3">Archivo Cifrado</h6>
+                <p class="mb-0 small text-muted">
+                    AES-256-GCM<br>
+                    Almacenamiento seguro
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

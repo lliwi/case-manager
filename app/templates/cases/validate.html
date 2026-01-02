@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Validar Legitimidad - Caso {{ case.numero_orden }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h4 mb-0">Validar Legitimidad - Caso {{ case.numero_orden }}</h1>
+            <a href="{{ url_for('cases.detail', case_id=case.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <div class="alert alert-warning">
+            <h6 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Validación de Legitimidad (Art. 48 Reglamento)</h6>
+            <p class="mb-0">
+                Como detective privado, debe verificar que el cliente tiene un interés legítimo para solicitar
+                esta investigación conforme a la normativa de seguridad privada. Esta validación es obligatoria
+                antes de activar el caso.
+            </p>
+        </div>
+
+        <!-- Case Summary -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Resumen del Caso</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Cliente:</dt>
+                    <dd class="col-sm-8">{{ case.cliente_nombre }} ({{ case.cliente_dni_cif }})</dd>
+
+                    <dt class="col-sm-4">Objeto:</dt>
+                    <dd class="col-sm-8">{{ case.objeto_investigacion }}</dd>
+
+                    <dt class="col-sm-4">Tipo de Legitimidad:</dt>
+                    <dd class="col-sm-8"><span class="badge bg-info">{{ case.legitimacy_type.value }}</span></dd>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Legitimacy Details -->
+        <div class="card shadow-sm mb-4 border-warning">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="bi bi-shield-check"></i> Información de Legitimidad</h5>
+            </div>
+            <div class="card-body">
+                <h6>Descripción del Interés Legítimo:</h6>
+                <p class="bg-light p-3 rounded">{{ case.legitimacy_description }}</p>
+
+                {% if legitimacy_reqs %}
+                    <div class="alert alert-info mt-3">
+                        <h6 class="alert-heading">Requisitos para {{ case.legitimacy_type.value }}:</h6>
+                        <p class="mb-0 small">{{ legitimacy_reqs }}</p>
+                    </div>
+                {% endif %}
+
+                {% if case.legitimacy_document_path %}
+                    <div class="mt-3">
+                        <h6>Documento Acreditativo:</h6>
+                        <a href="#" class="btn btn-outline-primary">
+                            <i class="bi bi-file-earmark-pdf"></i> Ver Documento
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Validation Form -->
+        <form method="POST">
+            {{ form.hidden_tag() }}
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clipboard-check"></i> Decisión de Validación</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            {{ form.approved(class="form-check-input", role="switch") }}
+                            {{ form.approved.label(class="form-check-label") }}
+                        </div>
+                        <small class="form-text text-muted">
+                            Marque si el cliente cumple con los requisitos de legitimidad
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.validation_notes.label(class="form-label") }}
+                        {{ form.validation_notes(class="form-control" + (" is-invalid" if form.validation_notes.errors else ""), rows="4") }}
+                        {% if form.validation_notes.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.validation_notes.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">
+                            Justificación de la decisión (recomendado para auditoría)
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-secondary">
+                <p class="mb-0 small">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Nota:</strong> Esta acción quedará registrada en el log de auditoría del caso
+                    y no podrá ser modificada posteriormente.
+                </p>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('cases.detail', case_id=case.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </a>
+                {{ form.submit(class="btn btn-primary btn-lg") }}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

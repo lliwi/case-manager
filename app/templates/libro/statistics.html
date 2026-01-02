@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Estadísticas Libro-Registro{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Estadísticas Libro-Registro {{ year }}</h1>
+    <a href="{{ url_for('libro_registro.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Volver
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0">Casos por Estado</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0">Casos por Mes</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="mb-0">Resumen Estadístico</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">Total Casos:</dt>
+                    <dd class="col-sm-9">{{ stats.total_cases }}</dd>
+
+                    <dt class="col-sm-3">Casos Activos:</dt>
+                    <dd class="col-sm-9">{{ stats.active_cases }}</dd>
+
+                    <dt class="col-sm-3">Casos Cerrados:</dt>
+                    <dd class="col-sm-9">{{ stats.closed_cases }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

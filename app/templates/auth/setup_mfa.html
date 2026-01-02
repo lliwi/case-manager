@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Configurar MFA - Case Manager{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <i class="bi bi-shield-plus display-4 text-success"></i>
+                    <h3 class="fw-bold mt-3">Configurar Autenticación de Dos Factores</h3>
+                    <p class="text-muted">Aumenta la seguridad de tu cuenta con MFA</p>
+                </div>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="mb-3">Paso 1: Escanea el código QR</h5>
+                        <div class="text-center mb-3">
+                            <div class="p-3 bg-white d-inline-block rounded shadow-sm">
+                                {{ qr_code|safe }}
+                            </div>
+                        </div>
+                        <p class="text-muted small">
+                            Escanea este código QR con tu aplicación de autenticación
+                            (Google Authenticator, Authy, etc.)
+                        </p>
+
+                        <div class="alert alert-info">
+                            <strong>Clave secreta (manual):</strong><br>
+                            <code class="user-select-all">{{ secret }}</code><br>
+                            <small>Usa esta clave si no puedes escanear el código QR</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h5 class="mb-3">Paso 2: Verifica el código</h5>
+                        <p class="text-muted">
+                            Introduce el código de 6 dígitos que muestra tu aplicación
+                            para completar la configuración:
+                        </p>
+
+                        <form method="POST" action="{{ url_for('auth.setup_mfa') }}">
+                            {{ form.hidden_tag() }}
+
+                            <div class="mb-3">
+                                {{ form.token.label(class="form-label") }}
+                                {{ form.token(class="form-control form-control-lg text-center" + (" is-invalid" if form.token.errors else ""),
+                                              placeholder="000000",
+                                              maxlength="6",
+                                              style="letter-spacing: 0.5em; font-size: 1.5rem;") }}
+                                {% if form.token.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.token.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                {{ form.submit(class="btn btn-success btn-lg") }}
+                                <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">Cancelar</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="alert alert-warning">
+                    <h6 class="alert-heading">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Importante
+                    </h6>
+                    <ul class="mb-0 small">
+                        <li>Guarda esta clave secreta en un lugar seguro</li>
+                        <li>Una vez configurado MFA, necesitarás tu código en cada inicio de sesión</li>
+                        <li>Si pierdes acceso a tu aplicación de autenticación, contacta al administrador</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+
+{% block title %}Caso {{ case.numero_orden }} - Case Manager{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-0">Caso {{ case.numero_orden }}</h1>
+                <small class="text-muted">
+                    <i class="bi bi-calendar"></i> Creado: {{ case.fecha_inicio.strftime('%d/%m/%Y %H:%M') if case.fecha_inicio else '-' }}
+                </small>
+            </div>
+            <div>
+                <a href="{{ url_for('cases.index') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
+                {% if case.status.name != 'CERRADO' %}
+                    <a href="{{ url_for('cases.edit', case_id=case.id) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-pencil"></i> Editar
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Status and Priority Badges -->
+        <div class="mb-4">
+            {% if case.status.name == 'ACTIVO' %}
+                <span class="badge bg-success fs-6">{{ case.status.value }}</span>
+            {% elif case.status.name == 'PENDIENTE_VALIDACION' %}
+                <span class="badge bg-warning text-dark fs-6">{{ case.status.value }}</span>
+            {% elif case.status.name == 'EN_CURSO' %}
+                <span class="badge bg-info fs-6">{{ case.status.value }}</span>
+            {% elif case.status.name == 'CERRADO' %}
+                <span class="badge bg-secondary fs-6">{{ case.status.value }}</span>
+            {% elif case.status.name == 'BLOQUEADO' %}
+                <span class="badge bg-danger fs-6">{{ case.status.value }}</span>
+            {% endif %}
+
+            {% if case.priority %}
+                {% if case.priority == 'alta' %}
+                    <span class="badge bg-danger fs-6"><i class="bi bi-exclamation-triangle-fill"></i> Prioridad Alta</span>
+                {% elif case.priority == 'media' %}
+                    <span class="badge bg-warning text-dark fs-6"><i class="bi bi-dash-circle-fill"></i> Prioridad Media</span>
+                {% else %}
+                    <span class="badge bg-secondary fs-6"><i class="bi bi-arrow-down-circle-fill"></i> Prioridad Baja</span>
+                {% endif %}
+            {% endif %}
+
+            {% if case.confidencial %}
+                <span class="badge bg-dark fs-6"><i class="bi bi-lock-fill"></i> Confidencial</span>
+            {% endif %}
+        </div>
+
+        <!-- Pending Validation Alert -->
+        {% if case.status.name == 'PENDIENTE_VALIDACION' and not case.legitimacy_validated %}
+            <div class="alert alert-warning">
+                <h6 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Pendiente de Validación de Legitimidad</h6>
+                <p class="mb-2">Este caso requiere validación de legitimidad antes de poder activarse.</p>
+                <a href="{{ url_for('cases.validate_legitimacy', case_id=case.id) }}" class="btn btn-sm btn-warning">
+                    <i class="bi bi-shield-check"></i> Validar Legitimidad
+                </a>
+            </div>
+        {% endif %}
+
+        <!-- Blocked Case Alert -->
+        {% if case.status.name == 'BLOQUEADO' %}
+            <div class="alert alert-danger">
+                <h6 class="alert-heading"><i class="bi bi-exclamation-octagon"></i> Caso Bloqueado</h6>
+                <p class="mb-0">
+                    Este caso ha sido bloqueado debido a la posible detección de delitos perseguibles de oficio.
+                    Requiere revisión administrativa antes de proceder.
+                </p>
+            </div>
+        {% endif %}
+
+        <div class="row">
+            <!-- Main Content -->
+            <div class="col-lg-8">
+                <!-- Client Information -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-person-badge"></i> Información del Cliente</h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Nombre:</dt>
+                            <dd class="col-sm-8">{{ case.cliente_nombre }}</dd>
+
+                            <dt class="col-sm-4">DNI/CIF:</dt>
+                            <dd class="col-sm-8">{{ case.cliente_dni_cif }}</dd>
+
+                            {% if case.cliente_telefono %}
+                                <dt class="col-sm-4">Teléfono:</dt>
+                                <dd class="col-sm-8">{{ case.cliente_telefono }}</dd>
+                            {% endif %}
+
+                            {% if case.cliente_email %}
+                                <dt class="col-sm-4">Email:</dt>
+                                <dd class="col-sm-8">{{ case.cliente_email }}</dd>
+                            {% endif %}
+
+                            {% if case.cliente_direccion %}
+                                <dt class="col-sm-4">Dirección:</dt>
+                                <dd class="col-sm-8">{{ case.cliente_direccion }}</dd>
+                            {% endif %}
+                        </dl>
+                    </div>
+                </div>
+
+                <!-- Investigation Subject -->
+                {% if case.sujeto_nombres or case.sujeto_dni_nie %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="bi bi-person-lines-fill"></i> Sujeto(s) Investigado(s)</h5>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row mb-0">
+                                {% if case.sujeto_nombres %}
+                                    <dt class="col-sm-4">Nombre(s):</dt>
+                                    <dd class="col-sm-8">{{ case.sujeto_nombres|replace('\n', '<br>')|safe }}</dd>
+                                {% endif %}
+
+                                {% if case.sujeto_dni_nie %}
+                                    <dt class="col-sm-4">DNI/NIE:</dt>
+                                    <dd class="col-sm-8">{{ case.sujeto_dni_nie|replace('\n', '<br>')|safe }}</dd>
+                                {% endif %}
+
+                                {% if case.sujeto_descripcion %}
+                                    <dt class="col-sm-4">Descripción:</dt>
+                                    <dd class="col-sm-8">{{ case.sujeto_descripcion }}</dd>
+                                {% endif %}
+                            </dl>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Investigation Purpose -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Objeto de la Investigación</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2"><strong>{{ case.objeto_investigacion }}</strong></p>
+                        {% if case.descripcion_detallada %}
+                            <hr>
+                            <p class="mb-0">{{ case.descripcion_detallada }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Legitimacy Information -->
+                <div class="card shadow-sm mb-4 border-warning">
+                    <div class="card-header bg-warning">
+                        <h5 class="mb-0"><i class="bi bi-shield-check"></i> Legitimidad</h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Tipo:</dt>
+                            <dd class="col-sm-8">
+                                <span class="badge bg-info">{{ case.legitimacy_type.value }}</span>
+                            </dd>
+
+                            <dt class="col-sm-4">Descripción:</dt>
+                            <dd class="col-sm-8">{{ case.legitimacy_description }}</dd>
+
+                            <dt class="col-sm-4">Estado:</dt>
+                            <dd class="col-sm-8">
+                                {% if case.legitimacy_validated %}
+                                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> Validada</span>
+                                    <small class="d-block text-muted">
+                                        {{ case.legitimacy_validation_date.strftime('%d/%m/%Y %H:%M') if case.legitimacy_validation_date else '' }}
+                                    </small>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pendiente</span>
+                                {% endif %}
+                            </dd>
+
+                            {% if case.legitimacy_document_path %}
+                                <dt class="col-sm-4">Documento:</dt>
+                                <dd class="col-sm-8">
+                                    <a href="#" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-file-earmark-pdf"></i> Ver Documento
+                                    </a>
+                                </dd>
+                            {% endif %}
+
+                            {% if legitimacy_reqs %}
+                                <dt class="col-sm-4">Requisitos:</dt>
+                                <dd class="col-sm-8">
+                                    <small class="text-muted">{{ legitimacy_reqs }}</small>
+                                </dd>
+                            {% endif %}
+                        </dl>
+                    </div>
+                </div>
+
+                <!-- Internal Notes -->
+                {% if case.notas_internas %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0"><i class="bi bi-journal-text"></i> Notas Internas</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-0 text-muted small">{{ case.notas_internas|replace('\n', '<br>')|safe }}</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- Detective Information -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-person-badge-fill"></i> Detective Asignado</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-1"><strong>{{ case.detective.nombre if case.detective else '-' }}</strong></p>
+                        <small class="text-muted">TIP: {{ case.detective_tip }}</small>
+                        {% if case.despacho %}
+                            <p class="mb-0 mt-2 small"><i class="bi bi-building"></i> {{ case.despacho }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Case Metadata -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-info-circle"></i> Información del Caso</h6>
+                    </div>
+                    <div class="card-body small">
+                        {% if case.ubicacion_principal %}
+                            <p class="mb-2">
+                                <i class="bi bi-geo-alt-fill text-primary"></i>
+                                <strong>Ubicación:</strong><br>
+                                {{ case.ubicacion_principal }}
+                            </p>
+                        {% endif %}
+
+                        {% if case.presupuesto_estimado %}
+                            <p class="mb-2">
+                                <i class="bi bi-cash text-success"></i>
+                                <strong>Presupuesto:</strong> {{ "%.2f"|format(case.presupuesto_estimado) }} €
+                            </p>
+                        {% endif %}
+
+                        {% if case.honorarios %}
+                            <p class="mb-2">
+                                <i class="bi bi-currency-euro text-success"></i>
+                                <strong>Honorarios:</strong> {{ "%.2f"|format(case.honorarios) }} €
+                            </p>
+                        {% endif %}
+
+                        <p class="mb-2">
+                            <i class="bi bi-calendar-check text-info"></i>
+                            <strong>Creado:</strong><br>
+                            {{ case.fecha_inicio.strftime('%d/%m/%Y %H:%M') if case.fecha_inicio else '-' }}
+                        </p>
+
+                        {% if case.fecha_cierre %}
+                            <p class="mb-0">
+                                <i class="bi bi-calendar-x text-secondary"></i>
+                                <strong>Cerrado:</strong><br>
+                                {{ case.fecha_cierre.strftime('%d/%m/%Y %H:%M') }}
+                            </p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-lightning-charge-fill"></i> Acciones</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            {% if case.status.name != 'CERRADO' %}
+                                <a href="{{ url_for('cases.edit', case_id=case.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i> Editar Caso
+                                </a>
+                            {% endif %}
+
+                            {% if not case.legitimacy_validated and case.status.name == 'PENDIENTE_VALIDACION' %}
+                                <a href="{{ url_for('cases.validate_legitimacy', case_id=case.id) }}" class="btn btn-sm btn-outline-warning">
+                                    <i class="bi bi-shield-check"></i> Validar Legitimidad
+                                </a>
+                            {% endif %}
+
+                            <a href="{{ url_for('evidence.upload_evidence', case_id=case.id) }}" class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-upload"></i> Subir Evidencia
+                            </a>
+
+                            <a href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}" class="btn btn-sm btn-outline-info">
+                                <i class="bi bi-folder2-open"></i> Ver Evidencias
+                            </a>
+
+                            <a href="{{ url_for('graph.case_graph', case_id=case.id) }}" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-diagram-3"></i> Grafo de Relaciones
+                            </a>
+
+                            {% if case.status.name != 'CERRADO' %}
+                                <hr>
+                                <a href="{{ url_for('cases.close', case_id=case.id) }}" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-x-circle"></i> Cerrar Caso
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Libro-registro QR Code -->
+                <div class="card shadow-sm mb-4 bg-light">
+                    <div class="card-body text-center">
+                        <h6 class="mb-3"><i class="bi bi-book"></i> Libro-Registro</h6>
+                        <div class="bg-white p-3 d-inline-block border">
+                            <i class="bi bi-qr-code display-4 text-muted"></i>
+                            <p class="mb-0 small mt-2">{{ case.numero_orden }}</p>
+                        </div>
+                        <p class="mt-2 mb-0 small text-muted">Entrada oficial en el libro-registro</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Evidence Count (if exists) -->
+        {% if case.evidence %}
+            <div class="card shadow-sm mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-file-earmark-lock"></i> Evidencias ({{ case.evidence|length }})</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">Este caso tiene {{ case.evidence|length }} evidencia(s) asociada(s).</p>
+                    <a href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}" class="btn btn-sm btn-primary">
+                        Ver Todas las Evidencias
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

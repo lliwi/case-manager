@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2>Bienvenido, {{ current_user.nombre }}</h2>
+            <p class="text-muted">
+                <i class="bi bi-calendar"></i> {{ now.strftime('%d de %B de %Y') }}
+                {% if current_user.tip_number %}
+                | <i class="bi bi-person-badge"></i> TIP: {{ current_user.tip_number }}
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card card-stat">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Casos Totales</h6>
+                            <h2 class="mb-0">{{ stats.total_cases }}</h2>
+                        </div>
+                        <div class="text-primary">
+                            <i class="bi bi-folder fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card card-stat success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Casos Activos</h6>
+                            <h2 class="mb-0">{{ stats.active_cases }}</h2>
+                        </div>
+                        <div class="text-success">
+                            <i class="bi bi-folder-check fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card card-stat warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Evidencias</h6>
+                            <h2 class="mb-0">{{ stats.total_evidences }}</h2>
+                        </div>
+                        <div class="text-warning">
+                            <i class="bi bi-file-earmark-text fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card card-stat">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Acciones Registradas</h6>
+                            <h2 class="mb-0">{{ stats.total_actions }}</h2>
+                        </div>
+                        <div class="text-info">
+                            <i class="bi bi-activity fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Quick Actions -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightning"></i> Acciones Rápidas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('cases.create') }}" class="btn btn-primary">
+                            <i class="bi bi-folder-plus"></i> Nuevo Caso
+                        </a>
+                        <a href="#" class="btn btn-outline-primary">
+                            <i class="bi bi-upload"></i> Subir Evidencia
+                        </a>
+                        <a href="#" class="btn btn-outline-primary">
+                            <i class="bi bi-file-pdf"></i> Generar Informe
+                        </a>
+                        <a href="{{ url_for('libro_registro.index') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-book"></i> Ver Libro-registro
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MFA Status -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-shield-check"></i> Seguridad</h5>
+                </div>
+                <div class="card-body">
+                    {% if current_user.mfa_enabled %}
+                    <div class="alert alert-success mb-0">
+                        <i class="bi bi-shield-check"></i>
+                        <strong>MFA Activado</strong>
+                        <p class="mb-0 small">Su cuenta está protegida con autenticación de dos factores.</p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-shield-exclamation"></i>
+                        <strong>MFA No Activado</strong>
+                        <p class="mb-2 small">Proteja su cuenta con autenticación de dos factores.</p>
+                        <a href="{{ url_for('auth.setup_mfa') }}" class="btn btn-sm btn-warning">
+                            Activar MFA
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="col-md-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Actividad Reciente</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_activity %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Acción</th>
+                                    <th>Recurso</th>
+                                    <th>Fecha</th>
+                                    <th>IP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in recent_activity %}
+                                <tr>
+                                    <td>
+                                        {% if 'LOGIN' in activity.action %}
+                                        <span class="badge bg-success">{{ activity.action }}</span>
+                                        {% elif 'CREATED' in activity.action %}
+                                        <span class="badge bg-primary">{{ activity.action }}</span>
+                                        {% elif 'UPDATED' in activity.action %}
+                                        <span class="badge bg-info">{{ activity.action }}</span>
+                                        {% elif 'DELETED' in activity.action %}
+                                        <span class="badge bg-danger">{{ activity.action }}</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ activity.action }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ activity.resource_type }}</small>
+                                        {% if activity.resource_id %}
+                                        <small>#{{ activity.resource_id }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ activity.timestamp.strftime('%d/%m/%Y %H:%M') }}</small>
+                                    </td>
+                                    <td>
+                                        <small class="text-monospace">{{ activity.ip_address or '-' }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No hay actividad reciente.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Information (Admin Only) -->
+    {% if current_user.is_admin() %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> Información del Sistema</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>Versión:</strong> 1.0.0</p>
+                            <p class="mb-1"><strong>Base de Datos:</strong> PostgreSQL + Neo4j</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>Cola de Tareas:</strong> <a href="http://localhost:5555" target="_blank">Flower <i class="bi bi-box-arrow-up-right"></i></a></p>
+                            <p class="mb-1"><strong>Framework:</strong> Flask 3.0</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>Cumplimiento Legal:</strong> Ley 5/2014</p>
+                            <p class="mb-1"><strong>Estándar Forense:</strong> UNE 71506</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Set current date
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh statistics every 5 minutes
+    setInterval(function() {
+        location.reload();
+    }, 300000);
+});
+</script>
+{% endblock %}

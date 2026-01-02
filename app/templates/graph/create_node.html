@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Crear Nodo - {{ node_type }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h4 mb-0">Crear Nodo: {{ node_type }}</h1>
+            <a href="{{ url_for('graph.case_graph', case_id=case.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <form method="POST">
+            {{ form.hidden_tag() }}
+
+            <div class="card shadow">
+                <div class="card-body">
+                    {% for field in form %}
+                        {% if field.name not in ['csrf_token', 'submit'] %}
+                            <div class="mb-3">
+                                {{ field.label(class="form-label") }}
+                                {% if field.type == 'TextAreaField' %}
+                                    {{ field(class="form-control" + (" is-invalid" if field.errors else ""), rows="3") }}
+                                {% elif field.type == 'SelectField' %}
+                                    {{ field(class="form-select" + (" is-invalid" if field.errors else "")) }}
+                                {% else %}
+                                    {{ field(class="form-control" + (" is-invalid" if field.errors else "")) }}
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in field.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                                {% if field.description %}
+                                    <small class="form-text text-muted">{{ field.description }}</small>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-3">
+                <a href="{{ url_for('graph.case_graph', case_id=case.id) }}" class="btn btn-outline-secondary">
+                    Cancelar
+                </a>
+                {{ form.submit(class="btn btn-primary") }}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

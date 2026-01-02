@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Configurar MFA{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-shield-lock"></i> Configurar Autenticación de Dos Factores (MFA)</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        La autenticación de dos factores añade una capa adicional de seguridad a su cuenta.
+                    </div>
+
+                    <h5>Paso 1: Escanee el código QR</h5>
+                    <p>Use su aplicación de autenticación (Google Authenticator, Authy, etc.) para escanear este código QR:</p>
+
+                    <div class="qr-code-container mb-4">
+                        <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code" class="img-fluid">
+                    </div>
+
+                    <h5>Paso 2: Código Manual (Opcional)</h5>
+                    <p>Si no puede escanear el código QR, ingrese este código manualmente en su aplicación:</p>
+                    <div class="alert alert-secondary">
+                        <code class="fs-5">{{ secret }}</code>
+                        <button class="btn btn-sm btn-outline-secondary float-end" onclick="copyToClipboard('{{ secret }}')">
+                            <i class="bi bi-clipboard"></i> Copiar
+                        </button>
+                    </div>
+
+                    <h5>Paso 3: Verificar</h5>
+                    <p>Ingrese el código de 6 dígitos que muestra su aplicación de autenticación:</p>
+
+                    <form method="POST" action="{{ url_for('auth.setup_mfa') }}">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.token.label(class="form-label") }}
+                            {{ form.token(class="form-control form-control-lg text-center" + (" is-invalid" if form.token.errors else ""), placeholder="000000", autofocus=true, maxlength="6") }}
+                            {% if form.token.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.token.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            {{ form.submit(class="btn btn-success btn-lg") }}
+                            <a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Importante:</strong> Guarde su código de recuperación en un lugar seguro. Si pierde acceso a su aplicación de autenticación, necesitará contactar al administrador para desactivar MFA.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

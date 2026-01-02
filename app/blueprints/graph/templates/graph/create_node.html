@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Crear Nodo - Caso {{ case.numero_orden }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.index') }}">Casos</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.detail', case_id=case.id) }}">{{ case.numero_orden }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('graph.case_graph', case_id=case.id) }}">Grafo</a></li>
+            <li class="breadcrumb-item active">Crear Nodo</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2>
+                <i class="bi bi-plus-circle"></i> Crear Nodo en el Grafo
+                {% if node_type == 'person' %}
+                    <span class="badge bg-primary">Persona</span>
+                {% elif node_type == 'company' %}
+                    <span class="badge bg-danger">Empresa</span>
+                {% elif node_type == 'phone' %}
+                    <span class="badge bg-success">Teléfono</span>
+                {% elif node_type == 'email' %}
+                    <span class="badge bg-warning">Email</span>
+                {% elif node_type == 'vehicle' %}
+                    <span class="badge bg-info">Vehículo</span>
+                {% elif node_type == 'address' %}
+                    <span class="badge bg-secondary">Dirección</span>
+                {% elif node_type == 'social' %}
+                    <span class="badge bg-dark">Perfil Social</span>
+                {% endif %}
+            </h2>
+            <p class="text-muted">
+                <strong>Caso:</strong> {{ case.numero_orden }}
+            </p>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <i class="bi bi-pencil"></i> Datos del Nodo
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+
+                {% for field in form if field.widget.input_type != 'hidden' and field.name != 'csrf_token' %}
+                    <div class="mb-3">
+                        {{ field.label(class="form-label") }}
+                        {% if field.flags.required %}
+                            <span class="text-danger">*</span>
+                        {% endif %}
+
+                        {% if field.type == 'SelectField' %}
+                            {{ field(class="form-select") }}
+                        {% elif field.type == 'TextAreaField' %}
+                            {{ field(class="form-control", rows=4) }}
+                        {% elif field.type == 'DateField' %}
+                            {{ field(class="form-control", type="date") }}
+                        {% elif field.type == 'DecimalField' %}
+                            {{ field(class="form-control", step="0.000001") }}
+                        {% else %}
+                            {{ field(class="form-control") }}
+                        {% endif %}
+
+                        {% if field.description %}
+                            <div class="form-text">{{ field.description }}</div>
+                        {% endif %}
+
+                        {% if field.errors %}
+                            <div class="text-danger">{{ field.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+                <!-- Submit Buttons -->
+                <div class="row">
+                    <div class="col-md-12 text-end">
+                        <a href="{{ url_for('graph.case_graph', case_id=case.id) }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Crear Nodo
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
