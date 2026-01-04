@@ -11,6 +11,7 @@ from app.models.graph import (
     PersonNode, CompanyNode, PhoneNode, EmailNode, VehicleNode,
     AddressNode, EvidenceNode, SocialProfileNode
 )
+from app.models.relationship_type_custom import RelationshipTypeCustom
 from app.models.timeline import TimelineEvent, EventType
 from app.models.report import Report, ReportType, ReportStatus
 
@@ -18,7 +19,7 @@ __all__ = [
     'User', 'Role', 'AuditLog',
     'Case', 'CaseStatus', 'LegitimacyType', 'CasePriority', 'LegitimacyTypeCustom',
     'Evidence', 'EvidenceType', 'ChainOfCustody',
-    'NodeType', 'RelationshipType', 'GraphNode', 'GraphRelationship',
+    'NodeType', 'RelationshipType', 'RelationshipTypeCustom', 'GraphNode', 'GraphRelationship',
     'PersonNode', 'CompanyNode', 'PhoneNode', 'EmailNode', 'VehicleNode',
     'AddressNode', 'EvidenceNode', 'SocialProfileNode',
     'TimelineEvent', 'EventType',

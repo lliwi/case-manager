@@ -144,6 +144,11 @@
                                                 {% endif %}
 
                                                 {% if stat.is_custom %}
+                                                    <a href="{{ url_for('admin.edit_legitimacy_type', type_id=stat.custom_id) }}"
+                                                       class="btn btn-outline-primary"
+                                                       title="Editar tipo personalizado">
+                                                        <i class="bi bi-pencil"></i> Editar
+                                                    </a>
                                                     {% if stat.is_deletable %}
                                                         <form method="POST"
                                                               action="{{ url_for('admin.delete_legitimacy_type', type_id=stat.custom_id) }}"

@@ -299,7 +299,17 @@ class RelationshipForm(FlaskForm):
 
     relationship_type = SelectField(
         'Tipo de Relación',
-        choices=[
+        choices=[],  # Will be populated dynamically
+        validators=[DataRequired('El tipo de relación es obligatorio')]
+    )
+
+    def __init__(self, *args, **kwargs):
+        """Initialize form and load relationship types dynamically."""
+        super(RelationshipForm, self).__init__(*args, **kwargs)
+
+        # Load base relationship types from enum
+        from app.models.graph import RelationshipType
+        base_choices = [
             ('FAMILIAR_DE', 'Familiar de'),
             ('SOCIO_DE', 'Socio de'),
             ('EMPLEADO_DE', 'Empleado de'),
@@ -315,9 +325,19 @@ class RelationshipForm(FlaskForm):
             ('TITULAR_DE', 'Titular de'),
             ('TRANSFERENCIA_A', 'Transferencia a'),
             ('CONEXION_DESDE', 'Conexión desde')
-        ],
-        validators=[DataRequired('El tipo de relación es obligatorio')]
-    )
+        ]
+
+        # Load custom relationship types
+        from app.models.relationship_type_custom import RelationshipTypeCustom
+        custom_types = RelationshipTypeCustom.query.filter_by(
+            is_deleted=False,
+            is_active=True
+        ).order_by(RelationshipTypeCustom.name).all()
+
+        custom_choices = [(ct.name, ct.label) for ct in custom_types]
+
+        # Combine both lists (base first, then custom)
+        self.relationship_type.choices = base_choices + custom_choices
 
     confidence = DecimalField(
         'Confianza',

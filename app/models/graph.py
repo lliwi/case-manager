@@ -5,7 +5,7 @@ Implements entity-relationship graph for investigations.
 """
 from enum import Enum
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 
 
 class NodeType(Enum):
@@ -304,7 +304,7 @@ class GraphRelationship:
     """
 
     def __init__(self, relationship_id: Optional[str],
-                 relationship_type: RelationshipType,
+                 relationship_type: Union[RelationshipType, str],
                  from_node_id: str, to_node_id: str,
                  properties: Dict[str, Any] = None):
         """
@@ -312,7 +312,7 @@ class GraphRelationship:
 
         Args:
             relationship_id: Neo4j relationship ID (None for new)
-            relationship_type: Type of relationship
+            relationship_type: Type of relationship (enum or custom string)
             from_node_id: Source node ID
             to_node_id: Target node ID
             properties: Relationship properties
@@ -331,9 +331,12 @@ class GraphRelationship:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert relationship to dictionary representation."""
+        # Handle both enum and string types
+        rel_type = self.relationship_type.value if isinstance(self.relationship_type, RelationshipType) else self.relationship_type
+
         return {
             'id': self.relationship_id,
-            'type': self.relationship_type.value,
+            'type': rel_type,
             'from': self.from_node_id,
             'to': self.to_node_id,
             'properties': self.properties

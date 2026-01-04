@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}{% if editing %}Editar{% else %}Crear{% endif %} Tipo de Relación - Administración{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h4 mb-0">
+                {% if editing %}Editar{% else %}Crear Nuevo{% endif %} Tipo de Relación
+            </h1>
+            <a href="{{ url_for('admin.relationship_types') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <!-- Info Alert -->
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            <strong>Tipo Personalizado:</strong> {% if editing %}Editar tipo de relación existente.{% else %}Crea tipos de relación específicos para tus investigaciones.{% endif %}
+            El <strong>Nombre</strong> es el identificador interno (se recomienda usar MAYÚSCULAS_CON_GUIONES_BAJOS),
+            y la <strong>Etiqueta</strong> es el texto que se mostrará en la interfaz.
+        </div>
+
+        {% if editing %}
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            <strong>Advertencia:</strong> Cambiar el nombre del tipo puede afectar las relaciones existentes que lo utilizan en Neo4j.
+            Se recomienda solo modificar la etiqueta y descripción, manteniendo el nombre sin cambios.
+        </div>
+        {% endif %}
+
+        <!-- Form -->
+        <div class="card shadow">
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+
+                    <!-- Name Field -->
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {% if editing %}
+                            {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else ""), readonly=true) }}
+                            <small class="text-muted text-warning">
+                                <i class="bi bi-lock"></i> El nombre no puede modificarse después de la creación para evitar problemas con relaciones existentes
+                            </small>
+                        {% else %}
+                            {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                            <small class="text-muted">
+                                Se convertirá automáticamente a mayúsculas. Ejemplo: COMPARTE_CUENTA_CON
+                            </small>
+                        {% endif %}
+                        {% if form.name.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.name.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Label Field -->
+                    <div class="mb-3">
+                        {{ form.label.label(class="form-label") }}
+                        {{ form.label(class="form-control" + (" is-invalid" if form.label.errors else "")) }}
+                        {% if form.label.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.label.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">
+                            Texto legible que aparecerá en formularios y en el grafo. Ejemplo: Comparte cuenta con
+                        </small>
+                    </div>
+
+                    <!-- Description Field -->
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else "")) }}
+                        {% if form.description.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.description.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">
+                            Descripción detallada del tipo de relación y cuándo debe utilizarse
+                        </small>
+                    </div>
+
+                    <!-- Active Checkbox -->
+                    <div class="mb-4">
+                        <div class="form-check">
+                            {{ form.is_active(class="form-check-input") }}
+                            {{ form.is_active.label(class="form-check-label") }}
+                        </div>
+                        <small class="text-muted">
+                            Los tipos inactivos no aparecerán en los formularios de creación de relaciones
+                        </small>
+                    </div>
+
+                    <hr>
+
+                    <!-- Submit Buttons -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('admin.relationship_types') }}" class="btn btn-outline-secondary">
+                            Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i>
+                            {% if editing %}Guardar Cambios{% else %}Crear Tipo{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Example Usage -->
+        <div class="card shadow mt-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Ejemplos de Tipos Personalizados</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Etiqueta</th>
+                                <th>Descripción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>COMPARTE_CUENTA_CON</code></td>
+                                <td>Comparte cuenta con</td>
+                                <td>Dos personas comparten acceso a la misma cuenta bancaria</td>
+                            </tr>
+                            <tr>
+                                <td><code>PRESTAMO_A</code></td>
+                                <td>Préstamo a</td>
+                                <td>Relación de préstamo financiero entre personas</td>
+                            </tr>
+                            <tr>
+                                <td><code>VECINO_DE</code></td>
+                                <td>Vecino de</td>
+                                <td>Proximidad residencial entre personas</td>
+                            </tr>
+                            <tr>
+                                <td><code>AMENAZA_A</code></td>
+                                <td>Amenaza a</td>
+                                <td>Relación de amenaza documentada en evidencia</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

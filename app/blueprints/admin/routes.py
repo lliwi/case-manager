@@ -571,6 +571,48 @@ def create_legitimacy_type():
     return render_template('admin/legitimacy_type_form.html', form=form, editing=False)
 
 
+
+@admin_bp.route('/legitimacy-types/<int:type_id>/edit', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_LEGITIMACY_TYPE_EDIT', 'admin')
+def edit_legitimacy_type(type_id):
+    """Edit a custom legitimacy type."""
+    from app.blueprints.admin.forms import LegitimacyTypeCustomForm
+    from app.models.legitimacy_type_custom import LegitimacyTypeCustom
+
+    custom_type = LegitimacyTypeCustom.query.get_or_404(type_id)
+
+    form = LegitimacyTypeCustomForm(obj=custom_type)
+
+    if form.validate_on_submit():
+        # Check if name already exists (excluding current record)
+        existing = LegitimacyTypeCustom.query.filter(
+            LegitimacyTypeCustom.name == form.name.data,
+            LegitimacyTypeCustom.id != type_id,
+            LegitimacyTypeCustom.is_deleted == False
+        ).first()
+
+        if existing:
+            flash(f'Ya existe un tipo con el nombre "{form.name.data}"', 'danger')
+            return render_template('admin/legitimacy_type_form.html', 
+                                   form=form, editing=True, custom_type=custom_type)
+
+        # Update custom type
+        custom_type.name = form.name.data
+        custom_type.description = form.description.data
+        custom_type.legal_reference = form.legal_reference.data
+        custom_type.is_active = form.is_active.data
+        custom_type.updated_at = datetime.utcnow()
+
+        db.session.commit()
+
+        flash(f'Tipo de legitimidad "{custom_type.name}" actualizado exitosamente', 'success')
+        return redirect(url_for('admin.legitimacy_types'))
+
+    return render_template('admin/legitimacy_type_form.html', 
+                           form=form, editing=True, custom_type=custom_type)
+
 @admin_bp.route('/legitimacy-types/<int:type_id>/delete', methods=['POST'])
 @login_required
 @require_role('admin')
@@ -603,3 +645,179 @@ def delete_legitimacy_type(type_id):
         flash(str(e), 'danger')
 
     return redirect(url_for('admin.legitimacy_types'))
+
+
+# ============================================================================
+# RELATIONSHIP TYPES MANAGEMENT
+# ============================================================================
+
+@admin_bp.route('/relationship-types')
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_RELATIONSHIP_TYPES_VIEWED', 'admin')
+def relationship_types():
+    """View all relationship types with statistics."""
+    from app.models.graph import RelationshipType
+    from app.models.relationship_type_custom import RelationshipTypeCustom
+
+    # Get all base relationship types from enum
+    base_types = list(RelationshipType)
+
+    # Build type stats for base types
+    type_stats = []
+    for rel_type in base_types:
+        type_stats.append({
+            'name': rel_type.value,
+            'label': rel_type.value.replace('_', ' ').title(),
+            'description': f'Tipo de relación base: {rel_type.value}',
+            'is_custom': False,
+            'is_deletable': False,
+            'is_active': True
+        })
+
+    # Get custom types
+    custom_types = RelationshipTypeCustom.query.filter_by(is_deleted=False).all()
+    for custom_type in custom_types:
+        type_stats.append({
+            'name': custom_type.name,
+            'label': custom_type.label,
+            'description': custom_type.description,
+            'is_custom': True,
+            'is_deletable': True,
+            'is_active': custom_type.is_active,
+            'custom_id': custom_type.id,
+            'created_at': custom_type.created_at,
+            'created_by': custom_type.created_by.email if custom_type.created_by else 'Sistema'
+        })
+
+    # Sort: base types first, then custom types by name
+    type_stats.sort(key=lambda x: (x['is_custom'], x['name']))
+
+    return render_template(
+        'admin/relationship_types.html',
+        type_stats=type_stats,
+        total_base_types=len(base_types),
+        total_custom_types=len(custom_types)
+    )
+
+
+@admin_bp.route('/relationship-types/create', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_RELATIONSHIP_TYPE_CREATE', 'admin')
+def create_relationship_type():
+    """Create a new custom relationship type."""
+    from app.blueprints.admin.forms import RelationshipTypeCustomForm
+    from app.models.relationship_type_custom import RelationshipTypeCustom
+
+    form = RelationshipTypeCustomForm()
+
+    if form.validate_on_submit():
+        # Check if name already exists
+        existing = RelationshipTypeCustom.query.filter_by(
+            name=form.name.data.upper(),
+            is_deleted=False
+        ).first()
+
+        if existing:
+            flash(f'Ya existe un tipo con el nombre "{form.name.data}"', 'danger')
+            return render_template('admin/relationship_type_form.html', form=form, editing=False)
+
+        # Create new custom type
+        custom_type = RelationshipTypeCustom(
+            name=form.name.data.upper(),  # Store in uppercase like enum values
+            label=form.label.data,
+            description=form.description.data,
+            is_active=form.is_active.data,
+            created_by_id=current_user.id
+        )
+
+        db.session.add(custom_type)
+        db.session.commit()
+
+        flash(f'Tipo de relación "{custom_type.label}" creado exitosamente', 'success')
+        return redirect(url_for('admin.relationship_types'))
+
+    return render_template('admin/relationship_type_form.html', form=form, editing=False)
+
+
+@admin_bp.route('/relationship-types/<int:type_id>/delete', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_RELATIONSHIP_TYPE_DELETE', 'admin')
+def delete_relationship_type(type_id):
+    """Delete a custom relationship type."""
+    from app.models.relationship_type_custom import RelationshipTypeCustom
+
+    custom_type = RelationshipTypeCustom.query.get_or_404(type_id)
+
+    # Soft delete
+    try:
+        custom_type.soft_delete(current_user)
+        flash(f'Tipo de relación "{custom_type.label}" eliminado exitosamente', 'success')
+    except Exception as e:
+        flash(f'Error al eliminar: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.relationship_types'))
+
+
+@admin_bp.route('/relationship-types/<int:type_id>/toggle', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_RELATIONSHIP_TYPE_TOGGLE', 'admin')
+def toggle_relationship_type(type_id):
+    """Toggle active status of a custom relationship type."""
+    from app.models.relationship_type_custom import RelationshipTypeCustom
+
+    custom_type = RelationshipTypeCustom.query.get_or_404(type_id)
+
+    custom_type.is_active = not custom_type.is_active
+    custom_type.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    status = 'activado' if custom_type.is_active else 'desactivado'
+    flash(f'Tipo de relación "{custom_type.label}" {status} exitosamente', 'success')
+
+    return redirect(url_for('admin.relationship_types'))
+
+
+@admin_bp.route('/relationship-types/<int:type_id>/edit', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_RELATIONSHIP_TYPE_EDIT', 'admin')
+def edit_relationship_type(type_id):
+    """Edit a custom relationship type."""
+    from app.blueprints.admin.forms import RelationshipTypeCustomForm
+    from app.models.relationship_type_custom import RelationshipTypeCustom
+
+    custom_type = RelationshipTypeCustom.query.get_or_404(type_id)
+
+    form = RelationshipTypeCustomForm(obj=custom_type)
+
+    if form.validate_on_submit():
+        # Check if name already exists (excluding current record)
+        existing = RelationshipTypeCustom.query.filter(
+            RelationshipTypeCustom.name == form.name.data.upper(),
+            RelationshipTypeCustom.id != type_id,
+            RelationshipTypeCustom.is_deleted == False
+        ).first()
+
+        if existing:
+            flash(f'Ya existe un tipo con el nombre "{form.name.data}"', 'danger')
+            return render_template('admin/relationship_type_form.html', 
+                                   form=form, editing=True, custom_type=custom_type)
+
+        # Update custom type
+        custom_type.name = form.name.data.upper()
+        custom_type.label = form.label.data
+        custom_type.description = form.description.data
+        custom_type.is_active = form.is_active.data
+        custom_type.updated_at = datetime.utcnow()
+
+        db.session.commit()
+
+        flash(f'Tipo de relación "{custom_type.label}" actualizado exitosamente', 'success')
+        return redirect(url_for('admin.relationship_types'))
+
+    return render_template('admin/relationship_type_form.html', 
+                           form=form, editing=True, custom_type=custom_type)

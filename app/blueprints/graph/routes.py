@@ -197,10 +197,20 @@ def create_relationship(case_id):
             if form.end_date.data:
                 properties['end_date'] = form.end_date.data.isoformat()
 
+            # Determine if relationship type is base or custom
+            relationship_type_value = form.relationship_type.data
+
+            # Try to convert to enum if it's a base type
+            try:
+                relationship_type = RelationshipType(relationship_type_value)
+            except ValueError:
+                # It's a custom type, use the string directly
+                relationship_type = relationship_type_value
+
             # Create relationship
             relationship = GraphRelationship(
                 relationship_id=None,
-                relationship_type=RelationshipType(form.relationship_type.data),
+                relationship_type=relationship_type,
                 from_node_id=form.from_node_id.data,
                 to_node_id=form.to_node_id.data,
                 properties=properties
@@ -390,13 +400,18 @@ def api_search_nodes(case_id):
     query = request.args.get('query', '')
     node_type_str = request.args.get('node_type')
 
-    if not query:
-        return jsonify([])
-
     try:
         node_type = NodeType(node_type_str) if node_type_str else None
         graph_service = GraphService()
-        results = graph_service.search_nodes(case_id, query, node_type)
+
+        # If no query, return all nodes from the case (limit to first 50)
+        if not query or query.strip() == '':
+            # Get all nodes from case
+            graph_data = graph_service.get_case_graph(case_id)
+            results = graph_data['nodes'][:50]  # Limit to first 50 nodes
+        else:
+            # Search with query
+            results = graph_service.search_nodes(case_id, query, node_type)
 
         return jsonify(results)
 

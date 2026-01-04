@@ -259,10 +259,17 @@ class GraphService:
 
         relationship.properties['updated_at'] = datetime.utcnow().isoformat()
 
+        # Handle both enum and string relationship types
+        from app.models.graph import RelationshipType
+        if isinstance(relationship.relationship_type, RelationshipType):
+            rel_type_str = relationship.relationship_type.value
+        else:
+            rel_type_str = relationship.relationship_type
+
         query = f"""
         MATCH (from_node), (to_node)
         WHERE id(from_node) = $from_id AND id(to_node) = $to_id
-        CREATE (from_node)-[r:{relationship.relationship_type.value} $properties]->(to_node)
+        CREATE (from_node)-[r:{rel_type_str} $properties]->(to_node)
         RETURN id(r) as rel_id
         """
 

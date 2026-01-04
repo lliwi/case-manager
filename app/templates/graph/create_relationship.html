@@ -2,6 +2,51 @@
 
 {% block title %}Crear Relación{% endblock %}
 
+{% block extra_css %}
+<!-- Select2 CSS -->
+<link href="{{ url_for('static', filename='vendor/select2/select2.min.css') }}" rel="stylesheet">
+<style>
+    .select2-container--default .select2-selection--single {
+        height: 38px;
+        padding: 6px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 26px;
+        color: #495057;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+    }
+    .select2-container {
+        width: 100% !important;
+    }
+    .select2-results__option {
+        padding: 8px;
+    }
+    .node-result {
+        display: flex;
+        align-items: center;
+    }
+    .node-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        margin-right: 8px;
+        color: white;
+    }
+    .node-badge-Person { background-color: #3498db; }
+    .node-badge-Company { background-color: #e74c3c; }
+    .node-badge-Phone { background-color: #2ecc71; }
+    .node-badge-Email { background-color: #f39c12; }
+    .node-badge-Vehicle { background-color: #9b59b6; }
+    .node-badge-Address { background-color: #1abc9c; }
+    .node-badge-SocialProfile { background-color: #e67e22; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-md-6 offset-md-3">
@@ -19,15 +64,15 @@
                 <div class="card-body">
                     <div class="mb-3">
                         {{ form.from_node_id.label(class="form-label") }}
-                        {{ form.from_node_id(class="form-control" + (" is-invalid" if form.from_node_id.errors else "")) }}
+                        <select id="from_node_id" name="from_node_id" class="form-control{% if form.from_node_id.errors %} is-invalid{% endif %}" required>
+                            <option value="">Buscar nodo de origen...</option>
+                        </select>
                         {% if form.from_node_id.errors %}
                             <div class="invalid-feedback">
                                 {% for error in form.from_node_id.errors %}{{ error }}{% endfor %}
                             </div>
                         {% endif %}
-                        {% if form.from_node_id.description %}
-                            <small class="text-muted">{{ form.from_node_id.description }}</small>
-                        {% endif %}
+                        <small class="text-muted">Escribe para buscar por nombre, DNI, teléfono, etc.</small>
                     </div>
 
                     <div class="text-center my-3">
@@ -50,15 +95,15 @@
 
                     <div class="mb-3">
                         {{ form.to_node_id.label(class="form-label") }}
-                        {{ form.to_node_id(class="form-control" + (" is-invalid" if form.to_node_id.errors else "")) }}
+                        <select id="to_node_id" name="to_node_id" class="form-control{% if form.to_node_id.errors %} is-invalid{% endif %}" required>
+                            <option value="">Buscar nodo de destino...</option>
+                        </select>
                         {% if form.to_node_id.errors %}
                             <div class="invalid-feedback">
                                 {% for error in form.to_node_id.errors %}{{ error }}{% endfor %}
                             </div>
                         {% endif %}
-                        {% if form.to_node_id.description %}
-                            <small class="text-muted">{{ form.to_node_id.description }}</small>
-                        {% endif %}
+                        <small class="text-muted">Escribe para buscar por nombre, DNI, teléfono, etc.</small>
                     </div>
 
                     <hr class="my-4">
@@ -130,4 +175,122 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- jQuery (required by Select2) -->
+<script src="{{ url_for('static', filename='vendor/jquery/jquery.min.js') }}"></script>
+<!-- Select2 JavaScript -->
+<script src="{{ url_for('static', filename='vendor/select2/select2.min.js') }}"></script>
+<script>
+$(document).ready(function() {
+    // Configure Select2 for both node selectors
+    function initializeNodeSelect(elementId) {
+        $('#' + elementId).select2({
+            ajax: {
+                url: '{{ url_for("graph.api_search_nodes", case_id=case.id) }}',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        query: params.term || '', // Search term
+                        page: params.page || 1
+                    };
+                },
+                processResults: function (data, params) {
+                    params.page = params.page || 1;
+
+                    // Transform data to Select2 format
+                    const results = data.map(node => {
+                        // Get label based on node type
+                        let label = '';
+                        if (node.label === 'Person') {
+                            label = node.properties.name || 'Persona sin nombre';
+                        } else if (node.label === 'Company') {
+                            label = node.properties.name || 'Empresa sin nombre';
+                        } else if (node.label === 'Phone') {
+                            label = node.properties.number || 'Teléfono';
+                        } else if (node.label === 'Email') {
+                            label = node.properties.address || 'Email';
+                        } else if (node.label === 'Vehicle') {
+                            label = node.properties.plate || 'Vehículo';
+                        } else if (node.label === 'Address') {
+                            label = `${node.properties.street || ''}, ${node.properties.city || ''}`;
+                        } else if (node.label === 'SocialProfile') {
+                            label = `${node.properties.platform || ''}: ${node.properties.username || ''}`;
+                        } else {
+                            label = node.label;
+                        }
+
+                        return {
+                            id: node.id,
+                            text: label,
+                            nodeType: node.label,
+                            properties: node.properties
+                        };
+                    });
+
+                    return {
+                        results: results,
+                        pagination: {
+                            more: false
+                        }
+                    };
+                },
+                cache: true
+            },
+            placeholder: 'Escribe para buscar...',
+            minimumInputLength: 0, // Allow searching from the start
+            allowClear: true,
+            language: {
+                inputTooShort: function() {
+                    return 'Escribe para buscar nodos';
+                },
+                searching: function() {
+                    return 'Buscando...';
+                },
+                noResults: function() {
+                    return 'No se encontraron nodos';
+                }
+            },
+            templateResult: formatNodeResult,
+            templateSelection: formatNodeSelection
+        });
+    }
+
+    // Format result for dropdown
+    function formatNodeResult(node) {
+        if (node.loading) {
+            return node.text;
+        }
+
+        if (!node.nodeType) {
+            return node.text;
+        }
+
+        const $container = $(
+            '<div class="node-result">' +
+                '<span class="node-badge node-badge-' + node.nodeType + '">' + node.nodeType + '</span>' +
+                '<span>' + node.text + '</span>' +
+            '</div>'
+        );
+
+        return $container;
+    }
+
+    // Format selected value
+    function formatNodeSelection(node) {
+        if (node.nodeType) {
+            return node.nodeType + ': ' + node.text;
+        }
+        return node.text;
+    }
+
+    // Initialize both selects
+    initializeNodeSelect('from_node_id');
+    initializeNodeSelect('to_node_id');
+
+    console.log('[Relationship] Select2 initialized for node selectors');
+});
+</script>
 {% endblock %}
