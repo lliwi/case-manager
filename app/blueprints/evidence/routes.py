@@ -166,12 +166,17 @@ def evidence_detail(evidence_id):
         evidence_id=evidence_id
     ).order_by(ChainOfCustody.timestamp.desc()).all()
 
+    # Get applicable plugins
+    from app.plugins import plugin_manager
+    applicable_plugins = plugin_manager.get_applicable_plugins_for_evidence(evidence)
+
     return render_template(
         'evidence/detail.html',
         evidence=evidence,
         case=case,
         custody_entries=custody_entries,
-        EvidenceType=EvidenceType
+        EvidenceType=EvidenceType,
+        applicable_plugins=applicable_plugins
     )
 
 

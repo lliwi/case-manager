@@ -142,17 +142,23 @@ def api_analyze_evidence(evidence_id, plugin_name):
     evidence = Evidence.query.get_or_404(evidence_id)
 
     # Check permissions
-    if evidence.case.assigned_to_id != current_user.id and not current_user.has_role('admin'):
+    if evidence.case.detective_id != current_user.id and not current_user.is_admin():
         return jsonify({'error': 'Unauthorized'}), 403
 
-    # Get file path
-    from app.services.evidence_service import EvidenceService
-    file_path = EvidenceService.get_decrypted_file_path(evidence)
+    try:
+        # Get decrypted file path
+        file_path = evidence.get_decrypted_path()
 
-    # Execute plugin
-    result = plugin_manager.execute_forensic_plugin(plugin_name, file_path)
+        # Execute plugin
+        result = plugin_manager.execute_forensic_plugin(plugin_name, file_path)
 
-    return jsonify(result)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 @plugins_bp.route('/api/validate-dni', methods=['POST'])

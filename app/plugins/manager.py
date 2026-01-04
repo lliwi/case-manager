@@ -211,3 +211,29 @@ class PluginManager:
             'valid': False,
             'error': 'DNI validator plugin not available'
         }
+
+    def get_applicable_plugins_for_evidence(self, evidence) -> List[Dict[str, Any]]:
+        """
+        Get plugins applicable to a specific evidence file.
+
+        Args:
+            evidence: Evidence instance
+
+        Returns:
+            list: Applicable plugin information dictionaries
+        """
+        import os
+        applicable_plugins = []
+        file_ext = os.path.splitext(evidence.original_filename)[1].lower()
+
+        for plugin in self.get_forensic_plugins():
+            info = plugin.get_info()
+
+            # Check if plugin supports this file type
+            supported_formats = info.get('supported_formats', [])
+            if not supported_formats or file_ext in supported_formats:
+                # Check if plugin is available (dependencies installed)
+                if info.get('available', True):
+                    applicable_plugins.append(info)
+
+        return applicable_plugins

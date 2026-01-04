@@ -22,7 +22,7 @@ hookimpl = pluggy.HookimplMarker("casemanager")
 class ExifExtractorPlugin:
     """Plugin for extracting EXIF metadata from images."""
 
-    SUPPORTED_FORMATS = ['.jpg', '.jpeg', '.tiff', '.tif']
+    SUPPORTED_FORMATS = ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.webp']
 
     @hookimpl
     def get_info(self):
