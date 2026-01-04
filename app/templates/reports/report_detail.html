@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}{{ report.title }} - Case Manager{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3">{{ report.title }}</h1>
+                    <small class="text-muted">Caso {{ report.case.numero_orden }}</small>
+                </div>
+                <div>
+                    <a href="{{ url_for('reports.case_reports', case_id=report.case_id) }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header {% if report.status.name == 'COMPLETED' %}bg-success text-white{% elif report.status.name == 'SIGNED' %}bg-primary text-white{% elif report.status.name == 'FAILED' %}bg-danger text-white{% else %}bg-secondary text-white{% endif %}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-file-earmark-text"></i> {{ report.report_type.value }}
+                                </h5>
+                                <span class="badge {% if report.is_signed %}bg-light text-dark{% else %}bg-dark{% endif %}">
+                                    {{ report.status.value }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            {% if report.description %}
+                                <p class="text-muted">{{ report.description }}</p>
+                                <hr>
+                            {% endif %}
+
+                            {% if report.introduction %}
+                                <h6 class="mt-3">1. Introducción</h6>
+                                <p class="small">{{ report.introduction }}</p>
+                            {% endif %}
+
+                            {% if report.methodology %}
+                                <h6 class="mt-3">2. Metodología</h6>
+                                <p class="small">{{ report.methodology }}</p>
+                            {% endif %}
+
+                            {% if report.findings %}
+                                <h6 class="mt-3">3. Hallazgos</h6>
+                                <p class="small">{{ report.findings }}</p>
+                            {% endif %}
+
+                            {% if report.conclusions %}
+                                <h6 class="mt-3">4. Conclusiones</h6>
+                                <p class="small">{{ report.conclusions }}</p>
+                            {% endif %}
+
+                            {% if report.recommendations %}
+                                <h6 class="mt-3">5. Recomendaciones</h6>
+                                <p class="small">{{ report.recommendations }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-info-circle"></i> Metadatos</h6>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row mb-0 small">
+                                <dt class="col-sm-5">Caso:</dt>
+                                <dd class="col-sm-7">{{ report.case.numero_orden }}</dd>
+
+                                <dt class="col-sm-5">Tipo:</dt>
+                                <dd class="col-sm-7">{{ report.report_type.value }}</dd>
+
+                                <dt class="col-sm-5">Versión:</dt>
+                                <dd class="col-sm-7">v{{ report.version }}</dd>
+
+                                <dt class="col-sm-5">Estado:</dt>
+                                <dd class="col-sm-7">
+                                    <span class="badge {% if report.status.name == 'COMPLETED' %}bg-success{% elif report.status.name == 'DRAFT' %}bg-secondary{% else %}bg-warning text-dark{% endif %}">
+                                        {{ report.status.value }}
+                                    </span>
+                                </dd>
+
+                                <dt class="col-sm-5">Creado:</dt>
+                                <dd class="col-sm-7">{{ report.created_at.strftime('%d/%m/%Y %H:%M') }}</dd>
+
+                                {% if report.generated_at %}
+                                    <dt class="col-sm-5">Generado:</dt>
+                                    <dd class="col-sm-7">{{ report.generated_at.strftime('%d/%m/%Y %H:%M') }}</dd>
+                                {% endif %}
+
+                                <dt class="col-sm-5">Investigador:</dt>
+                                <dd class="col-sm-7">{{ report.created_by.nombre }}</dd>
+
+                                <dt class="col-sm-5">TIP:</dt>
+                                <dd class="col-sm-7">{{ report.created_by.tip_number }}</dd>
+                            </dl>
+
+                            {% if report.file_size %}
+                                <hr>
+                                <dl class="row mb-0 small">
+                                    <dt class="col-sm-5">Tamaño:</dt>
+                                    <dd class="col-sm-7">{{ (report.file_size / 1024)|round(2) }} KB</dd>
+
+                                    <dt class="col-sm-5">SHA-256:</dt>
+                                    <dd class="col-sm-7"><code class="small">{{ report.file_hash_sha256[:16] }}...</code></dd>
+                                </dl>
+                            {% endif %}
+
+                            {% if report.is_signed %}
+                                <hr>
+                                <p class="mb-0 text-success small">
+                                    <i class="bi bi-patch-check-fill"></i>
+                                    <strong>Firmado Digitalmente</strong><br>
+                                    {{ report.signed_at.strftime('%d/%m/%Y %H:%M') if report.signed_at else '' }}
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-check2-square"></i> Elementos Incluidos</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled mb-0 small">
+                                <li class="{% if report.include_evidence_list %}text-success{% else %}text-muted{% endif %}">
+                                    <i class="bi bi-{% if report.include_evidence_list %}check-circle-fill{% else %}circle{% endif %}"></i>
+                                    Relación de Evidencias
+                                </li>
+                                <li class="{% if report.include_timeline %}text-success{% else %}text-muted{% endif %}">
+                                    <i class="bi bi-{% if report.include_timeline %}check-circle-fill{% else %}circle{% endif %}"></i>
+                                    Cronología de Eventos
+                                </li>
+                                <li class="{% if report.include_chain_of_custody %}text-success{% else %}text-muted{% endif %}">
+                                    <i class="bi bi-{% if report.include_chain_of_custody %}check-circle-fill{% else %}circle{% endif %}"></i>
+                                    Cadena de Custodia
+                                </li>
+                                <li class="{% if report.include_graph %}text-success{% else %}text-muted{% endif %}">
+                                    <i class="bi bi-{% if report.include_graph %}check-circle-fill{% else %}circle{% endif %}"></i>
+                                    Grafo de Relaciones
+                                </li>
+                                <li class="{% if report.include_plugin_results %}text-success{% else %}text-muted{% endif %}">
+                                    <i class="bi bi-{% if report.include_plugin_results %}check-circle-fill{% else %}circle{% endif %}"></i>
+                                    Resultados de Plugins
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-lightning-charge-fill"></i> Acciones</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                {% if report.status.name == 'DRAFT' %}
+                                    <a href="{{ url_for('reports.edit_report', report_id=report.id) }}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil"></i> Editar Borrador
+                                    </a>
+
+                                    <button type="button" class="btn btn-sm btn-success" onclick="generatePDF({{ report.id }})">
+                                        <i class="bi bi-file-earmark-pdf"></i> Generar PDF
+                                    </button>
+                                {% endif %}
+
+                                {% if report.status.name == 'COMPLETED' or report.status.name == 'SIGNED' %}
+                                    <a href="{{ url_for('reports.download_pdf', report_id=report.id) }}"
+                                       class="btn btn-sm btn-success">
+                                        <i class="bi bi-download"></i> Descargar PDF
+                                    </a>
+                                {% endif %}
+
+                                <a href="{{ url_for('reports.export_json', report_id=report.id) }}"
+                                   class="btn btn-sm btn-outline-info" target="_blank">
+                                    <i class="bi bi-filetype-json"></i> Exportar JSON
+                                </a>
+
+                                <hr>
+
+                                <form method="POST" action="{{ url_for('reports.delete_report', report_id=report.id) }}"
+                                      onsubmit="return confirm('¿Está seguro de eliminar este informe?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                                        <i class="bi bi-trash"></i> Eliminar Informe
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function generatePDF(reportId) {
+    if (!confirm('¿Generar PDF del informe? Este proceso puede tardar algunos segundos.')) {
+        return;
+    }
+
+    fetch(`/reports/report/${reportId}/generate`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('PDF generado exitosamente');
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error al generar PDF: ' + error);
+    });
+}
+</script>
+{% endblock %}

@@ -93,7 +93,9 @@ class TestingConfig(Config):
     TESTING = True
     WTF_CSRF_ENABLED = False
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_ENGINE_OPTIONS = {}  # SQLite doesn't support pool options
     BCRYPT_LOG_ROUNDS = 4
+    SESSION_COOKIE_SECURE = False
 
 
 # Configuration dictionary

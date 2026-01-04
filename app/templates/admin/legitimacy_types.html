@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}Tipos de Legitimidad - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3">
+                        <i class="bi bi-shield-check"></i> Tipos de Legitimidad
+                    </h1>
+                    <small class="text-muted">Categorías legales de interés legítimo (Ley 5/2014)</small>
+                </div>
+                <div>
+                    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver
+                    </a>
+                    <a href="{{ url_for('admin.create_legitimacy_type') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Crear Nuevo Tipo
+                    </a>
+                </div>
+            </div>
+
+            <!-- Summary Card -->
+            <div class="card mb-4 border-primary">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6 class="text-muted">Total Tipos Definidos</h6>
+                            <h3>{{ type_stats|length }}</h3>
+                            <small class="text-muted">Categorías legales reconocidas</small>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-muted">Total Casos</h6>
+                            <h3>{{ total_cases }}</h3>
+                            <small class="text-muted">Investigaciones activas</small>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-muted">Más Utilizado</h6>
+                            {% if type_stats and type_stats[0].case_count > 0 %}
+                                <h3>{{ type_stats[0].value }}</h3>
+                                <small class="text-muted">{{ type_stats[0].case_count }} casos</small>
+                            {% else %}
+                                <h3>-</h3>
+                                <small class="text-muted">Sin datos</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legal Information -->
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                <strong>Información Legal:</strong>
+                Estos tipos de legitimidad están definidos conforme a la Ley 5/2014 de Seguridad Privada.
+                Cada investigación debe documentar el interés legítimo del cliente antes de aceptar evidencias.
+                Los tipos son inmutables y están codificados en el sistema para garantizar la conformidad legal.
+            </div>
+
+            <!-- Legitimacy Types Table -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Código Interno</th>
+                                    <th>Casos Activos</th>
+                                    <th>% de Uso</th>
+                                    <th>Casos Recientes</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in type_stats %}
+                                    <tr{% if stat.is_custom %} class="table-warning"{% endif %}>
+                                        <td>
+                                            <strong>{{ stat.value }}</strong>
+                                            {% if stat.is_custom %}
+                                                <span class="badge bg-warning text-dark ms-2">PERSONALIZADO</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <code class="small">{{ stat.name }}</code>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{% if stat.case_count > 0 %}primary{% else %}secondary{% endif %}">
+                                                {{ stat.case_count }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if total_cases > 0 %}
+                                                {% set percentage = (stat.case_count / total_cases * 100) | round(1) %}
+                                                <div class="progress" style="height: 20px;">
+                                                    <div class="progress-bar" role="progressbar"
+                                                         style="width: {{ percentage }}%"
+                                                         aria-valuenow="{{ percentage }}"
+                                                         aria-valuemin="0"
+                                                         aria-valuemax="100">
+                                                        {{ percentage }}%
+                                                    </div>
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if stat.recent_cases %}
+                                                <div class="small">
+                                                    {% for case in stat.recent_cases[:3] %}
+                                                        <a href="{{ url_for('cases.detail', case_id=case.id) }}"
+                                                           class="d-block text-truncate"
+                                                           style="max-width: 200px;"
+                                                           title="{{ case.numero_orden }} - {{ case.objeto_investigacion }}">
+                                                            {{ case.numero_orden }}
+                                                        </a>
+                                                    {% endfor %}
+                                                    {% if stat.recent_cases|length > 3 %}
+                                                        <small class="text-muted">
+                                                            +{{ stat.recent_cases|length - 3 }} más
+                                                        </small>
+                                                    {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted small">Sin casos</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                {% if stat.case_count > 0 %}
+                                                    <a href="{{ url_for('cases.index') }}?legitimacy_type={{ stat.name }}"
+                                                       class="btn btn-outline-primary"
+                                                       title="Ver todos los casos de este tipo">
+                                                        <i class="bi bi-eye"></i> Ver Casos
+                                                    </a>
+                                                {% else %}
+                                                    <button class="btn btn-outline-secondary" disabled>
+                                                        <i class="bi bi-eye-slash"></i> Sin Casos
+                                                    </button>
+                                                {% endif %}
+
+                                                {% if stat.is_custom %}
+                                                    {% if stat.is_deletable %}
+                                                        <form method="POST"
+                                                              action="{{ url_for('admin.delete_legitimacy_type', type_id=stat.custom_id) }}"
+                                                              class="d-inline"
+                                                              onsubmit="return confirm('¿Está seguro de eliminar el tipo \"{{ stat.name }}\"?');">
+                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                            <button type="submit" class="btn btn-outline-danger" title="Eliminar tipo personalizado">
+                                                                <i class="bi bi-trash"></i> Eliminar
+                                                            </button>
+                                                        </form>
+                                                    {% else %}
+                                                        <button class="btn btn-outline-danger" disabled title="No se puede eliminar: tipo en uso">
+                                                            <i class="bi bi-lock"></i> En Uso
+                                                        </button>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <button class="btn btn-outline-secondary" disabled title="Los tipos legales base no se pueden eliminar">
+                                                        <i class="bi bi-shield-lock"></i> Legal
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legal Descriptions -->
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="bi bi-book"></i> Descripciones y Contexto Legal
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="legitimacyDescriptions">
+                        {% for stat in type_stats %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading{{ loop.index }}">
+                                    <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#collapse{{ loop.index }}"
+                                            aria-expanded="false"
+                                            aria-controls="collapse{{ loop.index }}">
+                                        <strong>{{ stat.value }}</strong>
+                                        <span class="ms-auto me-3 badge bg-primary">{{ stat.case_count }} casos</span>
+                                    </button>
+                                </h2>
+                                <div id="collapse{{ loop.index }}"
+                                     class="accordion-collapse collapse"
+                                     aria-labelledby="heading{{ loop.index }}"
+                                     data-bs-parent="#legitimacyDescriptions">
+                                    <div class="accordion-body">
+                                        <dl class="row mb-0">
+                                            <dt class="col-sm-3">Código Interno:</dt>
+                                            <dd class="col-sm-9"><code>{{ stat.name }}</code></dd>
+
+                                            <dt class="col-sm-3">Descripción Legal:</dt>
+                                            <dd class="col-sm-9">
+                                                {% if stat.name == 'BAJAS_LABORALES' %}
+                                                    Investigaciones relacionadas con bajas laborales sospechosas de fraude.
+                                                    Requiere contrato laboral y justificación empresarial.
+                                                {% elif stat.name == 'COMPETENCIA_DESLEAL' %}
+                                                    Investigación de prácticas comerciales desleales por parte de competidores.
+                                                    Protección de secretos empresariales y propiedad intelectual.
+                                                {% elif stat.name == 'CUSTODIA_MENORES' %}
+                                                    Investigaciones sobre custodia de menores y cumplimiento de régimen de visitas.
+                                                    Requiere procedimiento judicial previo o en curso.
+                                                {% elif stat.name == 'INVESTIGACION_PATRIMONIAL' %}
+                                                    Localización e investigación de bienes y patrimonio.
+                                                    Contexto de procedimientos judiciales o reclamaciones.
+                                                {% elif stat.name == 'FRAUDE_SEGUROS' %}
+                                                    Investigación de siniestros sospechosos de fraude para compañías aseguradoras.
+                                                    Requiere póliza activa y siniestro declarado.
+                                                {% elif stat.name == 'INFIDELIDAD_CONYUGAL' %}
+                                                    Investigaciones matrimoniales sobre infidelidades conyugales.
+                                                    Contexto de separación o divorcio contencioso.
+                                                {% elif stat.name == 'LOCALIZACION_PERSONAS' %}
+                                                    Búsqueda y localización de personas desaparecidas o en paradero desconocido.
+                                                    No aplicable a menores sin autorización judicial.
+                                                {% elif stat.name == 'SOLVENCIA_PATRIMONIAL' %}
+                                                    Investigación sobre solvencia económica de personas físicas o jurídicas.
+                                                    Previo a relaciones comerciales o procedimientos judiciales.
+                                                {% elif stat.name == 'OTROS' %}
+                                                    Otras investigaciones legítimas no clasificadas en las categorías anteriores.
+                                                    Requiere justificación específica del interés legítimo.
+                                                {% endif %}
+                                            </dd>
+
+                                            <dt class="col-sm-3">Marco Legal:</dt>
+                                            <dd class="col-sm-9">
+                                                <span class="badge bg-secondary">Ley 5/2014 de Seguridad Privada</span>
+                                                <span class="badge bg-secondary">LOPD-GDD</span>
+                                                <span class="badge bg-secondary">RGPD Art. 6.1.f</span>
+                                            </dd>
+
+                                            <dt class="col-sm-3">Casos Activos:</dt>
+                                            <dd class="col-sm-9">
+                                                {{ stat.case_count }} investigaciones
+                                                {% if total_cases > 0 %}
+                                                    ({{ ((stat.case_count / total_cases) * 100) | round(1) }}% del total)
+                                                {% endif %}
+                                            </dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export Options -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h6>Opciones de Exportación</h6>
+                    <p class="text-muted small mb-3">
+                        Exportar estadísticas de uso de tipos de legitimidad para informes de auditoría
+                    </p>
+                    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-primary disabled">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Exportar a Excel
+                    </a>
+                    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary disabled">
+                        <i class="bi bi-file-earmark-pdf"></i> Generar Informe PDF
+                    </a>
+                    <small class="text-muted d-block mt-2">
+                        <i class="bi bi-info-circle"></i> Funcionalidad disponible próximamente
+                    </small>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

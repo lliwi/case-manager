@@ -4,7 +4,7 @@ Legitimacy validation service.
 Validates that investigations have legitimate interest (interés legítimo)
 as required by Spanish law (Ley 5/2014).
 """
-from app.models.case import Case, LegitimacyType
+from app.models.case import Case, LegitimacyType, CaseStatus
 from app.extensions import db
 from datetime import datetime
 import re
@@ -63,10 +63,10 @@ class LegitimacyService:
 
             # If no crimes detected, case can be activated
             if not case.crime_detected:
-                case.status = db.Enum('CaseStatus').EN_INVESTIGACION
+                case.status = CaseStatus.EN_INVESTIGACION
         else:
             case.legitimacy_validated = False
-            case.status = db.Enum('CaseStatus').PENDIENTE_VALIDACION
+            case.status = CaseStatus.PENDIENTE_VALIDACION
 
         if notes:
             case.notas_internas = (case.notas_internas or '') + f"\n[{datetime.utcnow()}] Validación: {notes}"

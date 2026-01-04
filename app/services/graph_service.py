@@ -4,9 +4,10 @@ Graph database service for Neo4j.
 Implements investigation relationship graph using Neo4j.
 """
 from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, date
 from neo4j import GraphDatabase, Driver
 from neo4j.exceptions import ServiceUnavailable, AuthError
+from neo4j.time import Date, DateTime, Time, Duration
 from flask import current_app
 from app.models.graph import (
     GraphNode, GraphRelationship, NodeType, RelationshipType,
@@ -25,6 +26,36 @@ class GraphService:
     def __init__(self):
         """Initialize Graph Service."""
         self._driver: Optional[Driver] = None
+
+    @staticmethod
+    def _convert_neo4j_types(obj: Any) -> Any:
+        """
+        Convert Neo4j types to JSON-serializable Python types.
+
+        Args:
+            obj: Object to convert
+
+        Returns:
+            JSON-serializable version of the object
+        """
+        if isinstance(obj, (Date, DateTime)):
+            # Convert Neo4j Date/DateTime to ISO string
+            return obj.iso_format()
+        elif isinstance(obj, Time):
+            # Convert Neo4j Time to ISO string
+            return obj.iso_format()
+        elif isinstance(obj, Duration):
+            # Convert Duration to total seconds
+            return obj.months * 2592000 + obj.days * 86400 + obj.seconds + obj.nanoseconds / 1e9
+        elif isinstance(obj, dict):
+            # Recursively convert dictionary values
+            return {key: GraphService._convert_neo4j_types(value) for key, value in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            # Recursively convert list/tuple items
+            return [GraphService._convert_neo4j_types(item) for item in obj]
+        else:
+            # Return as-is for basic types
+            return obj
 
     def _get_driver(self) -> Driver:
         """
@@ -347,22 +378,26 @@ class GraphService:
             nodes = []
             for node_data in record['nodes']:
                 if node_data['id'] is not None:  # Skip null nodes
+                    # Convert Neo4j types in properties to JSON-serializable types
+                    properties = self._convert_neo4j_types(dict(node_data['properties']))
                     nodes.append({
                         'id': str(node_data['id']),
                         'label': node_data['labels'][0] if node_data['labels'] else 'Unknown',
-                        'properties': dict(node_data['properties'])
+                        'properties': properties
                     })
 
             # Format relationships
             relationships = []
             for rel_data in record['relationships']:
                 if rel_data['id'] is not None:  # Skip null relationships
+                    # Convert Neo4j types in properties to JSON-serializable types
+                    properties = self._convert_neo4j_types(dict(rel_data['properties'])) if rel_data['properties'] else {}
                     relationships.append({
                         'id': str(rel_data['id']),
                         'type': rel_data['type'],
                         'from': str(rel_data['from']),
                         'to': str(rel_data['to']),
-                        'properties': dict(rel_data['properties']) if rel_data['properties'] else {}
+                        'properties': properties
                     })
 
             return {

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Evento: {{ event.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">{{ event.title }}</h1>
+                <a href="{{ url_for('timeline.case_timeline', case_id=case.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver al Timeline
+                </a>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header" style="background-color: {{ event.color or '#3498db' }}; color: white;">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history"></i> {{ event.event_type.value }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">Fecha y Hora:</dt>
+                        <dd class="col-sm-9">{{ event.event_date.strftime('%d/%m/%Y %H:%M:%S') }}</dd>
+
+                        <dt class="col-sm-3">Descripción:</dt>
+                        <dd class="col-sm-9">{{ event.description or '-' }}</dd>
+
+                        {% if event.location_name %}
+                            <dt class="col-sm-3">Ubicación:</dt>
+                            <dd class="col-sm-9">
+                                {{ event.location_name }}
+                                {% if event.latitude and event.longitude %}
+                                    <br><small class="text-muted">Coordenadas: {{ event.latitude }}, {{ event.longitude }}</small>
+                                {% endif %}
+                            </dd>
+                        {% endif %}
+
+                        {% if event.subjects %}
+                            <dt class="col-sm-3">Sujetos:</dt>
+                            <dd class="col-sm-9">{{ event.subjects }}</dd>
+                        {% endif %}
+
+                        {% if event.tags %}
+                            <dt class="col-sm-3">Etiquetas:</dt>
+                            <dd class="col-sm-9">
+                                {% for tag in event.tags.split(',') %}
+                                    <span class="badge bg-secondary">{{ tag.strip() }}</span>
+                                {% endfor %}
+                            </dd>
+                        {% endif %}
+
+                        <dt class="col-sm-3">Confianza:</dt>
+                        <dd class="col-sm-9">
+                            <span class="badge {% if event.confidence_level == 'high' %}bg-success{% elif event.confidence_level == 'medium' %}bg-primary{% else %}bg-warning{% endif %}">
+                                {{ event.confidence_level or 'medium' }}
+                            </span>
+                        </dd>
+
+                        {% if event.source %}
+                            <dt class="col-sm-3">Fuente:</dt>
+                            <dd class="col-sm-9">{{ event.source }}</dd>
+                        {% endif %}
+
+                        {% if event.evidence_id %}
+                            <dt class="col-sm-3">Evidencia:</dt>
+                            <dd class="col-sm-9">
+                                <a href="{{ url_for('evidence.evidence_detail', evidence_id=event.evidence_id) }}">
+                                    Ver Evidencia Asociada
+                                </a>
+                            </dd>
+                        {% endif %}
+
+                        <dt class="col-sm-3">Creado por:</dt>
+                        <dd class="col-sm-9">
+                            {{ event.created_by.nombre }} - {{ event.created_at.strftime('%d/%m/%Y %H:%M') }}
+                        </dd>
+                    </dl>
+
+                    <div class="mt-4">
+                        <a href="{{ url_for('timeline.edit_event', event_id=event.id) }}" class="btn btn-primary">
+                            <i class="bi bi-pencil"></i> Editar
+                        </a>
+                        <form method="POST" action="{{ url_for('timeline.delete_event', event_id=event.id) }}" class="d-inline" onsubmit="return confirm('¿Eliminar este evento?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash"></i> Eliminar
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

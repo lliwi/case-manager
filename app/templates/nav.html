@@ -25,30 +25,32 @@
                         <li><a class="dropdown-item" href="{{ url_for('libro_registro.index') }}">Libro-registro</a></li>
                     </ul>
                 </li>
+                {% if case %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('cases.index') }}">
+                    <a class="nav-link" href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}">
                         <i class="bi bi-file-earmark-text"></i> Evidencias
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
+                    <a class="nav-link" href="{{ url_for('timeline.case_timeline', case_id=case.id) }}">
                         <i class="bi bi-clock-history"></i> Timeline
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
+                    <a class="nav-link" href="{{ url_for('graph.case_graph', case_id=case.id) }}">
                         <i class="bi bi-diagram-3"></i> Grafo
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
+                    <a class="nav-link" href="{{ url_for('reports.case_reports', case_id=case.id) }}">
                         <i class="bi bi-file-pdf"></i> Informes
                     </a>
                 </li>
                 {% endif %}
+                {% endif %}
                 {% if current_user.is_admin() %}
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
+                    <a class="nav-link" href="{{ url_for('admin.index') }}">
                         <i class="bi bi-gear"></i> Admin
                     </a>
                 </li>

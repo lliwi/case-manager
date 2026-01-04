@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración del Sistema - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3">Configuración del Sistema</h1>
+                    <small class="text-muted">Información y parámetros de configuración</small>
+                </div>
+                <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="bi bi-info-circle"></i> Información del Sistema</h6>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row mb-0">
+                                <dt class="col-sm-5">Nombre del Sistema:</dt>
+                                <dd class="col-sm-7">Case Manager</dd>
+
+                                <dt class="col-sm-5">Versión:</dt>
+                                <dd class="col-sm-7"><code>1.0.0-dev</code></dd>
+
+                                <dt class="col-sm-5">Entorno:</dt>
+                                <dd class="col-sm-7">
+                                    {% if config.DEBUG %}
+                                        <span class="badge bg-warning">Development</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Production</span>
+                                    {% endif %}
+                                </dd>
+
+                                <dt class="col-sm-5">Flask Version:</dt>
+                                <dd class="col-sm-7"><code>{{ flask_version }}</code></dd>
+
+                                <dt class="col-sm-5">Python Version:</dt>
+                                <dd class="col-sm-7"><code>{{ python_version }}</code></dd>
+
+                                <dt class="col-sm-5">SQLAlchemy:</dt>
+                                <dd class="col-sm-7"><code>{{ sqlalchemy_version }}</code></dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="bi bi-database"></i> Base de Datos</h6>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row mb-0">
+                                <dt class="col-sm-5">PostgreSQL:</dt>
+                                <dd class="col-sm-7">
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle"></i> Conectado
+                                    </span>
+                                </dd>
+
+                                <dt class="col-sm-5">Neo4j:</dt>
+                                <dd class="col-sm-7">
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle"></i> Conectado
+                                    </span>
+                                </dd>
+
+                                <dt class="col-sm-5">Redis:</dt>
+                                <dd class="col-sm-7">
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle"></i> Conectado
+                                    </span>
+                                </dd>
+
+                                <dt class="col-sm-5">Database URI:</dt>
+                                <dd class="col-sm-7">
+                                    <small class="text-muted">postgresql://***:***@postgres:5432/casemanager</small>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-shield-lock"></i> Seguridad</h6>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row mb-0">
+                                <dt class="col-sm-5">CSRF Protection:</dt>
+                                <dd class="col-sm-7">
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle"></i> Activado
+                                    </span>
+                                </dd>
+
+                                <dt class="col-sm-5">Rate Limiting:</dt>
+                                <dd class="col-sm-7">
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle"></i> Activado
+                                    </span>
+                                </dd>
+
+                                <dt class="col-sm-5">Session Type:</dt>
+                                <dd class="col-sm-7"><code>filesystem</code></dd>
+
+                                <dt class="col-sm-5">Password Hashing:</dt>
+                                <dd class="col-sm-7"><code>bcrypt</code></dd>
+
+                                <dt class="col-sm-5">Evidence Encryption:</dt>
+                                <dd class="col-sm-7"><code>AES-256-GCM</code></dd>
+
+                                <dt class="col-sm-5">TLS/HTTPS:</dt>
+                                <dd class="col-sm-7">
+                                    {% if config.get('FORCE_HTTPS') %}
+                                        <span class="badge bg-success">Activado</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Desactivado</span>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-gear"></i> Parámetros de Configuración</h6>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row mb-0">
+                                <dt class="col-sm-6">Upload Max Size:</dt>
+                                <dd class="col-sm-6"><code>{{ config.MAX_CONTENT_LENGTH // (1024 * 1024) }} MB</code></dd>
+
+                                <dt class="col-sm-6">Evidence Storage:</dt>
+                                <dd class="col-sm-6"><code>/data/evidence</code></dd>
+
+                                <dt class="col-sm-6">Reports Storage:</dt>
+                                <dd class="col-sm-6"><code>/data/reports</code></dd>
+
+                                <dt class="col-sm-6">Audit Logs:</dt>
+                                <dd class="col-sm-6">
+                                    <span class="badge bg-success">Activados</span>
+                                </dd>
+
+                                <dt class="col-sm-6">Plugins Loaded:</dt>
+                                <dd class="col-sm-6"><code>{{ plugins_count }}</code></dd>
+
+                                <dt class="col-sm-6">Log Level:</dt>
+                                <dd class="col-sm-6">
+                                    {% if config.DEBUG %}
+                                        <code>DEBUG</code>
+                                    {% else %}
+                                        <code>INFO</code>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-scale"></i> Cumplimiento Legal</h6>
+                </div>
+                <div class="card-body">
+                    <h6>Ley 5/2014 de Seguridad Privada</h6>
+                    <p class="small">
+                        El sistema cumple con los requisitos establecidos en la Ley 5/2014, de 4 de abril,
+                        de Seguridad Privada, para el desarrollo de actividades de investigación privada en España.
+                    </p>
+
+                    <div class="row small">
+                        <div class="col-md-6">
+                            <h6>Características de Cumplimiento:</h6>
+                            <ul>
+                                <li><i class="bi bi-check-circle text-success"></i> Libro-registro obligatorio (Art. 51)</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Validación de legitimidad del cliente</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Identificación profesional (TIP)</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Cadena de custodia de evidencias</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Logs de auditoría inmutables</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Estándares Forenses:</h6>
+                            <ul>
+                                <li><i class="bi bi-check-circle text-success"></i> UNE 71506 - Metodología forense</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Hash SHA-256/SHA-512 de evidencias</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Cifrado AES-256-GCM</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Timestamps confiables</li>
+                                <li><i class="bi bi-check-circle text-success"></i> Informes con firma digital</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-3 mb-0">
+                        <h6 class="alert-heading"><i class="bi bi-info-circle"></i> Importante</h6>
+                        <p class="mb-0 small">
+                            Las configuraciones de seguridad y cumplimiento legal no deben modificarse sin consultar
+                            con personal técnico autorizado y asesoramiento legal apropiado. Las modificaciones
+                            incorrectas pueden comprometer la validez judicial de las investigaciones.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

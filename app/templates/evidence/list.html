@@ -40,15 +40,15 @@
         <div class="card bg-info text-white">
             <div class="card-body">
                 <h6 class="text-uppercase small">Tamaño Total</h6>
-                <div class="h3">{{ "%.2f"|format(stats.total_size / 1024 / 1024) }} MB</div>
+                <div class="h3">{{ stats.total_size_mb }} MB</div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card bg-warning text-white">
             <div class="card-body">
-                <h6 class="text-uppercase small">Última Subida</h6>
-                <div class="h6">{{ stats.last_upload.strftime('%d/%m/%Y') if stats.last_upload else '-' }}</div>
+                <h6 class="text-uppercase small">Tasa de Verificación</h6>
+                <div class="h3">{{ stats.verification_rate }}%</div>
             </div>
         </div>
     </div>

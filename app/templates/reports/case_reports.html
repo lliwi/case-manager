@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Informes - Caso {{ case.numero_orden }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3">Informes del Caso {{ case.numero_orden }}</h1>
+                    <small class="text-muted">{{ case.titulo }}</small>
+                </div>
+                <div>
+                    <a href="{{ url_for('cases.detail', case_id=case.id) }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver al Caso
+                    </a>
+                    <a href="{{ url_for('reports.create_report', case_id=case.id) }}" class="btn btn-primary">
+                        <i class="bi bi-file-earmark-plus"></i> Crear Informe
+                    </a>
+                </div>
+            </div>
+
+            {% if reports %}
+                <div class="row">
+                    {% for report in reports %}
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-header {% if report.status.name == 'COMPLETED' %}bg-success text-white{% elif report.status.name == 'SIGNED' %}bg-primary text-white{% elif report.status.name == 'GENERATING' %}bg-warning{% elif report.status.name == 'FAILED' %}bg-danger text-white{% else %}bg-secondary text-white{% endif %}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">
+                                            <i class="bi bi-file-earmark-text"></i> {{ report.report_type.value }}
+                                        </h6>
+                                        <span class="badge {% if report.is_signed %}bg-light text-dark{% else %}bg-dark{% endif %}">
+                                            {{ report.status.value }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ report.title }}</h5>
+                                    {% if report.description %}
+                                        <p class="card-text text-muted small">{{ report.description[:150] }}{% if report.description|length > 150 %}...{% endif %}</p>
+                                    {% endif %}
+
+                                    <hr>
+
+                                    <dl class="row mb-0 small">
+                                        <dt class="col-sm-4">Versión:</dt>
+                                        <dd class="col-sm-8">v{{ report.version }}</dd>
+
+                                        <dt class="col-sm-4">Creado:</dt>
+                                        <dd class="col-sm-8">{{ report.created_at.strftime('%d/%m/%Y %H:%M') }}</dd>
+
+                                        {% if report.generated_at %}
+                                            <dt class="col-sm-4">Generado:</dt>
+                                            <dd class="col-sm-8">{{ report.generated_at.strftime('%d/%m/%Y %H:%M') }}</dd>
+                                        {% endif %}
+
+                                        <dt class="col-sm-4">Creado por:</dt>
+                                        <dd class="col-sm-8">{{ report.created_by.nombre }}</dd>
+
+                                        {% if report.file_hash_sha256 %}
+                                            <dt class="col-sm-4">Hash SHA-256:</dt>
+                                            <dd class="col-sm-8"><code class="small">{{ report.file_hash_sha256[:16] }}...</code></dd>
+                                        {% endif %}
+
+                                        {% if report.is_signed %}
+                                            <dt class="col-sm-4">Firmado:</dt>
+                                            <dd class="col-sm-8">
+                                                <i class="bi bi-patch-check-fill text-success"></i> Sí
+                                            </dd>
+                                        {% endif %}
+                                    </dl>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="d-flex gap-2">
+                                        <a href="{{ url_for('reports.report_detail', report_id=report.id) }}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> Ver
+                                        </a>
+
+                                        {% if report.status.name == 'DRAFT' %}
+                                            <a href="{{ url_for('reports.edit_report', report_id=report.id) }}"
+                                               class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-pencil"></i> Editar
+                                            </a>
+                                        {% endif %}
+
+                                        {% if report.status.name == 'COMPLETED' or report.status.name == 'SIGNED' %}
+                                            <a href="{{ url_for('reports.download_pdf', report_id=report.id) }}"
+                                               class="btn btn-sm btn-success">
+                                                <i class="bi bi-download"></i> Descargar PDF
+                                            </a>
+                                        {% endif %}
+
+                                        <a href="{{ url_for('reports.export_json', report_id=report.id) }}"
+                                           class="btn btn-sm btn-outline-info">
+                                            <i class="bi bi-filetype-json"></i> JSON
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <h5 class="alert-heading"><i class="bi bi-info-circle"></i> No hay informes</h5>
+                    <p class="mb-0">
+                        Este caso aún no tiene informes generados.
+                        <a href="{{ url_for('reports.create_report', case_id=case.id) }}" class="alert-link">
+                            Crear el primer informe
+                        </a>
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

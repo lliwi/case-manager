@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Crear Nuevo Usuario - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">Crear Nuevo Usuario</h1>
+                <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Cancelar
+                </a>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="bi bi-person-plus"></i> Información del Usuario</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('admin.create_user') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                            <small class="text-muted">Será utilizado como nombre de usuario</small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="nombre" class="form-label">Nombre <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="nombre" name="nombre" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="apellidos" class="form-label">Apellidos <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="apellidos" name="apellidos" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="tip_number" class="form-label">Número TIP <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="tip_number" name="tip_number" required
+                                   placeholder="Tarjeta de Identidad Profesional">
+                            <small class="text-muted">Tarjeta de Identidad Profesional del detective</small>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6>Credenciales de Acceso</h6>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Contraseña <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="password" name="password" required minlength="8">
+                            <small class="text-muted">Mínimo 8 caracteres</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">Confirmar Contraseña <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required minlength="8">
+                        </div>
+
+                        <hr class="my-4">
+                        <h6>Roles y Permisos</h6>
+
+                        <div class="mb-3">
+                            <label class="form-label">Asignar Roles</label>
+                            {% for role in roles %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="role_{{ role.id }}"
+                                           name="roles" value="{{ role.id }}"
+                                           {% if role.name == 'detective' %}checked{% endif %}>
+                                    <label class="form-check-label" for="role_{{ role.id }}">
+                                        <strong>{{ role.name }}</strong>
+                                        {% if role.description %}
+                                            <span class="text-muted">- {{ role.description }}</span>
+                                        {% endif %}
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <hr class="my-4">
+                        <h6>Estado Inicial</h6>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
+                                <label class="form-check-label" for="is_active">
+                                    Usuario Activo
+                                </label>
+                                <small class="d-block text-muted">Si está desactivado, el usuario no podrá iniciar sesión</small>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-person-plus"></i> Crear Usuario
+                            </button>
+                            <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+                                Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-4">
+                <h6 class="alert-heading"><i class="bi bi-info-circle"></i> Información</h6>
+                <p class="mb-0 small">
+                    Se recomienda asignar el rol <strong>detective</strong> a todos los usuarios operacionales.
+                    El rol <strong>admin</strong> debe reservarse para personal autorizado con acceso a funciones administrativas.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelector('form').addEventListener('submit', function(e) {
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+
+    if (password !== confirmPassword) {
+        e.preventDefault();
+        alert('Las contraseñas no coinciden');
+        return false;
+    }
+
+    if (password.length < 8) {
+        e.preventDefault();
+        alert('La contraseña debe tener al menos 8 caracteres');
+        return false;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo Evento Timeline - Caso {{ case.numero_orden }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1 class="h3 mb-4">
+                <i class="bi bi-plus-circle"></i> Nuevo Evento Timeline
+            </h1>
+            <p class="text-muted">Caso: {{ case.numero_orden }} - {{ case.objeto_investigacion }}</p>
+
+            <form method="POST">
+                {{ form.hidden_tag() }}
+
+                <div class="card mb-3">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Información del Evento</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.event_type.label(class="form-label") }}
+                                {{ form.event_type(class="form-select" + (" is-invalid" if form.event_type.errors else "")) }}
+                                {% if form.event_type.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.event_type.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                {{ form.event_date.label(class="form-label") }}
+                                {{ form.event_date(class="form-control" + (" is-invalid" if form.event_date.errors else "")) }}
+                                {% if form.event_date.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.event_date.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.title.label(class="form-label") }}
+                            {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else "")) }}
+                            {% if form.title.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.title.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows=4) }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.description.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Ubicación</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.location_name.label(class="form-label") }}
+                            {{ form.location_name(class="form-control") }}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.latitude.label(class="form-label") }}
+                                {{ form.latitude(class="form-control", step="any") }}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                {{ form.longitude.label(class="form-label") }}
+                                {{ form.longitude(class="form-control", step="any") }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Detalles Adicionales</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.subjects.label(class="form-label") }}
+                            {{ form.subjects(class="form-control") }}
+                            <small class="text-muted">{{ form.subjects.description }}</small>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.tags.label(class="form-label") }}
+                            {{ form.tags(class="form-control") }}
+                            <small class="text-muted">{{ form.tags.description }}</small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.confidence_level.label(class="form-label") }}
+                                {{ form.confidence_level(class="form-select") }}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                {{ form.source.label(class="form-label") }}
+                                {{ form.source(class="form-control") }}
+                                <small class="text-muted">{{ form.source.description }}</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.color.label(class="form-label") }}
+                            {{ form.color(class="form-control", placeholder="#3498db") }}
+                            <small class="text-muted">{{ form.color.description }}</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('timeline.case_timeline', case_id=case.id) }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x"></i> Cancelar
+                    </a>
+                    {{ form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

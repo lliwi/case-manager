@@ -18,12 +18,15 @@
             <div class="card shadow">
                 <div class="card-body">
                     <div class="mb-3">
-                        {{ form.source_node.label(class="form-label") }}
-                        {{ form.source_node(class="form-select" + (" is-invalid" if form.source_node.errors else "")) }}
-                        {% if form.source_node.errors %}
+                        {{ form.from_node_id.label(class="form-label") }}
+                        {{ form.from_node_id(class="form-control" + (" is-invalid" if form.from_node_id.errors else "")) }}
+                        {% if form.from_node_id.errors %}
                             <div class="invalid-feedback">
-                                {% for error in form.source_node.errors %}{{ error }}{% endfor %}
+                                {% for error in form.from_node_id.errors %}{{ error }}{% endfor %}
                             </div>
+                        {% endif %}
+                        {% if form.from_node_id.description %}
+                            <small class="text-muted">{{ form.from_node_id.description }}</small>
                         {% endif %}
                     </div>
 
@@ -46,26 +49,73 @@
                     </div>
 
                     <div class="mb-3">
-                        {{ form.target_node.label(class="form-label") }}
-                        {{ form.target_node(class="form-select" + (" is-invalid" if form.target_node.errors else "")) }}
-                        {% if form.target_node.errors %}
+                        {{ form.to_node_id.label(class="form-label") }}
+                        {{ form.to_node_id(class="form-control" + (" is-invalid" if form.to_node_id.errors else "")) }}
+                        {% if form.to_node_id.errors %}
                             <div class="invalid-feedback">
-                                {% for error in form.target_node.errors %}{{ error }}{% endfor %}
+                                {% for error in form.to_node_id.errors %}{{ error }}{% endfor %}
                             </div>
+                        {% endif %}
+                        {% if form.to_node_id.description %}
+                            <small class="text-muted">{{ form.to_node_id.description }}</small>
                         {% endif %}
                     </div>
 
-                    {% if form.description %}
-                        <div class="mb-3">
-                            {{ form.description.label(class="form-label") }}
-                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="3") }}
-                            {% if form.description.errors %}
+                    <hr class="my-4">
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.confidence.label(class="form-label") }}
+                            {{ form.confidence(class="form-control" + (" is-invalid" if form.confidence.errors else ""), step="0.01") }}
+                            {% if form.confidence.errors %}
                                 <div class="invalid-feedback">
-                                    {% for error in form.description.errors %}{{ error }}{% endfor %}
+                                    {% for error in form.confidence.errors %}{{ error }}{% endfor %}
                                 </div>
                             {% endif %}
+                            {% if form.confidence.description %}
+                                <small class="text-muted">{{ form.confidence.description }}</small>
+                            {% endif %}
                         </div>
-                    {% endif %}
+
+                        <div class="col-md-6 mb-3">
+                            {{ form.start_date.label(class="form-label") }}
+                            {{ form.start_date(class="form-control" + (" is-invalid" if form.start_date.errors else ""), type="date") }}
+                            {% if form.start_date.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.start_date.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.start_date.description %}
+                                <small class="text-muted">{{ form.start_date.description }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.end_date.label(class="form-label") }}
+                        {{ form.end_date(class="form-control" + (" is-invalid" if form.end_date.errors else ""), type="date") }}
+                        {% if form.end_date.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.end_date.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if form.end_date.description %}
+                            <small class="text-muted">{{ form.end_date.description }}</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.notes.label(class="form-label") }}
+                        {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else ""), rows="3") }}
+                        {% if form.notes.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.notes.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if form.notes.description %}
+                            <small class="text-muted">{{ form.notes.description }}</small>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
 
@@ -73,7 +123,9 @@
                 <a href="{{ url_for('graph.case_graph', case_id=case.id) }}" class="btn btn-outline-secondary">
                     Cancelar
                 </a>
-                {{ form.submit(class="btn btn-primary") }}
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> Crear Relación
+                </button>
             </div>
         </form>
     </div>

@@ -174,9 +174,9 @@ class TimelineEvent(db.Model):
             title=f'Evidencia: {evidence.original_filename}',
             description=evidence.description,
             event_date=evidence.acquisition_date or evidence.uploaded_at,
-            location_name=evidence.source_location,
-            latitude=evidence.geolocation_lat,
-            longitude=evidence.geolocation_lon,
+            location_name=evidence.source_location or evidence.location_description,
+            latitude=evidence.latitude,
+            longitude=evidence.longitude,
             source=evidence.acquisition_method or 'Evidence Upload',
             color='#2ecc71',  # Green for evidence
             icon='bi-file-earmark-check'

@@ -30,6 +30,7 @@
                 <h6 class="alert-heading"><i class="bi bi-shield-exclamation"></i> Integridad No Verificada</h6>
                 <p class="mb-1 small">Esta evidencia no ha sido verificada recientemente.</p>
                 <form method="POST" action="{{ url_for('evidence.verify_integrity', evidence_id=evidence.id) }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="btn btn-sm btn-warning">
                         <i class="bi bi-shield-check"></i> Verificar Ahora
                     </button>
@@ -194,6 +195,7 @@
                     </a>
 
                     <form method="POST" action="{{ url_for('evidence.verify_integrity', evidence_id=evidence.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit" class="btn btn-outline-warning w-100">
                             <i class="bi bi-shield-check"></i> Verificar Integridad
                         </button>

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle Log #{{ log.id }} - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3">Detalle del Log de Auditoría</h1>
+                    <small class="text-muted">ID: {{ log.id }}</small>
+                </div>
+                <a href="{{ url_for('admin.audit_logs') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver a Logs
+                </a>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="bi bi-info-circle"></i> Información General</h6>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row mb-0">
+                                <dt class="col-sm-4">ID:</dt>
+                                <dd class="col-sm-8"><code>{{ log.id }}</code></dd>
+
+                                <dt class="col-sm-4">Timestamp:</dt>
+                                <dd class="col-sm-8">
+                                    {{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}
+                                    <br>
+                                    <small class="text-muted">{{ log.timestamp.strftime('%A, %d de %B de %Y') }}</small>
+                                </dd>
+
+                                <dt class="col-sm-4">Acción:</dt>
+                                <dd class="col-sm-8">
+                                    <code class="bg-light p-1">{{ log.action }}</code>
+                                </dd>
+
+                                <dt class="col-sm-4">Tipo de Recurso:</dt>
+                                <dd class="col-sm-8">
+                                    {% if log.resource_type %}
+                                        <span class="badge bg-secondary">{{ log.resource_type }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </dd>
+
+                                <dt class="col-sm-4">ID del Recurso:</dt>
+                                <dd class="col-sm-8">
+                                    {% if log.resource_id %}
+                                        <code>{{ log.resource_id }}</code>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="bi bi-person"></i> Información del Usuario</h6>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row mb-0">
+                                <dt class="col-sm-4">Usuario:</dt>
+                                <dd class="col-sm-8">
+                                    {% if log.user %}
+                                        <a href="{{ url_for('admin.user_detail', user_id=log.user_id) }}">
+                                            {{ log.user.email }}
+                                        </a>
+                                        <br>
+                                        <small class="text-muted">{{ log.user.nombre }}</small>
+                                    {% else %}
+                                        <span class="text-muted">Sistema</span>
+                                    {% endif %}
+                                </dd>
+
+                                <dt class="col-sm-4">IP Address:</dt>
+                                <dd class="col-sm-8">
+                                    {% if log.ip_address %}
+                                        <code>{{ log.ip_address }}</code>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </dd>
+
+                                <dt class="col-sm-4">User Agent:</dt>
+                                <dd class="col-sm-8">
+                                    {% if log.user_agent %}
+                                        <small>{{ log.user_agent }}</small>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if log.details %}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-file-earmark-text"></i> Detalles Adicionales</h6>
+                    </div>
+                    <div class="card-body">
+                        <pre class="bg-light p-3 rounded"><code>{{ log.details | tojson(indent=2) }}</code></pre>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-shield-check"></i> Información de Integridad</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-3">Registro Inmutable:</dt>
+                        <dd class="col-sm-9">
+                            <span class="badge bg-success">
+                                <i class="bi bi-lock-fill"></i> Protegido
+                            </span>
+                            <br>
+                            <small class="text-muted">
+                                Este registro de auditoría es inmutable y cumple con los requisitos de trazabilidad
+                                forense establecidos en la Ley 5/2014 de Seguridad Privada.
+                            </small>
+                        </dd>
+
+                        <dt class="col-sm-3">Trazabilidad:</dt>
+                        <dd class="col-sm-9">
+                            <small class="text-muted">
+                                Este log forma parte de la cadena de custodia y puede ser utilizado como evidencia
+                                en procedimientos judiciales. La marca temporal y los datos del usuario garantizan
+                                la trazabilidad de todas las acciones en el sistema.
+                            </small>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="alert alert-warning mt-4">
+                <h6 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Advertencia</h6>
+                <p class="mb-0 small">
+                    Los logs de auditoría no pueden ser eliminados o modificados. Esta es una característica de seguridad
+                    para mantener la integridad de la cadena de custodia y cumplir con los requisitos legales.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

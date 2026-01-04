@@ -7,6 +7,7 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler
 from flask import Flask, render_template
+from werkzeug.middleware.proxy_fix import ProxyFix
 from app.config import config
 from app.extensions import (
     db, migrate, login_manager, bcrypt, csrf,
@@ -29,6 +30,12 @@ def create_app(config_name=None):
 
     app = Flask(__name__)
     app.config.from_object(config[config_name])
+
+    # Configure ProxyFix for proper IP detection behind Nginx
+    # x_for=1: Trust X-Forwarded-For header (1 proxy)
+    # x_proto=1: Trust X-Forwarded-Proto header
+    # x_host=1: Trust X-Forwarded-Host header
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # Initialize extensions
     initialize_extensions(app)
@@ -85,6 +92,11 @@ def register_blueprints(app):
     from app.blueprints.libro_registro import libro_bp
     from app.blueprints.evidence import evidence_bp
     from app.blueprints.graph import graph_bp
+    from app.blueprints.timeline import timeline_bp
+    from app.blueprints.plugins import plugins_bp
+    from app.blueprints.reports import reports_bp
+    from app.blueprints.admin import admin_bp
+    from app.blueprints.tasks import tasks_bp
 
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -93,15 +105,11 @@ def register_blueprints(app):
     app.register_blueprint(libro_bp, url_prefix='/libro-registro')
     app.register_blueprint(evidence_bp, url_prefix='/evidence')
     app.register_blueprint(graph_bp, url_prefix='/graph')
-
-    # TODO: Register additional blueprints as they are created
-    # from app.blueprints.timeline import timeline_bp
-    # from app.blueprints.reports import reports_bp
-    # from app.blueprints.admin import admin_bp
-    #
-    # app.register_blueprint(timeline_bp, url_prefix='/timeline')
-    # app.register_blueprint(reports_bp, url_prefix='/reports')
-    # app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(timeline_bp, url_prefix='/timeline')
+    app.register_blueprint(plugins_bp, url_prefix='/plugins')
+    app.register_blueprint(reports_bp, url_prefix='/reports')
+    app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(tasks_bp, url_prefix='/tasks')
 
     # Root route
     @app.route('/')

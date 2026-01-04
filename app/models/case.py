@@ -68,7 +68,8 @@ class Case(db.Model):
     cliente_email = db.Column(db.String(120))
 
     # Legitimacy (interés legítimo) - CRITICAL for legal compliance
-    legitimacy_type = db.Column(db.Enum(LegitimacyType), nullable=False)
+    legitimacy_type = db.Column(db.Enum(LegitimacyType), nullable=True)  # Nullable if using custom type
+    legitimacy_type_custom_id = db.Column(db.Integer, db.ForeignKey('legitimacy_types_custom.id'))  # Custom type option
     legitimacy_document_path = db.Column(db.String(500))  # Contract or proof
     legitimacy_description = db.Column(db.Text, nullable=False)
     legitimacy_validated = db.Column(db.Boolean, default=False, nullable=False)
@@ -125,6 +126,7 @@ class Case(db.Model):
     detective = db.relationship('User', foreign_keys=[detective_id], backref='assigned_cases')
     validator = db.relationship('User', foreign_keys=[legitimacy_validated_by_id])
     deleter = db.relationship('User', foreign_keys=[deleted_by_id])
+    legitimacy_type_custom = db.relationship('LegitimacyTypeCustom', backref='cases')
 
     # These will be defined when models are created
     # evidences = db.relationship('Evidence', backref='case', lazy='dynamic')

@@ -6,8 +6,16 @@ Tasks for identity validation and social media research.
 from app.tasks.celery_app import celery
 
 
-@celery.task(name='app.tasks.osint.validate_dni')
-def validate_dni(dni_number):
+@celery.task(
+    name='app.tasks.osint.validate_dni',
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    max_retries=3
+)
+def validate_dni(self, dni_number):
     """
     Validate Spanish DNI/NIE using modulo 23 algorithm.
 
@@ -61,8 +69,16 @@ def validate_dni(dni_number):
         }
 
 
-@celery.task(name='app.tasks.osint.search_email')
-def search_email(email):
+@celery.task(
+    name='app.tasks.osint.search_email',
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    max_retries=3
+)
+def search_email(self, email):
     """
     Search for social media profiles associated with email.
 
@@ -92,8 +108,16 @@ def search_email(email):
     return results
 
 
-@celery.task(name='app.tasks.osint.search_username')
-def search_username(username):
+@celery.task(
+    name='app.tasks.osint.search_username',
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    max_retries=3
+)
+def search_username(self, username):
     """
     Search for username across social media platforms.
 
@@ -123,8 +147,16 @@ def search_username(username):
     return results
 
 
-@celery.task(name='app.tasks.osint.search_phone')
-def search_phone(phone_number):
+@celery.task(
+    name='app.tasks.osint.search_phone',
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    max_retries=3
+)
+def search_phone(self, phone_number):
     """
     Search for information about phone number.
 

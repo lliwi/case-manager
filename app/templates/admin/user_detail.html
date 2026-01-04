@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Usuario: {{ user.email }} - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">Detalle del Usuario</h1>
+                <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver a Usuarios
+                </a>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="bi bi-person"></i> Información del Usuario</h6>
+                        </div>
+                        <div class="card-body">
+                            <dl class="mb-0">
+                                <dt>Email</dt>
+                                <dd>{{ user.email }}</dd>
+
+                                <dt>Nombre</dt>
+                                <dd>{{ user.nombre }}</dd>
+
+                                <dt>Número TIP</dt>
+                                <dd><code>{{ user.tip_number }}</code></dd>
+
+                                <dt>Estado</dt>
+                                <dd>
+                                    {% if user.is_active %}
+                                        <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactivo</span>
+                                    {% endif %}
+                                </dd>
+
+                                <dt>Roles</dt>
+                                <dd>
+                                    {% for role in user.roles %}
+                                        <span class="badge bg-secondary">{{ role.name }}</span>
+                                    {% else %}
+                                        <span class="text-muted">Sin roles asignados</span>
+                                    {% endfor %}
+                                </dd>
+
+                                <dt>Fecha de Creación</dt>
+                                <dd>{{ user.created_at.strftime('%d/%m/%Y %H:%M') }}</dd>
+
+                                {% if user.last_login %}
+                                    <dt>Último Acceso</dt>
+                                    <dd>{{ user.last_login.strftime('%d/%m/%Y %H:%M') }}</dd>
+                                {% endif %}
+                            </dl>
+                        </div>
+                        <div class="card-footer">
+                            <form method="POST" action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                {% if user.is_active %}
+                                    <button type="submit" class="btn btn-sm btn-warning">
+                                        <i class="bi bi-x-circle"></i> Desactivar
+                                    </button>
+                                {% else %}
+                                    <button type="submit" class="btn btn-sm btn-success">
+                                        <i class="bi bi-check-circle"></i> Activar
+                                    </button>
+                                {% endif %}
+                            </form>
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#resetPasswordModal">
+                                <i class="bi bi-key"></i> Restablecer Contraseña
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-8 mb-4">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-briefcase"></i> Casos Asignados</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if assigned_cases %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Nº Orden</th>
+                                                <th>Título</th>
+                                                <th>Estado</th>
+                                                <th>Fecha Apertura</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for case in assigned_cases %}
+                                                <tr>
+                                                    <td><code>{{ case.numero_orden }}</code></td>
+                                                    <td>
+                                                        <a href="{{ url_for('cases.detail', case_id=case.id) }}">
+                                                            {{ case.titulo }}
+                                                        </a>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-info">{{ case.status.value }}</span>
+                                                    </td>
+                                                    <td>{{ case.fecha_apertura.strftime('%d/%m/%Y') }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted mb-0">No tiene casos asignados actualmente.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-clock-history"></i> Actividad Reciente</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if recent_activity %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Timestamp</th>
+                                                <th>Acción</th>
+                                                <th>Recurso</th>
+                                                <th>IP</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for log in recent_activity %}
+                                                <tr>
+                                                    <td class="small">{{ log.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                                                    <td><code class="small">{{ log.action }}</code></td>
+                                                    <td class="small">
+                                                        {{ log.resource_type or '-' }}
+                                                        {% if log.resource_id %}
+                                                            <span class="text-muted">#{{ log.resource_id }}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td><code class="small">{{ log.ip_address or '-' }}</code></td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <a href="{{ url_for('admin.audit_logs', user_id=user.id) }}" class="btn btn-sm btn-outline-primary">
+                                    Ver todos los logs <i class="bi bi-arrow-right"></i>
+                                </a>
+                            {% else %}
+                                <p class="text-muted mb-0">No hay actividad registrada.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Restablecer Contraseña</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin.reset_password', user_id=user.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body">
+                    <p>¿Está seguro de que desea restablecer la contraseña de <strong>{{ user.email }}</strong>?</p>
+                    <div class="mb-3">
+                        <label for="new_password" class="form-label">Nueva Contraseña <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="new_password" name="new_password" required minlength="8">
+                        <small class="text-muted">Mínimo 8 caracteres</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Confirmar Contraseña <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required minlength="8">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Restablecer Contraseña</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

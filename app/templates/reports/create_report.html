@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Crear Informe - Caso {{ case.numero_orden }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">Crear Nuevo Informe</h1>
+                <a href="{{ url_for('reports.case_reports', case_id=case.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Cancelar
+                </a>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-plus"></i> Nuevo Informe Pericial</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('reports.create_report', case_id=case.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="report_type" class="form-label">Tipo de Informe</label>
+                                <select class="form-select" id="report_type" name="report_type" required>
+                                    {% for rt in report_types %}
+                                        <option value="{{ rt.name }}">{{ rt.value }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="title" class="form-label">Título del Informe</label>
+                                <input type="text" class="form-control" id="title" name="title"
+                                       placeholder="Ej: Informe de Análisis Fotográfico" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="description" name="description" rows="2"
+                                      placeholder="Breve descripción del contenido del informe"></textarea>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6 class="mb-3">Contenido del Informe</h6>
+
+                        <div class="mb-3">
+                            <label for="introduction" class="form-label">1. Introducción</label>
+                            <textarea class="form-control" id="introduction" name="introduction" rows="3"
+                                      placeholder="Contexto y objetivo de la investigación"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="methodology" class="form-label">2. Metodología</label>
+                            <textarea class="form-control" id="methodology" name="methodology" rows="3"
+                                      placeholder="Métodos y técnicas utilizadas en la investigación"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="findings" class="form-label">3. Hallazgos</label>
+                            <textarea class="form-control" id="findings" name="findings" rows="4"
+                                      placeholder="Resultados y evidencias encontradas"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="conclusions" class="form-label">4. Conclusiones</label>
+                            <textarea class="form-control" id="conclusions" name="conclusions" rows="3"
+                                      placeholder="Conclusiones basadas en los hallazgos"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="recommendations" class="form-label">5. Recomendaciones</label>
+                            <textarea class="form-control" id="recommendations" name="recommendations" rows="2"
+                                      placeholder="Recomendaciones para el cliente"></textarea>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6 class="mb-3">Elementos a Incluir</h6>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="include_evidence_list"
+                                           name="include_evidence_list" checked>
+                                    <label class="form-check-label" for="include_evidence_list">
+                                        <i class="bi bi-folder2-open"></i> Relación de Evidencias
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="include_timeline"
+                                           name="include_timeline" checked>
+                                    <label class="form-check-label" for="include_timeline">
+                                        <i class="bi bi-clock-history"></i> Cronología de Eventos
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="include_chain_of_custody"
+                                           name="include_chain_of_custody" checked>
+                                    <label class="form-check-label" for="include_chain_of_custody">
+                                        <i class="bi bi-shield-lock"></i> Cadena de Custodia
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="include_graph"
+                                           name="include_graph">
+                                    <label class="form-check-label" for="include_graph">
+                                        <i class="bi bi-diagram-3"></i> Grafo de Relaciones
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="include_plugin_results"
+                                           name="include_plugin_results">
+                                    <label class="form-check-label" for="include_plugin_results">
+                                        <i class="bi bi-plugin"></i> Resultados de Plugins
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-file-earmark-plus"></i> Crear Informe (Borrador)
+                            </button>
+                            <a href="{{ url_for('reports.case_reports', case_id=case.id) }}" class="btn btn-outline-secondary">
+                                Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-4">
+                <h6 class="alert-heading"><i class="bi bi-info-circle"></i> Información</h6>
+                <p class="mb-0 small">
+                    El informe se creará como borrador. Podrás editarlo y cuando esté listo, generar el PDF final
+                    con firma digital y hash criptográfico para validez judicial.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

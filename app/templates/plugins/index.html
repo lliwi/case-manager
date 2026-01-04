@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Plugins - Case Manager{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">Sistema de Plugins</h1>
+                <span class="badge bg-primary fs-6">{{ total_plugins }} plugins disponibles</span>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="bi bi-fingerprint"></i> Plugins Forenses</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Herramientas para análisis forense de evidencias</p>
+
+                            {% if forensic_plugins %}
+                                <div class="list-group list-group-flush">
+                                    {% for plugin in forensic_plugins %}
+                                        <div class="list-group-item">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <h6 class="mb-1">
+                                                        <i class="bi bi-plugin"></i> {{ plugin.display_name }}
+                                                        {% if not plugin.available %}
+                                                            <span class="badge bg-warning text-dark">No disponible</span>
+                                                        {% endif %}
+                                                    </h6>
+                                                    <p class="mb-1 small text-muted">{{ plugin.description }}</p>
+                                                    <small class="text-muted">
+                                                        Tipo: {{ plugin.type }} |
+                                                        Formatos: {{ plugin.supported_formats|join(', ') }}
+                                                    </small>
+                                                </div>
+                                                <div>
+                                                    <a href="{{ url_for('plugins.plugin_detail', plugin_name=plugin.name) }}"
+                                                       class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-info-circle"></i> Detalles
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted">No hay plugins forenses disponibles</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="bi bi-search"></i> Plugins OSINT</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Herramientas de inteligencia de fuentes abiertas</p>
+
+                            {% if osint_plugins %}
+                                <div class="list-group list-group-flush">
+                                    {% for plugin in osint_plugins %}
+                                        <div class="list-group-item">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <h6 class="mb-1">
+                                                        <i class="bi bi-plugin"></i> {{ plugin.display_name }}
+                                                        {% if not plugin.available %}
+                                                            <span class="badge bg-warning text-dark">No disponible</span>
+                                                        {% endif %}
+                                                    </h6>
+                                                    <p class="mb-1 small text-muted">{{ plugin.description }}</p>
+                                                </div>
+                                                <div>
+                                                    <a href="{{ url_for('plugins.plugin_detail', plugin_name=plugin.name) }}"
+                                                       class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-info-circle"></i> Detalles
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted">No hay plugins OSINT disponibles</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightning-charge-fill"></i> Acciones Rápidas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <a href="{{ url_for('plugins.dni_validator') }}" class="btn btn-outline-success w-100">
+                                <i class="bi bi-card-checklist"></i><br>
+                                Validar DNI/NIE
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="{{ url_for('plugins.execute_forensic') }}" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-file-earmark-check"></i><br>
+                                Analizar Evidencia
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <button class="btn btn-outline-secondary w-100" disabled>
+                                <i class="bi bi-search"></i><br>
+                                OSINT Lookup
+                                <br><small>(Próximamente)</small>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

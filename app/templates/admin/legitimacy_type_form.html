@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}{% if editing %}Editar{% else %}Crear{% endif %} Tipo de Legitimidad - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-{% if editing %}pencil{% else %}plus-circle{% endif %}"></i>
+                        {% if editing %}Editar{% else %}Crear Nuevo{% endif %} Tipo de Legitimidad
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Información Legal:</strong>
+                        Los tipos personalizados complementan las 9 categorías legales base definidas en la Ley 5/2014.
+                        Utilice esta funcionalidad para crear tipos de investigación específicos que no estén cubiertos
+                        por las categorías estándar.
+                    </div>
+
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Nombre del Tipo -->
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label") }}
+                            <span class="text-danger">*</span>
+                            {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                            {% if form.name.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.name.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Nombre descriptivo del tipo de investigación (ej: "Investigación de Propiedad Intelectual")
+                            </small>
+                        </div>
+
+                        <!-- Descripción -->
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            <span class="text-danger">*</span>
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else "")) }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.description.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Descripción detallada del alcance legal y los requisitos de este tipo de investigación.
+                                Incluya el marco legal aplicable y las limitaciones.
+                            </small>
+                        </div>
+
+                        <!-- Referencia Legal -->
+                        <div class="mb-3">
+                            {{ form.legal_reference.label(class="form-label") }}
+                            {{ form.legal_reference(class="form-control" + (" is-invalid" if form.legal_reference.errors else "")) }}
+                            {% if form.legal_reference.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.legal_reference.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Referencias a artículos específicos de leyes o normativas (ej: "Art. 48 Ley 5/2014, RGPD Art. 6.1.f")
+                            </small>
+                        </div>
+
+                        <!-- Activo -->
+                        <div class="mb-3 form-check">
+                            {{ form.is_active(class="form-check-input") }}
+                            {{ form.is_active.label(class="form-check-label") }}
+                            <small class="form-text text-muted d-block ms-4">
+                                Los tipos inactivos no aparecerán como opción al crear nuevos casos
+                            </small>
+                        </div>
+
+                        <!-- Legal Compliance Notice -->
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>Advertencia de Cumplimiento Legal:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Solo cree tipos personalizados para investigaciones que cumplan con la Ley 5/2014 de Seguridad Privada</li>
+                                <li>El cliente debe demostrar un interés legítimo antes de aceptar el caso</li>
+                                <li>No se permiten investigaciones sobre delitos perseguibles de oficio</li>
+                                <li>Respete los derechos fundamentales y la privacidad (LOPD-GDD, RGPD)</li>
+                            </ul>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('admin.legitimacy_types') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i>
+                                {% if editing %}Actualizar{% else %}Crear{% endif %} Tipo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

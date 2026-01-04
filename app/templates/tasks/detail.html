@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle de Tarea - Case Manager{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="bi bi-info-circle"></i> Detalle de Tarea</h1>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('tasks.monitor') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver al Monitor
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-file-earmark-code"></i> Información de la Tarea
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">Task ID:</dt>
+                        <dd class="col-sm-9">
+                            <code>{{ task.id }}</code>
+                        </dd>
+
+                        <dt class="col-sm-3">Estado:</dt>
+                        <dd class="col-sm-9">
+                            {% if task.state == 'SUCCESS' %}
+                                <span class="badge bg-success">Completada</span>
+                            {% elif task.state == 'FAILURE' %}
+                                <span class="badge bg-danger">Fallida</span>
+                            {% elif task.state == 'PENDING' %}
+                                <span class="badge bg-warning">Pendiente</span>
+                            {% elif task.state == 'STARTED' %}
+                                <span class="badge bg-info">En Progreso</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ task.state }}</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-3">Completada:</dt>
+                        <dd class="col-sm-9">
+                            {% if task.ready %}
+                                <i class="bi bi-check-circle text-success"></i> Sí
+                            {% else %}
+                                <i class="bi bi-x-circle text-warning"></i> No
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-3">Exitosa:</dt>
+                        <dd class="col-sm-9">
+                            {% if task.successful is not none %}
+                                {% if task.successful %}
+                                    <i class="bi bi-check-circle text-success"></i> Sí
+                                {% else %}
+                                    <i class="bi bi-x-circle text-danger"></i> No
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            {% if task.result %}
+            <div class="card mt-3">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-check-circle"></i> Resultado
+                </div>
+                <div class="card-body">
+                    <pre class="bg-light p-3 rounded"><code>{{ task.result | tojson(indent=2) }}</code></pre>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if task.error %}
+            <div class="card mt-3">
+                <div class="card-header bg-danger text-white">
+                    <i class="bi bi-exclamation-triangle"></i> Error
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger mb-0">
+                        <pre class="mb-0"><code>{{ task.error }}</code></pre>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-tools"></i> Acciones
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" onclick="refreshTaskStatus()">
+                            <i class="bi bi-arrow-clockwise"></i> Actualizar Estado
+                        </button>
+
+                        {% if not task.ready %}
+                        <button class="btn btn-warning" onclick="revokeTask()">
+                            <i class="bi bi-pause-circle"></i> Cancelar Tarea
+                        </button>
+                        {% endif %}
+
+                        {% if task.result %}
+                        <button class="btn btn-success" onclick="downloadResult()">
+                            <i class="bi bi-download"></i> Descargar Resultado
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="bi bi-info-circle"></i> Ayuda
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-0">
+                        Esta página muestra información detallada sobre una tarea Celery específica.
+                        Las tareas se actualizan automáticamente cada 5 segundos.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const taskId = '{{ task.id }}';
+
+function refreshTaskStatus() {
+    fetch(`{{ url_for("tasks.api_task_status", task_id="TASK_ID") }}`.replace('TASK_ID', taskId))
+        .then(response => response.json())
+        .then(data => {
+            location.reload();
+        })
+        .catch(error => {
+            alert('Error al actualizar: ' + error.message);
+        });
+}
+
+function revokeTask() {
+    if (!confirm('¿Estás seguro de que quieres cancelar esta tarea?')) {
+        return;
+    }
+
+    fetch(`{{ url_for("tasks.api_revoke_task", task_id="TASK_ID") }}`.replace('TASK_ID', taskId), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ terminate: false })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Tarea cancelada correctamente');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+
+function downloadResult() {
+    fetch(`{{ url_for("tasks.api_task_result", task_id="TASK_ID") }}`.replace('TASK_ID', taskId))
+        .then(response => response.json())
+        .then(data => {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `task_${taskId}_result.json`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        })
+        .catch(error => {
+            alert('Error al descargar: ' + error.message);
+        });
+}
+
+// Auto-refresh every 5 seconds if task is not complete
+{% if not task.ready %}
+setInterval(refreshTaskStatus, 5000);
+{% endif %}
+</script>
+{% endblock %}

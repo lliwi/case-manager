@@ -1,0 +1,605 @@
+"""
+Admin routes for system administration.
+"""
+from flask import render_template, request, jsonify, flash, redirect, url_for, send_file
+from flask_login import login_required, current_user
+from app.blueprints.admin import admin_bp
+from app.models.user import User, Role
+from app.models.audit import AuditLog
+from app.models.case import Case
+from app.models.evidence import Evidence
+from app.models.report import Report
+from app.utils.decorators import audit_action, require_role
+from app.extensions import db
+from datetime import datetime, timedelta
+from sqlalchemy import func, desc
+import csv
+import io
+import json
+
+
+@admin_bp.route('/')
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_DASHBOARD_VIEWED', 'admin')
+def index():
+    """Admin dashboard with system statistics."""
+    # Get system statistics
+    from app.models.case import CaseStatus
+    stats = {
+        'total_users': User.query.count(),
+        'active_users': User.query.filter_by(is_active=True).count(),
+        'total_cases': Case.query.filter_by(is_deleted=False).count(),
+        'active_cases': Case.query.filter(
+            Case.is_deleted == False,
+            Case.status == CaseStatus.EN_INVESTIGACION
+        ).count(),
+        'total_evidence': Evidence.query.filter_by(is_deleted=False).count(),
+        'total_reports': Report.query.filter_by(is_deleted=False).count(),
+        'total_audit_logs': AuditLog.query.count()
+    }
+
+    # Recent audit logs
+    recent_logs = AuditLog.query.order_by(desc(AuditLog.timestamp)).limit(10).all()
+
+    # User activity in last 30 days
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    active_users_30d = db.session.query(func.count(func.distinct(AuditLog.user_id))).filter(
+        AuditLog.timestamp >= thirty_days_ago
+    ).scalar()
+
+    stats['active_users_30d'] = active_users_30d
+
+    return render_template(
+        'admin/index.html',
+        stats=stats,
+        recent_logs=recent_logs
+    )
+
+
+# ============================================================================
+# USER MANAGEMENT
+# ============================================================================
+
+@admin_bp.route('/users')
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_USERS_LIST_VIEWED', 'admin')
+def users():
+    """List all users."""
+    users = User.query.order_by(User.created_at.desc()).all()
+
+    return render_template(
+        'admin/users.html',
+        users=users
+    )
+
+
+@admin_bp.route('/users/<int:user_id>')
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_USER_VIEWED', 'admin')
+def user_detail(user_id):
+    """View user details."""
+    user = User.query.get_or_404(user_id)
+
+    # Get user's cases
+    user_cases = Case.query.filter_by(
+        detective_id=user_id,
+        is_deleted=False
+    ).order_by(desc(Case.created_at)).limit(10).all()
+
+    # Get user's recent activity
+    recent_activity = AuditLog.query.filter_by(user_id=user_id).order_by(
+        desc(AuditLog.timestamp)
+    ).limit(20).all()
+
+    return render_template(
+        'admin/user_detail.html',
+        user=user,
+        user_cases=user_cases,
+        recent_activity=recent_activity
+    )
+
+
+@admin_bp.route('/users/create', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_USER_CREATE', 'admin')
+def create_user():
+    """Create a new user."""
+    if request.method == 'GET':
+        roles = Role.query.all()
+        return render_template('admin/create_user.html', roles=roles)
+
+    # POST - Create user
+    email = request.form.get('email')
+    nombre = request.form.get('nombre')
+    apellidos = request.form.get('apellidos')
+    tip_number = request.form.get('tip_number')
+    despacho = request.form.get('despacho')
+    telefono = request.form.get('telefono')
+    password = request.form.get('password')
+    role_ids = request.form.getlist('roles')
+
+    # Validate
+    if User.query.filter_by(email=email).first():
+        flash('El email ya está registrado', 'error')
+        return redirect(url_for('admin.create_user'))
+
+    # Create user
+    user = User(
+        email=email,
+        nombre=nombre,
+        apellidos=apellidos,
+        tip_number=tip_number,
+        despacho=despacho,
+        telefono=telefono,
+        is_active=True,
+        email_verified=True
+    )
+    user.set_password(password)
+
+    # Assign roles
+    for role_id in role_ids:
+        role = Role.query.get(role_id)
+        if role:
+            user.roles.append(role)
+
+    db.session.add(user)
+    db.session.commit()
+
+    flash(f'Usuario {email} creado exitosamente', 'success')
+    return redirect(url_for('admin.users'))
+
+
+@admin_bp.route('/users/<int:user_id>/toggle-status', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_USER_TOGGLE_STATUS', 'admin')
+def toggle_user_status(user_id):
+    """Activate or deactivate a user."""
+    user = User.query.get_or_404(user_id)
+
+    # Cannot deactivate yourself
+    if user.id == current_user.id:
+        flash('No puedes desactivar tu propia cuenta', 'error')
+        return redirect(url_for('admin.users'))
+
+    user.is_active = not user.is_active
+    db.session.commit()
+
+    status = 'activado' if user.is_active else 'desactivado'
+    flash(f'Usuario {user.email} {status} exitosamente', 'success')
+
+    return redirect(url_for('admin.users'))
+
+
+@admin_bp.route('/users/<int:user_id>/reset-password', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_USER_RESET_PASSWORD', 'admin')
+def reset_user_password(user_id):
+    """Reset user password."""
+    user = User.query.get_or_404(user_id)
+
+    new_password = request.form.get('new_password')
+    if not new_password or len(new_password) < 8:
+        flash('La contraseña debe tener al menos 8 caracteres', 'error')
+        return redirect(url_for('admin.user_detail', user_id=user_id))
+
+    user.set_password(new_password)
+    db.session.commit()
+
+    flash(f'Contraseña de {user.email} restablecida exitosamente', 'success')
+    return redirect(url_for('admin.user_detail', user_id=user_id))
+
+
+# ============================================================================
+# AUDIT LOG VIEWER
+# ============================================================================
+
+@admin_bp.route('/audit-logs')
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_AUDIT_LOGS_VIEWED', 'admin')
+def audit_logs():
+    """View audit logs with filtering."""
+    # Get filter parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    action = request.args.get('action')
+    resource_type = request.args.get('resource_type')
+    user_id = request.args.get('user_id', type=int)
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+
+    # Build query
+    query = AuditLog.query
+
+    if action:
+        query = query.filter(AuditLog.action == action)
+
+    if resource_type:
+        query = query.filter(AuditLog.resource_type == resource_type)
+
+    if user_id:
+        query = query.filter(AuditLog.user_id == user_id)
+
+    if date_from:
+        try:
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
+            query = query.filter(AuditLog.timestamp >= date_from_obj)
+        except ValueError:
+            pass
+
+    if date_to:
+        try:
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
+            # Add 1 day to include the entire day
+            date_to_obj = date_to_obj + timedelta(days=1)
+            query = query.filter(AuditLog.timestamp < date_to_obj)
+        except ValueError:
+            pass
+
+    # Order by most recent
+    query = query.order_by(desc(AuditLog.timestamp))
+
+    # Paginate
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    # Get unique actions and resource types for filters
+    unique_actions = db.session.query(AuditLog.action).distinct().order_by(AuditLog.action).all()
+    unique_actions = [a[0] for a in unique_actions if a[0]]
+
+    unique_resource_types = db.session.query(AuditLog.resource_type).distinct().order_by(
+        AuditLog.resource_type
+    ).all()
+    unique_resource_types = [r[0] for r in unique_resource_types if r[0]]
+
+    # Get all users for filter
+    users = User.query.order_by(User.nombre).all()
+
+    return render_template(
+        'admin/audit_logs.html',
+        pagination=pagination,
+        unique_actions=unique_actions,
+        unique_resource_types=unique_resource_types,
+        users=users,
+        filters={
+            'action': action,
+            'resource_type': resource_type,
+            'user_id': user_id,
+            'date_from': date_from,
+            'date_to': date_to
+        }
+    )
+
+
+@admin_bp.route('/audit-logs/<int:log_id>')
+@login_required
+@require_role('admin')
+def audit_log_detail(log_id):
+    """View audit log details."""
+    log = AuditLog.query.get_or_404(log_id)
+
+    return render_template(
+        'admin/audit_log_detail.html',
+        log=log
+    )
+
+
+@admin_bp.route('/audit-logs/export')
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_AUDIT_LOGS_EXPORT', 'admin')
+def export_audit_logs():
+    """Export audit logs to CSV."""
+    # Get filter parameters (same as audit_logs route)
+    action = request.args.get('action')
+    resource_type = request.args.get('resource_type')
+    user_id = request.args.get('user_id', type=int)
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+
+    # Build query
+    query = AuditLog.query
+
+    if action:
+        query = query.filter(AuditLog.action == action)
+
+    if resource_type:
+        query = query.filter(AuditLog.resource_type == resource_type)
+
+    if user_id:
+        query = query.filter(AuditLog.user_id == user_id)
+
+    if date_from:
+        try:
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
+            query = query.filter(AuditLog.timestamp >= date_from_obj)
+        except ValueError:
+            pass
+
+    if date_to:
+        try:
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
+            date_to_obj = date_to_obj + timedelta(days=1)
+            query = query.filter(AuditLog.timestamp < date_to_obj)
+        except ValueError:
+            pass
+
+    # Order by most recent
+    query = query.order_by(desc(AuditLog.timestamp))
+
+    # Limit to prevent huge exports
+    logs = query.limit(10000).all()
+
+    # Create CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header
+    writer.writerow([
+        'ID', 'Timestamp', 'Action', 'Resource Type', 'Resource ID',
+        'User', 'IP Address', 'User Agent', 'Extra Data'
+    ])
+
+    # Data
+    for log in logs:
+        writer.writerow([
+            log.id,
+            log.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            log.action,
+            log.resource_type or '',
+            log.resource_id or '',
+            log.user.email if log.user else 'System',
+            log.ip_address or '',
+            log.user_agent or '',
+            json.dumps(log.extra_data) if log.extra_data else ''
+        ])
+
+    # Create response
+    output.seek(0)
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    filename = f'audit_logs_{timestamp}.csv'
+
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+# ============================================================================
+# SYSTEM SETTINGS
+# ============================================================================
+
+@admin_bp.route('/settings')
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_SETTINGS_VIEWED', 'admin')
+def settings():
+    """View system settings."""
+    # Get system info
+    import os
+    import sys
+    from flask import __version__ as flask_version
+
+    system_info = {
+        'python_version': sys.version,
+        'flask_version': flask_version,
+        'environment': os.getenv('FLASK_ENV', 'production'),
+        'database_url': os.getenv('DATABASE_URL', 'Not configured')[:50] + '...',
+    }
+
+    return render_template(
+        'admin/settings.html',
+        system_info=system_info
+    )
+
+
+# ============================================================================
+# ROLE MANAGEMENT
+# ============================================================================
+
+@admin_bp.route('/roles')
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_ROLES_VIEWED', 'admin')
+def roles():
+    """List all roles."""
+    all_roles = Role.query.all()
+
+    # Get user count for each role
+    role_stats = []
+    for role in all_roles:
+        user_count = db.session.query(func.count(User.id)).join(
+            User.roles
+        ).filter(Role.id == role.id).scalar()
+
+        role_stats.append({
+            'role': role,
+            'user_count': user_count
+        })
+
+    return render_template(
+        'admin/roles.html',
+        role_stats=role_stats
+    )
+
+
+@admin_bp.route('/users/<int:user_id>/roles', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_USER_ROLES_UPDATE', 'admin')
+def update_user_roles(user_id):
+    """Update user roles."""
+    user = User.query.get_or_404(user_id)
+
+    role_ids = request.form.getlist('roles')
+
+    # Clear existing roles
+    user.roles = []
+
+    # Add new roles
+    for role_id in role_ids:
+        role = Role.query.get(role_id)
+        if role:
+            user.roles.append(role)
+
+    db.session.commit()
+
+    flash(f'Roles de {user.email} actualizados exitosamente', 'success')
+    return redirect(url_for('admin.user_detail', user_id=user_id))
+
+
+# ============================================================================
+# LEGITIMACY TYPES MANAGEMENT
+# ============================================================================
+
+@admin_bp.route('/legitimacy-types')
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_LEGITIMACY_TYPES_VIEWED', 'admin')
+def legitimacy_types():
+    """View all legitimacy types with usage statistics."""
+    from app.models.case import LegitimacyType
+    from app.models.legitimacy_type_custom import LegitimacyTypeCustom
+
+    # Get all legitimacy types from enum
+    all_types = list(LegitimacyType)
+
+    # Calculate usage statistics for each type
+    type_stats = []
+    for leg_type in all_types:
+        case_count = Case.query.filter(
+            Case.legitimacy_type == leg_type,
+            Case.is_deleted == False
+        ).count()
+
+        # Get recent cases using this type
+        recent_cases = Case.query.filter(
+            Case.legitimacy_type == leg_type,
+            Case.is_deleted == False
+        ).order_by(desc(Case.created_at)).limit(5).all()
+
+        type_stats.append({
+            'type': leg_type,
+            'name': leg_type.name,
+            'value': leg_type.value,
+            'case_count': case_count,
+            'recent_cases': recent_cases,
+            'is_custom': False,
+            'is_deletable': False
+        })
+
+    # Get custom types
+    custom_types = LegitimacyTypeCustom.query.filter_by(is_deleted=False).all()
+    for custom_type in custom_types:
+        case_count = Case.query.filter(
+            Case.legitimacy_type_custom_id == custom_type.id,
+            Case.is_deleted == False
+        ).count()
+
+        recent_cases = Case.query.filter(
+            Case.legitimacy_type_custom_id == custom_type.id,
+            Case.is_deleted == False
+        ).order_by(desc(Case.created_at)).limit(5).all()
+
+        type_stats.append({
+            'type': custom_type,
+            'name': custom_type.name,
+            'value': custom_type.name,
+            'description': custom_type.description,
+            'legal_reference': custom_type.legal_reference,
+            'case_count': case_count,
+            'recent_cases': recent_cases,
+            'is_custom': True,
+            'is_deletable': case_count == 0,
+            'custom_id': custom_type.id
+        })
+
+    # Sort by usage count (most used first)
+    type_stats.sort(key=lambda x: x['case_count'], reverse=True)
+
+    return render_template(
+        'admin/legitimacy_types.html',
+        type_stats=type_stats,
+        total_cases=Case.query.filter_by(is_deleted=False).count()
+    )
+
+
+@admin_bp.route('/legitimacy-types/create', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_LEGITIMACY_TYPE_CREATE', 'admin')
+def create_legitimacy_type():
+    """Create a new custom legitimacy type."""
+    from app.blueprints.admin.forms import LegitimacyTypeCustomForm
+    from app.models.legitimacy_type_custom import LegitimacyTypeCustom
+
+    form = LegitimacyTypeCustomForm()
+
+    if form.validate_on_submit():
+        # Check if name already exists
+        existing = LegitimacyTypeCustom.query.filter_by(
+            name=form.name.data,
+            is_deleted=False
+        ).first()
+
+        if existing:
+            flash(f'Ya existe un tipo con el nombre "{form.name.data}"', 'danger')
+            return render_template('admin/legitimacy_type_form.html', form=form, editing=False)
+
+        # Create new custom type
+        custom_type = LegitimacyTypeCustom(
+            name=form.name.data,
+            description=form.description.data,
+            legal_reference=form.legal_reference.data,
+            is_active=form.is_active.data,
+            created_by_id=current_user.id
+        )
+
+        db.session.add(custom_type)
+        db.session.commit()
+
+        flash(f'Tipo de legitimidad "{custom_type.name}" creado exitosamente', 'success')
+        return redirect(url_for('admin.legitimacy_types'))
+
+    return render_template('admin/legitimacy_type_form.html', form=form, editing=False)
+
+
+@admin_bp.route('/legitimacy-types/<int:type_id>/delete', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_LEGITIMACY_TYPE_DELETE', 'admin')
+def delete_legitimacy_type(type_id):
+    """Delete a custom legitimacy type."""
+    from app.models.legitimacy_type_custom import LegitimacyTypeCustom
+
+    custom_type = LegitimacyTypeCustom.query.get_or_404(type_id)
+
+    # Check if type is in use
+    case_count = Case.query.filter(
+        Case.legitimacy_type_custom_id == custom_type.id,
+        Case.is_deleted == False
+    ).count()
+
+    if case_count > 0:
+        flash(
+            f'No se puede eliminar el tipo "{custom_type.name}" porque está siendo '
+            f'utilizado por {case_count} caso(s) activo(s)',
+            'danger'
+        )
+        return redirect(url_for('admin.legitimacy_types'))
+
+    # Soft delete
+    try:
+        custom_type.soft_delete(current_user)
+        flash(f'Tipo de legitimidad "{custom_type.name}" eliminado exitosamente', 'success')
+    except ValueError as e:
+        flash(str(e), 'danger')
+
+    return redirect(url_for('admin.legitimacy_types'))

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Ejecutar Plugin Forense - Case Manager{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">Ejecutar Plugin Forense</h1>
+                <a href="{{ url_for('plugins.index') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-play-circle"></i> Análisis de Evidencia</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('plugins.execute_forensic') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="case_id" class="form-label">Caso</label>
+                                <select class="form-select" id="case_id" name="case_id" onchange="loadCaseEvidence(this.value)">
+                                    <option value="">Seleccionar caso...</option>
+                                    {% for case in cases %}
+                                        <option value="{{ case.id }}">{{ case.numero_orden }} - {{ case.titulo }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="evidence_id" class="form-label">Evidencia</label>
+                                <select class="form-select" id="evidence_id" name="evidence_id">
+                                    <option value="">Primero selecciona un caso...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="plugin_name" class="form-label">Plugin a Ejecutar</label>
+                            <select class="form-select" id="plugin_name" name="plugin_name">
+                                <option value="">Seleccionar plugin...</option>
+                                {% for plugin in plugins %}
+                                    <option value="{{ plugin.name }}"
+                                            {% if not plugin.available %}disabled{% endif %}>
+                                        {{ plugin.display_name }}
+                                        {% if not plugin.available %}(No disponible){% endif %}
+                                        - {{ plugin.supported_formats|join(', ') }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">
+                                Selecciona el plugin según el tipo de archivo
+                            </small>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-play-circle"></i> Ejecutar Plugin
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> Plugins Disponibles</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for plugin in plugins %}
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h6 class="card-title">{{ plugin.display_name }}</h6>
+                                        <p class="card-text small text-muted">{{ plugin.description }}</p>
+                                        <p class="card-text small">
+                                            <strong>Formatos:</strong> {{ plugin.supported_formats|join(', ') }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load evidence for selected case
+function loadCaseEvidence(caseId) {
+    if (!caseId) {
+        document.getElementById('evidence_id').innerHTML = '<option value="">Primero selecciona un caso...</option>';
+        return;
+    }
+
+    // TODO: Implement AJAX call to load evidence for the selected case
+    // For now, just show a message
+    document.getElementById('evidence_id').innerHTML = '<option value="">Cargando evidencias...</option>';
+}
+</script>
+{% endblock %}

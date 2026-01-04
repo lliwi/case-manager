@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Usuarios - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3">Gestión de Usuarios</h1>
+                    <small class="text-muted">{{ users|length }} usuarios registrados</small>
+                </div>
+                <div>
+                    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver
+                    </a>
+                    <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary">
+                        <i class="bi bi-person-plus"></i> Crear Usuario
+                    </a>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Nombre</th>
+                                    <th>TIP</th>
+                                    <th>Roles</th>
+                                    <th>Estado</th>
+                                    <th>Creado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('admin.user_detail', user_id=user.id) }}">
+                                                {{ user.email }}
+                                            </a>
+                                        </td>
+                                        <td>{{ user.nombre }} {{ user.apellidos }}</td>
+                                        <td><code class="small">{{ user.tip_number }}</code></td>
+                                        <td>
+                                            {% for role in user.roles %}
+                                                <span class="badge bg-secondary">{{ role.name }}</span>
+                                            {% endfor %}
+                                        </td>
+                                        <td>
+                                            {% if user.is_active %}
+                                                <span class="badge bg-success">Activo</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Inactivo</span>
+                                            {% endif %}
+                                            {% if user.email_verified %}
+                                                <i class="bi bi-patch-check-fill text-success" title="Email verificado"></i>
+                                            {% endif %}
+                                            {% if user.mfa_enabled %}
+                                                <i class="bi bi-shield-lock-fill text-primary" title="MFA activado"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td class="small">{{ user.created_at.strftime('%d/%m/%Y') }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ url_for('admin.user_detail', user_id=user.id) }}"
+                                                   class="btn btn-outline-primary"
+                                                   title="Ver detalles">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <form method="POST"
+                                                      action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}"
+                                                      style="display: inline;">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                    <button type="submit"
+                                                            class="btn btn-outline-{% if user.is_active %}warning{% else %}success{% endif %}"
+                                                            title="{% if user.is_active %}Desactivar{% else %}Activar{% endif %}"
+                                                            {% if user.id == current_user.id %}disabled{% endif %}>
+                                                        <i class="bi bi-{% if user.is_active %}pause{% else %}play{% endif %}"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

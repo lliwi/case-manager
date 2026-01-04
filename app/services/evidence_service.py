@@ -208,7 +208,7 @@ class EvidenceService:
                 evidence=evidence,
                 user=user,
                 notes=f'Evidence uploaded: {original_filename}',
-                metadata={
+                extra_data={
                     'file_size': validation['file_size'],
                     'mime_type': mime_type,
                     'evidence_type': evidence_type.value,
@@ -356,3 +356,24 @@ class EvidenceService:
         )
 
         return {'status': 'pending', 'message': 'Plugin system not yet implemented'}
+
+    @staticmethod
+    def get_decrypted_file_path(evidence):
+        """
+        Get the file path for an evidence file (decrypted if needed).
+
+        Args:
+            evidence: Evidence instance
+
+        Returns:
+            str: File path to the evidence file
+        """
+        # For now, return the encrypted file path
+        # In the future, this should decrypt the file to a temporary location
+        # and return the decrypted file path
+        file_path = os.path.join(
+            current_app.config.get('EVIDENCE_STORAGE_PATH', 'data/evidence'),
+            evidence.file_path
+        )
+
+        return file_path

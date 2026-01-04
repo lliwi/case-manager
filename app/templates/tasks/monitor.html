@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block title %}Monitor de Tareas - Case Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="bi bi-cpu"></i> Monitor de Tareas Celery</h1>
+            <p class="text-muted">Monitoreo en tiempo real de tareas asíncronas</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver a Admin
+            </a>
+        </div>
+    </div>
+
+    <!-- Worker Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <i class="bi bi-server text-primary" style="font-size: 2rem;"></i>
+                    <div class="h3 mt-2" id="total-workers">-</div>
+                    <div class="text-muted">Workers Activos</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <i class="bi bi-play-circle text-success" style="font-size: 2rem;"></i>
+                    <div class="h3 mt-2" id="active-tasks">-</div>
+                    <div class="text-muted">Tareas Activas</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <i class="bi bi-clock text-warning" style="font-size: 2rem;"></i>
+                    <div class="h3 mt-2" id="scheduled-tasks">-</div>
+                    <div class="text-muted">Tareas Programadas</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <i class="bi bi-hourglass-split text-info" style="font-size: 2rem;"></i>
+                    <div class="h3 mt-2" id="reserved-tasks">-</div>
+                    <div class="text-muted">Tareas Reservadas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Worker Details -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-server"></i> Workers Disponibles
+                </div>
+                <div class="card-body">
+                    <div id="workers-list" class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Worker</th>
+                                    <th>Pool</th>
+                                    <th>Concurrencia Máxima</th>
+                                    <th>Tareas Activas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="workers-tbody">
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Tasks -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-list-task"></i> Tareas Activas</span>
+                    <button class="btn btn-sm btn-light" onclick="refreshTasks()">
+                        <i class="bi bi-arrow-clockwise"></i> Actualizar
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="tasks-list" class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                    <th>Worker</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tasks-tbody">
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">Cargando tareas...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flower Integration -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-flower1"></i> Flower - Monitoreo Avanzado
+                </div>
+                <div class="card-body">
+                    <p>Accede al dashboard completo de Flower para monitoreo avanzado:</p>
+                    <a href="http://localhost:5555" target="_blank" class="btn btn-info">
+                        <i class="bi bi-box-arrow-up-right"></i> Abrir Flower Dashboard
+                    </a>
+                    <p class="text-muted mt-2 mb-0">
+                        <small>Flower proporciona gráficos en tiempo real, historial de tareas y configuración avanzada.</small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Task Detail Modal -->
+<div class="modal fade" id="taskDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles de Tarea</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="task-detail-body">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let refreshInterval = null;
+
+// Refresh tasks list
+function refreshTasks() {
+    fetch('{{ url_for("tasks.api_list_tasks") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateTasksTable(data.tasks);
+            } else {
+                console.error('Error loading tasks:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+}
+
+// Update tasks table
+function updateTasksTable(tasks) {
+    const tbody = document.getElementById('tasks-tbody');
+
+    if (tasks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No hay tareas activas</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = tasks.map(task => {
+        const stateBadge = getStateBadge(task.state);
+        return `
+            <tr>
+                <td><code>${task.id.substring(0, 8)}...</code></td>
+                <td><small>${task.name}</small></td>
+                <td><span class="badge bg-secondary">${task.worker}</span></td>
+                <td>${stateBadge}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewTaskDetail('${task.id}')">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="revokeTask('${task.id}')">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    // Update counts
+    const activeTasks = tasks.filter(t => t.state === 'ACTIVE').length;
+    const scheduledTasks = tasks.filter(t => t.state === 'SCHEDULED').length;
+    const reservedTasks = tasks.filter(t => t.state === 'RESERVED').length;
+
+    document.getElementById('active-tasks').textContent = activeTasks;
+    document.getElementById('scheduled-tasks').textContent = scheduledTasks;
+    document.getElementById('reserved-tasks').textContent = reservedTasks;
+}
+
+// Get badge for task state
+function getStateBadge(state) {
+    const badges = {
+        'ACTIVE': '<span class="badge bg-success">Activa</span>',
+        'SCHEDULED': '<span class="badge bg-warning">Programada</span>',
+        'RESERVED': '<span class="badge bg-info">Reservada</span>',
+        'SUCCESS': '<span class="badge bg-primary">Completada</span>',
+        'FAILURE': '<span class="badge bg-danger">Fallida</span>',
+        'PENDING': '<span class="badge bg-secondary">Pendiente</span>'
+    };
+    return badges[state] || `<span class="badge bg-secondary">${state}</span>`;
+}
+
+// Refresh worker stats
+function refreshStats() {
+    fetch('{{ url_for("tasks.api_stats") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('total-workers').textContent = data.total_workers;
+                updateWorkersTable(data.workers);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading stats:', error);
+        });
+}
+
+// Update workers table
+function updateWorkersTable(workers) {
+    const tbody = document.getElementById('workers-tbody');
+
+    if (workers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No hay workers disponibles</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = workers.map(worker => `
+        <tr>
+            <td><code>${worker.name}</code></td>
+            <td><span class="badge bg-info">${worker.pool}</span></td>
+            <td>${worker.max_concurrency}</td>
+            <td><span class="badge bg-success">${worker.active_tasks}</span></td>
+        </tr>
+    `).join('');
+}
+
+// View task detail
+function viewTaskDetail(taskId) {
+    const modal = new bootstrap.Modal(document.getElementById('taskDetailModal'));
+    const body = document.getElementById('task-detail-body');
+
+    body.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div></div>';
+    modal.show();
+
+    fetch(`{{ url_for("tasks.api_task_status", task_id="TASK_ID") }}`.replace('TASK_ID', taskId))
+        .then(response => response.json())
+        .then(data => {
+            body.innerHTML = `
+                <dl class="row">
+                    <dt class="col-sm-3">Task ID:</dt>
+                    <dd class="col-sm-9"><code>${data.task_id}</code></dd>
+
+                    <dt class="col-sm-3">Estado:</dt>
+                    <dd class="col-sm-9">${getStateBadge(data.state)}</dd>
+
+                    <dt class="col-sm-3">Completada:</dt>
+                    <dd class="col-sm-9">${data.ready ? '✓ Sí' : '✗ No'}</dd>
+
+                    ${data.progress !== undefined ? `
+                        <dt class="col-sm-3">Progreso:</dt>
+                        <dd class="col-sm-9">
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" style="width: ${data.progress}%">
+                                    ${data.progress}%
+                                </div>
+                            </div>
+                        </dd>
+                    ` : ''}
+
+                    ${data.result ? `
+                        <dt class="col-sm-3">Resultado:</dt>
+                        <dd class="col-sm-9"><pre class="bg-light p-2">${JSON.stringify(data.result, null, 2)}</pre></dd>
+                    ` : ''}
+
+                    ${data.error ? `
+                        <dt class="col-sm-3">Error:</dt>
+                        <dd class="col-sm-9"><div class="alert alert-danger">${data.error}</div></dd>
+                    ` : ''}
+                </dl>
+            `;
+        })
+        .catch(error => {
+            body.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+        });
+}
+
+// Revoke task
+function revokeTask(taskId) {
+    if (!confirm('¿Estás seguro de que quieres cancelar esta tarea?')) {
+        return;
+    }
+
+    fetch(`{{ url_for("tasks.api_revoke_task", task_id="TASK_ID") }}`.replace('TASK_ID', taskId), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ terminate: false })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Tarea cancelada correctamente');
+            refreshTasks();
+        } else {
+            alert('Error al cancelar tarea: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+
+// Auto-refresh every 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    refreshTasks();
+    refreshStats();
+
+    refreshInterval = setInterval(() => {
+        refreshTasks();
+        refreshStats();
+    }, 5000);
+});
+
+// Stop auto-refresh when leaving page
+window.addEventListener('beforeunload', function() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+});
+</script>
+{% endblock %}

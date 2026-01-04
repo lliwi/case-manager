@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Validador DNI/NIE - Case Manager{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">Validador DNI/NIE</h1>
+                <a href="{{ url_for('plugins.index') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-card-checklist"></i> Validación de Identidad Española</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Valida números de DNI (Documento Nacional de Identidad) y NIE (Número de Identidad de Extranjero)
+                        utilizando el algoritmo de módulo 23 oficial.
+                    </p>
+
+                    <form method="POST" action="{{ url_for('plugins.dni_validator') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                        <div class="mb-3">
+                            <label for="identifier" class="form-label">DNI o NIE</label>
+                            <input type="text"
+                                   class="form-control form-control-lg"
+                                   id="identifier"
+                                   name="identifier"
+                                   placeholder="Ej: 12345678Z o X1234567L"
+                                   value="{{ identifier if identifier else '' }}"
+                                   required
+                                   autofocus>
+                            <small class="text-muted">
+                                DNI: 8 dígitos + letra | NIE: X/Y/Z + 7 dígitos + letra
+                            </small>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-circle"></i> Validar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {% if result %}
+                <div class="card shadow-sm {% if result.valid %}border-success{% else %}border-danger{% endif %}">
+                    <div class="card-header {% if result.valid %}bg-success{% else %}bg-danger{% endif %} text-white">
+                        <h5 class="mb-0">
+                            {% if result.valid %}
+                                <i class="bi bi-check-circle-fill"></i> Identificador Válido
+                            {% else %}
+                                <i class="bi bi-x-circle-fill"></i> Identificador Inválido
+                            {% endif %}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if result.valid %}
+                            <div class="alert alert-success mb-3">
+                                <h6 class="alert-heading">✓ {{ result.message }}</h6>
+                                <p class="mb-0">El identificador ha pasado la validación del algoritmo de módulo 23.</p>
+                            </div>
+
+                            <dl class="row mb-0">
+                                <dt class="col-sm-4">Identificador:</dt>
+                                <dd class="col-sm-8"><strong>{{ result.identifier }}</strong></dd>
+
+                                <dt class="col-sm-4">Tipo:</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge bg-primary">{{ result.type }}</span>
+                                </dd>
+
+                                {% if result.type == 'DNI' %}
+                                    <dt class="col-sm-4">Número:</dt>
+                                    <dd class="col-sm-8">{{ result.number }}</dd>
+
+                                    <dt class="col-sm-4">Letra de control:</dt>
+                                    <dd class="col-sm-8"><code>{{ result.letter }}</code></dd>
+                                {% else %}
+                                    <dt class="col-sm-4">Prefijo NIE:</dt>
+                                    <dd class="col-sm-8"><code>{{ result.prefix }}</code></dd>
+
+                                    <dt class="col-sm-4">Número:</dt>
+                                    <dd class="col-sm-8">{{ result.number }}</dd>
+
+                                    <dt class="col-sm-4">Letra de control:</dt>
+                                    <dd class="col-sm-8"><code>{{ result.letter }}</code></dd>
+                                {% endif %}
+                            </dl>
+                        {% else %}
+                            <div class="alert alert-danger mb-3">
+                                <h6 class="alert-heading">✗ Validación Fallida</h6>
+                                <p class="mb-0">{{ result.error }}</p>
+                            </div>
+
+                            <dl class="row mb-0">
+                                <dt class="col-sm-4">Identificador:</dt>
+                                <dd class="col-sm-8"><strong>{{ result.identifier }}</strong></dd>
+
+                                {% if result.type %}
+                                    <dt class="col-sm-4">Tipo:</dt>
+                                    <dd class="col-sm-8">
+                                        <span class="badge bg-secondary">{{ result.type }}</span>
+                                    </dd>
+                                {% endif %}
+
+                                {% if result.expected_letter %}
+                                    <dt class="col-sm-4">Letra proporcionada:</dt>
+                                    <dd class="col-sm-8"><code>{{ result.letter }}</code></dd>
+
+                                    <dt class="col-sm-4">Letra esperada:</dt>
+                                    <dd class="col-sm-8"><code class="text-success">{{ result.expected_letter }}</code></dd>
+                                {% endif %}
+                            </dl>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="card shadow-sm mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> Información</h6>
+                </div>
+                <div class="card-body">
+                    <h6>Algoritmo de Módulo 23</h6>
+                    <p class="small text-muted mb-3">
+                        El DNI y NIE españoles utilizan un sistema de verificación basado en módulo 23.
+                        La letra de control se calcula dividiendo el número entre 23 y tomando el resto,
+                        que se mapea a una de las 23 letras válidas (TRWAGMYFPDXBNJZSQVHLCKE).
+                    </p>
+
+                    <h6>Formatos Válidos</h6>
+                    <ul class="small text-muted mb-0">
+                        <li><strong>DNI:</strong> 8 dígitos seguidos de una letra (Ej: 12345678Z)</li>
+                        <li><strong>NIE:</strong> X, Y o Z seguido de 7 dígitos y una letra (Ej: X1234567L)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Logs de Auditoría - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3">Logs de Auditoría</h1>
+                    <small class="text-muted">Registro inmutable de todas las acciones del sistema</small>
+                </div>
+                <div>
+                    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver
+                    </a>
+                    <a href="{{ url_for('admin.export_audit_logs', **filters) }}" class="btn btn-success">
+                        <i class="bi bi-download"></i> Exportar CSV
+                    </a>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-funnel"></i> Filtros</h6>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('admin.audit_logs') }}">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label for="action" class="form-label">Acción</label>
+                                <select class="form-select form-select-sm" id="action" name="action">
+                                    <option value="">Todas las acciones</option>
+                                    {% for act in unique_actions %}
+                                        <option value="{{ act }}" {% if filters.action == act %}selected{% endif %}>
+                                            {{ act }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-3 mb-3">
+                                <label for="resource_type" class="form-label">Tipo de Recurso</label>
+                                <select class="form-select form-select-sm" id="resource_type" name="resource_type">
+                                    <option value="">Todos los tipos</option>
+                                    {% for rt in unique_resource_types %}
+                                        <option value="{{ rt }}" {% if filters.resource_type == rt %}selected{% endif %}>
+                                            {{ rt }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-3 mb-3">
+                                <label for="user_id" class="form-label">Usuario</label>
+                                <select class="form-select form-select-sm" id="user_id" name="user_id">
+                                    <option value="">Todos los usuarios</option>
+                                    {% for user in users %}
+                                        <option value="{{ user.id }}" {% if filters.user_id == user.id %}selected{% endif %}>
+                                            {{ user.email }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-3 mb-3">
+                                <label for="date_from" class="form-label">Desde</label>
+                                <input type="date" class="form-control form-control-sm" id="date_from" name="date_from"
+                                       value="{{ filters.date_from or '' }}">
+                            </div>
+
+                            <div class="col-md-3 mb-3">
+                                <label for="date_to" class="form-label">Hasta</label>
+                                <input type="date" class="form-control form-control-sm" id="date_to" name="date_to"
+                                       value="{{ filters.date_to or '' }}">
+                            </div>
+
+                            <div class="col-md-9 mb-3 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary btn-sm me-2">
+                                    <i class="bi bi-search"></i> Filtrar
+                                </button>
+                                <a href="{{ url_for('admin.audit_logs') }}" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-x"></i> Limpiar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if pagination.items %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Timestamp</th>
+                                        <th>Usuario</th>
+                                        <th>Acción</th>
+                                        <th>Recurso</th>
+                                        <th>IP Address</th>
+                                        <th>Detalles</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in pagination.items %}
+                                        <tr>
+                                            <td><small>{{ log.id }}</small></td>
+                                            <td class="small">{{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                                            <td class="small">
+                                                {% if log.user %}
+                                                    <a href="{{ url_for('admin.user_detail', user_id=log.user_id) }}">
+                                                        {{ log.user.email }}
+                                                    </a>
+                                                {% else %}
+                                                    <span class="text-muted">System</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <code class="small">{{ log.action }}</code>
+                                            </td>
+                                            <td class="small">
+                                                {{ log.resource_type or '-' }}
+                                                {% if log.resource_id %}
+                                                    <span class="text-muted">#{{ log.resource_id }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="small">
+                                                <code class="small">{{ log.ip_address or '-' }}</code>
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('admin.audit_log_detail', log_id=log.id) }}"
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination pagination-sm">
+                                {% if pagination.has_prev %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('admin.audit_logs', page=pagination.prev_num, **filters) }}">
+                                            Anterior
+                                        </a>
+                                    </li>
+                                {% endif %}
+
+                                <li class="page-item disabled">
+                                    <span class="page-link">
+                                        Página {{ pagination.page }} de {{ pagination.pages }}
+                                    </span>
+                                </li>
+
+                                {% if pagination.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('admin.audit_logs', page=pagination.next_num, **filters) }}">
+                                            Siguiente
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            No se encontraron logs con los filtros aplicados.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -33,7 +33,7 @@ class EvidenceUploadForm(FlaskForm):
     acquisition_date = DateTimeField(
         'Fecha de Adquisición',
         validators=[Optional()],
-        format='%Y-%m-%d %H:%M:%S',
+        format='%Y-%m-%dT%H:%M',
         default=datetime.utcnow,
         description='Fecha y hora de adquisición de la evidencia'
     )
