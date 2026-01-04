@@ -38,6 +38,116 @@
             </div>
         {% endif %}
 
+        <!-- Preview Section -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="bi bi-eye"></i> Vista Previa</h5>
+            </div>
+            <div class="card-body">
+                {% set mime = evidence.mime_type or '' %}
+                {% set preview_url = url_for('evidence.preview_evidence', evidence_id=evidence.id) %}
+
+                <!-- Image Preview -->
+                {% if mime.startswith('image/') %}
+                    <div class="text-center">
+                        <img src="{{ preview_url }}"
+                             alt="{{ evidence.original_filename }}"
+                             class="img-fluid"
+                             style="max-height: 600px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    </div>
+
+                <!-- PDF Preview -->
+                {% elif mime == 'application/pdf' %}
+                    <div style="height: 600px;">
+                        <iframe src="{{ preview_url }}"
+                                width="100%"
+                                height="100%"
+                                style="border: 1px solid #ddd; border-radius: 4px;">
+                        </iframe>
+                    </div>
+
+                <!-- Video Preview -->
+                {% elif mime.startswith('video/') %}
+                    <div class="text-center">
+                        <video controls
+                               style="max-width: 100%; max-height: 600px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            <source src="{{ preview_url }}" type="{{ mime }}">
+                            Su navegador no soporta la reproducción de video.
+                        </video>
+                    </div>
+
+                <!-- Audio Preview -->
+                {% elif mime.startswith('audio/') %}
+                    <div class="text-center p-4">
+                        <i class="bi bi-music-note-beamed" style="font-size: 4rem; color: #6c757d;"></i>
+                        <div class="mt-3">
+                            <audio controls style="width: 100%; max-width: 500px;">
+                                <source src="{{ preview_url }}" type="{{ mime }}">
+                                Su navegador no soporta la reproducción de audio.
+                            </audio>
+                        </div>
+                    </div>
+
+                <!-- Text/Code Preview -->
+                {% elif mime.startswith('text/') or mime == 'application/json' or mime == 'application/xml' %}
+                    <div style="height: 400px; overflow-y: auto;">
+                        <iframe src="{{ preview_url }}"
+                                width="100%"
+                                height="100%"
+                                style="border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa;">
+                        </iframe>
+                    </div>
+
+                <!-- Office Documents Preview Info -->
+                {% elif mime in ['application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                                  'application/msword',
+                                  'application/vnd.ms-excel',
+                                  'application/vnd.ms-powerpoint'] %}
+                    <div class="text-center p-5">
+                        {% if 'word' in mime or mime == 'application/msword' %}
+                            <i class="bi bi-file-word" style="font-size: 5rem; color: #2b579a;"></i>
+                            <h5 class="mt-3">Documento de Word</h5>
+                        {% elif 'sheet' in mime or mime == 'application/vnd.ms-excel' %}
+                            <i class="bi bi-file-excel" style="font-size: 5rem; color: #217346;"></i>
+                            <h5 class="mt-3">Hoja de Cálculo Excel</h5>
+                        {% elif 'presentation' in mime or mime == 'application/vnd.ms-powerpoint' %}
+                            <i class="bi bi-file-ppt" style="font-size: 5rem; color: #d24726;"></i>
+                            <h5 class="mt-3">Presentación PowerPoint</h5>
+                        {% endif %}
+                        <p class="text-muted">
+                            Para ver este documento, descárguelo usando el botón "Descargar".
+                        </p>
+                        <a href="https://view.officeapps.live.com/op/view.aspx?src={{ preview_url | urlencode }}"
+                           target="_blank"
+                           class="btn btn-primary mt-2">
+                            <i class="bi bi-box-arrow-up-right"></i> Abrir con Office Online (Externo)
+                        </a>
+                        <div class="alert alert-warning mt-3 mb-0 small">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            Advertencia: Office Online es un servicio externo de Microsoft.
+                            Úselo bajo su propio riesgo si la evidencia contiene información sensible.
+                        </div>
+                    </div>
+
+                <!-- No preview available -->
+                {% else %}
+                    <div class="text-center p-5">
+                        <i class="bi bi-file-earmark" style="font-size: 5rem; color: #6c757d;"></i>
+                        <h5 class="mt-3">Vista previa no disponible</h5>
+                        <p class="text-muted">
+                            Este tipo de archivo ({{ mime or 'desconocido' }}) no puede ser visualizado en el navegador.
+                        </p>
+                        <a href="{{ url_for('evidence.download_evidence', evidence_id=evidence.id) }}"
+                           class="btn btn-success mt-2">
+                            <i class="bi bi-download"></i> Descargar Archivo
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
         <!-- Evidence Details -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-primary text-white">

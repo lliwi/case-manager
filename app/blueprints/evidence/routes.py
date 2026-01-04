@@ -256,6 +256,46 @@ def download_evidence(evidence_id):
         return redirect(url_for('evidence.evidence_detail', evidence_id=evidence_id))
 
 
+@evidence_bp.route('/evidence/<int:evidence_id>/preview')
+@login_required
+@require_detective()
+@audit_action('EVIDENCE_PREVIEWED', 'evidence')
+def preview_evidence(evidence_id):
+    """Preview evidence file inline (decrypted)."""
+    evidence = Evidence.query.get_or_404(evidence_id)
+    case = evidence.case
+
+    # Check access
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        abort(403)
+
+    try:
+        # Get decrypted file path
+        decrypted_path = evidence.get_decrypted_path()
+
+        if not os.path.exists(decrypted_path):
+            abort(404)
+
+        # Log preview to chain of custody
+        ChainOfCustody.log(
+            action='PREVIEWED',
+            evidence=evidence,
+            user=current_user,
+            notes=f'Evidence previewed by {current_user.nombre}'
+        )
+
+        # Serve file inline (not as attachment)
+        return send_file(
+            decrypted_path,
+            as_attachment=False,
+            download_name=evidence.original_filename,
+            mimetype=evidence.mime_type
+        )
+
+    except Exception as e:
+        abort(500)
+
+
 @evidence_bp.route('/evidence/<int:evidence_id>/chain-of-custody')
 @login_required
 @require_detective()

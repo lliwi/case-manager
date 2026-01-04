@@ -6,6 +6,7 @@ Implements UNE 71506 forensic standards for digital evidence management.
 from datetime import datetime
 from app.extensions import db
 import enum
+import os
 
 
 class EvidenceType(enum.Enum):
