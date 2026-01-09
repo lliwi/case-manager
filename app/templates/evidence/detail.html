@@ -227,7 +227,7 @@
                                         {% if result.gps %}
                                         <div class="col-md-6">
                                             <h6 class="text-success"><i class="bi bi-geo-alt"></i> Coordenadas GPS</h6>
-                                            <p>Lat: {{ "%.6f"|format(result.gps.latitude) }}, Lon: {{ "%.6f"|format(result.gps.longitude) }}</p>
+                                            <p class="mb-2">Lat: {{ "%.6f"|format(result.gps.latitude) }}, Lon: {{ "%.6f"|format(result.gps.longitude) }}</p>
                                             <a href="https://www.google.com/maps?q={{ result.gps.latitude }},{{ result.gps.longitude }}"
                                                target="_blank" class="btn btn-sm btn-outline-primary">
                                                 <i class="bi bi-geo-alt"></i> Ver en Mapa
@@ -261,20 +261,137 @@
                                         </div>
                                         {% endif %}
                                     </div>
+
+                                    <!-- Collapsible raw EXIF data -->
+                                    {% if result.exif %}
+                                    <div class="mt-3">
+                                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse"
+                                                data-bs-target="#rawExif{{ analysis.id }}" aria-expanded="false">
+                                            <i class="bi bi-code-square"></i> Ver Metadatos EXIF Completos
+                                        </button>
+                                        <div class="collapse mt-2" id="rawExif{{ analysis.id }}">
+                                            <pre class="bg-light p-2 rounded small mb-0" style="max-height: 300px; overflow-y: auto; word-wrap: break-word; white-space: pre-wrap;"><code>{{ result.exif | tojson(indent=2) }}</code></pre>
+                                        </div>
+                                    </div>
+                                    {% endif %}
                                 {% else %}
                                     <p class="text-muted mb-0">{{ result.message }}</p>
                                 {% endif %}
                             {% elif analysis.plugin_name == 'pdf_metadata' %}
                                 <!-- PDF Metadata Results -->
-                                <dl class="row small">
-                                    {% for key, value in analysis.result_data.items() %}
-                                        <dt class="col-sm-3">{{ key }}:</dt>
-                                        <dd class="col-sm-9">{{ value }}</dd>
-                                    {% endfor %}
-                                </dl>
+                                {% set result = analysis.result_data %}
+                                <div class="row">
+                                    <!-- Document Info -->
+                                    {% if result.document_info %}
+                                    <div class="col-md-6 mb-3">
+                                        <h6 class="text-primary"><i class="bi bi-file-pdf"></i> Información del Documento</h6>
+                                        <dl class="row small">
+                                            <dt class="col-sm-5">Páginas:</dt>
+                                            <dd class="col-sm-7">{{ result.document_info.num_pages }}</dd>
+                                            <dt class="col-sm-5">Encriptado:</dt>
+                                            <dd class="col-sm-7">
+                                                {% if result.document_info.is_encrypted %}
+                                                    <span class="badge bg-warning">Sí</span>
+                                                {% else %}
+                                                    <span class="badge bg-success">No</span>
+                                                {% endif %}
+                                            </dd>
+                                        </dl>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Author Info -->
+                                    {% if result.author_info and (result.author_info.author or result.author_info.creator or result.author_info.company) %}
+                                    <div class="col-md-6 mb-3">
+                                        <h6 class="text-info"><i class="bi bi-person"></i> Información de Autoría</h6>
+                                        <dl class="row small">
+                                            {% if result.author_info.author %}
+                                                <dt class="col-sm-5">Autor:</dt>
+                                                <dd class="col-sm-7">{{ result.author_info.author }}</dd>
+                                            {% endif %}
+                                            {% if result.author_info.creator %}
+                                                <dt class="col-sm-5">Creador:</dt>
+                                                <dd class="col-sm-7">{{ result.author_info.creator }}</dd>
+                                            {% endif %}
+                                            {% if result.author_info.company %}
+                                                <dt class="col-sm-5">Empresa:</dt>
+                                                <dd class="col-sm-7">{{ result.author_info.company }}</dd>
+                                            {% endif %}
+                                        </dl>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Date Info -->
+                                    {% if result.metadata and (result.metadata.creationdate or result.metadata.moddate) %}
+                                    <div class="col-md-6 mb-3">
+                                        <h6 class="text-warning"><i class="bi bi-calendar"></i> Fechas</h6>
+                                        <dl class="row small">
+                                            {% if result.metadata.creationdate %}
+                                                <dt class="col-sm-5">Creación:</dt>
+                                                <dd class="col-sm-7">{{ result.metadata.creationdate }}</dd>
+                                            {% endif %}
+                                            {% if result.metadata.moddate %}
+                                                <dt class="col-sm-5">Modificación:</dt>
+                                                <dd class="col-sm-7">{{ result.metadata.moddate }}</dd>
+                                            {% endif %}
+                                        </dl>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- XMP Metadata -->
+                                    {% if result.xmp_metadata and result.xmp_metadata.creator_tool %}
+                                    <div class="col-md-6 mb-3">
+                                        <h6 class="text-success"><i class="bi bi-tools"></i> Software</h6>
+                                        <dl class="row small">
+                                            <dt class="col-sm-5">Herramienta:</dt>
+                                            <dd class="col-sm-7">{{ result.xmp_metadata.creator_tool }}</dd>
+                                            {% if result.xmp_metadata.producer %}
+                                                <dt class="col-sm-5">Productor:</dt>
+                                                <dd class="col-sm-7">{{ result.xmp_metadata.producer }}</dd>
+                                            {% endif %}
+                                        </dl>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Text Sample -->
+                                    {% if result.text_sample %}
+                                    <div class="col-12 mt-3">
+                                        <h6 class="text-secondary"><i class="bi bi-file-text"></i> Muestra de Texto</h6>
+                                        <div class="bg-light p-2 rounded small" style="max-height: 150px; overflow-y: auto; white-space: pre-wrap;">{{ result.text_sample }}</div>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Additional Metadata -->
+                                    {% if result.metadata and result.metadata.subject %}
+                                    <div class="col-12 mt-3">
+                                        <h6 class="text-muted"><i class="bi bi-tags"></i> Metadatos Adicionales</h6>
+                                        <dl class="row small">
+                                            {% if result.metadata.subject %}
+                                                <dt class="col-sm-2">Asunto:</dt>
+                                                <dd class="col-sm-10">{{ result.metadata.subject }}</dd>
+                                            {% endif %}
+                                            {% if result.metadata.keywords %}
+                                                <dt class="col-sm-2">Palabras clave:</dt>
+                                                <dd class="col-sm-10">{{ result.metadata.keywords }}</dd>
+                                            {% endif %}
+                                        </dl>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Collapsible raw metadata -->
+                                <div class="mt-3">
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#rawPdfMetadata{{ analysis.id }}" aria-expanded="false">
+                                        <i class="bi bi-code-square"></i> Ver Metadatos Completos
+                                    </button>
+                                    <div class="collapse mt-2" id="rawPdfMetadata{{ analysis.id }}">
+                                        <pre class="bg-light p-2 rounded small mb-0" style="max-height: 300px; overflow-y: auto; word-wrap: break-word; white-space: pre-wrap;"><code>{{ result | tojson(indent=2) }}</code></pre>
+                                    </div>
+                                </div>
                             {% else %}
                                 <!-- Generic JSON results -->
-                                <pre class="bg-light p-2 rounded small mb-0"><code>{{ analysis.result_data | tojson(indent=2) }}</code></pre>
+                                <pre class="bg-light p-2 rounded small mb-0" style="max-height: 400px; overflow-y: auto; word-wrap: break-word; white-space: pre-wrap;"><code>{{ analysis.result_data | tojson(indent=2) }}</code></pre>
                             {% endif %}
                         {% else %}
                             <div class="alert alert-danger mb-0">
@@ -464,6 +581,7 @@
 
                     <form method="POST" action="{{ url_for('evidence.delete_evidence', evidence_id=evidence.id) }}"
                           onsubmit="return confirm('¿Está seguro de eliminar esta evidencia?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit" class="btn btn-outline-danger w-100">
                             <i class="bi bi-trash"></i> Eliminar
                         </button>
@@ -518,15 +636,29 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const executeButtons = document.querySelectorAll('.execute-plugin-btn');
-    const modal = new bootstrap.Modal(document.getElementById('pluginResultsModal'));
+    const modalElement = document.getElementById('pluginResultsModal');
+    const modal = new bootstrap.Modal(modalElement);
     const loadingSpinner = document.getElementById('pluginLoadingSpinner');
     const resultsContent = document.getElementById('pluginResultsContent');
+
+    // Track if analysis was successful to reload on modal close
+    let shouldReloadOnClose = false;
+
+    // Reload page when modal closes after successful analysis
+    modalElement.addEventListener('hidden.bs.modal', function() {
+        if (shouldReloadOnClose) {
+            location.reload();
+        }
+    });
 
     executeButtons.forEach(button => {
         button.addEventListener('click', function() {
             const pluginName = this.dataset.pluginName;
             const pluginDisplay = this.dataset.pluginDisplay;
             const evidenceId = this.dataset.evidenceId;
+
+            // Reset reload flag
+            shouldReloadOnClose = false;
 
             // Show modal with loading spinner
             document.querySelector('#pluginResultsModal .modal-title').innerHTML =
@@ -549,6 +681,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (data.success) {
                     displayResults(data.result, pluginName);
+
+                    // Set flag to reload when modal closes
+                    shouldReloadOnClose = true;
+
+                    // Add info message
+                    resultsContent.innerHTML += `
+                        <div class="alert alert-info mt-3 mb-0">
+                            <i class="bi bi-info-circle"></i> Cierra esta ventana para ver los resultados guardados en la página
+                        </div>
+                    `;
                 } else {
                     resultsContent.innerHTML = `
                         <div class="alert alert-danger">

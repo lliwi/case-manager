@@ -1,7 +1,7 @@
 """
 Plugin routes for plugin management and execution.
 """
-from datetime import datetime
+from datetime import datetime, date, time
 from flask import render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
 from app.blueprints.plugins import plugins_bp
@@ -11,6 +11,44 @@ from app.models.case import Case
 from app.extensions import db
 from app.utils.decorators import audit_action
 import os
+import json
+
+
+def ensure_json_serializable(obj):
+    """
+    Ensure an object is JSON serializable by converting datetime objects to ISO format strings.
+    This is a safety net to catch any datetime objects that weren't serialized by plugins.
+    """
+    if isinstance(obj, (datetime, date, time)):
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {key: ensure_json_serializable(value) for key, value in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [ensure_json_serializable(item) for item in obj]
+    elif hasattr(obj, 'isoformat') and callable(obj.isoformat):
+        try:
+            return obj.isoformat()
+        except Exception:
+            return str(obj)
+    else:
+        return obj
+
+
+def force_json_serialization(obj):
+    """
+    Force complete JSON serialization by using json.dumps/loads.
+    This ensures the object is truly JSON-compatible before passing to SQLAlchemy.
+    """
+    # First pass: ensure all objects are serializable
+    serialized = ensure_json_serializable(obj)
+
+    # Second pass: force through JSON encoder/decoder to catch any remaining issues
+    try:
+        json_string = json.dumps(serialized, default=str)
+        return json.loads(json_string)
+    except (TypeError, ValueError) as e:
+        # If still fails, convert entire object to string representation
+        return {'error': f'Serialization failed: {str(e)}', 'raw_data': str(obj)}
 
 
 @plugins_bp.route('/')
@@ -170,7 +208,7 @@ def api_analyze_evidence(evidence_id, plugin_name):
             # Update existing analysis
             existing_analysis.plugin_version = plugin_version
             existing_analysis.success = result.get('success', False)
-            existing_analysis.result_data = result.get('result', {})
+            existing_analysis.result_data = force_json_serialization(result.get('result', {}))
             existing_analysis.error_message = result.get('error')
             existing_analysis.analyzed_by_id = current_user.id
             existing_analysis.analyzed_at = datetime.utcnow()
@@ -182,7 +220,7 @@ def api_analyze_evidence(evidence_id, plugin_name):
                 plugin_name=plugin_name,
                 plugin_version=plugin_version,
                 success=result.get('success', False),
-                result_data=result.get('result', {}),
+                result_data=force_json_serialization(result.get('result', {})),
                 error_message=result.get('error'),
                 analyzed_by_id=current_user.id
             )

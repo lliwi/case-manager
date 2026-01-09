@@ -5,7 +5,7 @@ Extracts metadata from PDF files including author, creation date,
 modification history, and XMP metadata.
 """
 import os
-from datetime import datetime
+from datetime import datetime, date, time
 from typing import Dict, Any
 import pluggy
 
@@ -20,6 +20,61 @@ hookimpl = pluggy.HookimplMarker("casemanager")
 
 class PDFMetadataPlugin:
     """Plugin for extracting metadata from PDF files."""
+
+    def _make_json_serializable(self, obj):
+        """
+        Convert objects to JSON-serializable types.
+
+        Args:
+            obj: Object to convert
+
+        Returns:
+            JSON-serializable version of the object
+        """
+        # Return as-is for already JSON-serializable types (check first for performance)
+        if isinstance(obj, (int, float, bool, type(None))):
+            return obj
+
+        # Handle strings - remove null bytes that PostgreSQL can't handle
+        if isinstance(obj, str):
+            # Remove null bytes and other problematic characters
+            return obj.replace('\x00', '').replace('\u0000', '')
+
+        # Handle any object with isoformat() method (datetime, date, time, and PyPDF2 wrappers)
+        if hasattr(obj, 'isoformat') and callable(obj.isoformat):
+            try:
+                return obj.isoformat()
+            except Exception:
+                pass  # Fall through to other handlers
+
+        # Handle datetime, date, and time objects explicitly
+        if isinstance(obj, (datetime, date, time)):
+            return obj.isoformat()
+
+        # Handle dictionaries (must come before checking iterables)
+        if isinstance(obj, dict):
+            return {key: self._make_json_serializable(value) for key, value in obj.items()}
+
+        # Handle tuples (convert to list)
+        if isinstance(obj, tuple):
+            return [self._make_json_serializable(item) for item in obj]
+
+        # Handle lists
+        if isinstance(obj, list):
+            return [self._make_json_serializable(item) for item in obj]
+
+        # Handle bytes (skip or convert to hex string)
+        if isinstance(obj, bytes):
+            # For short bytes, convert to hex; for long ones, skip
+            if len(obj) <= 64:
+                return obj.hex()
+            return None
+
+        # For other types, convert to string representation
+        try:
+            return str(obj)
+        except Exception:
+            return None
 
     @hookimpl
     def get_info(self):
@@ -97,7 +152,7 @@ class PDFMetadataPlugin:
                     except Exception:
                         pass
 
-                return {
+                result = {
                     'success': True,
                     'file_path': file_path,
                     'document_info': doc_info,
@@ -108,6 +163,9 @@ class PDFMetadataPlugin:
                     'date_info': self._extract_date_info(parsed_metadata),
                     'software_info': self._extract_software_info(parsed_metadata)
                 }
+
+                # Convert all values to JSON-serializable types
+                return self._make_json_serializable(result)
 
         except Exception as e:
             return {
@@ -127,24 +185,37 @@ class PDFMetadataPlugin:
         """
         parsed = {}
 
-        # Standard PDF metadata fields
-        fields = [
-            'title', 'author', 'subject', 'creator', 'producer',
-            'creation_date', 'mod_date', 'trapped', 'keywords'
-        ]
+        # PyPDF2 metadata behaves like a dictionary
+        # Iterate over all keys and serialize values
+        try:
+            # Try to iterate as a dictionary
+            for key in metadata:
+                if key and key.startswith('/'):
+                    # Remove the leading '/' and convert to lowercase with underscores
+                    clean_key = key[1:].lower()
+                    value = metadata[key]
+                    if value is not None:
+                        # Serialize the value to handle datetime and other non-JSON types
+                        parsed[clean_key] = self._make_json_serializable(value)
+        except (TypeError, AttributeError):
+            # Fallback: try to access as attributes
+            standard_fields = [
+                ('title', '/Title'),
+                ('author', '/Author'),
+                ('subject', '/Subject'),
+                ('creator', '/Creator'),
+                ('producer', '/Producer'),
+                ('creation_date', '/CreationDate'),
+                ('mod_date', '/ModDate'),
+                ('trapped', '/Trapped'),
+                ('keywords', '/Keywords')
+            ]
 
-        for field in fields:
-            attr_name = f'/{field.title()}'
-            if hasattr(metadata, attr_name.lower().replace('/', '')):
-                value = getattr(metadata, attr_name.lower().replace('/', ''))
-                if value:
-                    parsed[field] = value
-
-        # Also get any custom fields
-        if hasattr(metadata, '__dict__'):
-            for key, value in metadata.__dict__.items():
-                if key.startswith('/') and key[1:].lower() not in [f.lower() for f in fields]:
-                    parsed[key[1:]] = value
+            for field_name, pdf_key in standard_fields:
+                if hasattr(metadata, field_name):
+                    value = getattr(metadata, field_name)
+                    if value is not None:
+                        parsed[field_name] = self._make_json_serializable(value)
 
         return parsed
 
@@ -163,21 +234,21 @@ class PDFMetadataPlugin:
 
             # Common XMP fields
             if hasattr(xmp_metadata, 'dc_creator'):
-                xmp_dict['creator'] = xmp_metadata.dc_creator
+                xmp_dict['creator'] = self._make_json_serializable(xmp_metadata.dc_creator)
             if hasattr(xmp_metadata, 'dc_title'):
-                xmp_dict['title'] = xmp_metadata.dc_title
+                xmp_dict['title'] = self._make_json_serializable(xmp_metadata.dc_title)
             if hasattr(xmp_metadata, 'dc_description'):
-                xmp_dict['description'] = xmp_metadata.dc_description
+                xmp_dict['description'] = self._make_json_serializable(xmp_metadata.dc_description)
             if hasattr(xmp_metadata, 'xmp_create_date'):
-                xmp_dict['create_date'] = str(xmp_metadata.xmp_create_date)
+                xmp_dict['create_date'] = self._make_json_serializable(xmp_metadata.xmp_create_date)
             if hasattr(xmp_metadata, 'xmp_modify_date'):
-                xmp_dict['modify_date'] = str(xmp_metadata.xmp_modify_date)
+                xmp_dict['modify_date'] = self._make_json_serializable(xmp_metadata.xmp_modify_date)
             if hasattr(xmp_metadata, 'xmp_metadata_date'):
-                xmp_dict['metadata_date'] = str(xmp_metadata.xmp_metadata_date)
+                xmp_dict['metadata_date'] = self._make_json_serializable(xmp_metadata.xmp_metadata_date)
             if hasattr(xmp_metadata, 'xmp_creator_tool'):
-                xmp_dict['creator_tool'] = xmp_metadata.xmp_creator_tool
+                xmp_dict['creator_tool'] = self._make_json_serializable(xmp_metadata.xmp_creator_tool)
             if hasattr(xmp_metadata, 'pdf_producer'):
-                xmp_dict['producer'] = xmp_metadata.pdf_producer
+                xmp_dict['producer'] = self._make_json_serializable(xmp_metadata.pdf_producer)
 
             return xmp_dict if xmp_dict else None
 
