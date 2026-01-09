@@ -175,6 +175,120 @@
         </div>
         {% endif %}
 
+        <!-- Previous Analyses Results -->
+        {% if previous_analyses %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-clipboard-data"></i> Análisis Forenses Realizados</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    <i class="bi bi-info-circle"></i> Resultados de análisis forenses ejecutados previamente sobre esta evidencia
+                </p>
+                {% for analysis in previous_analyses %}
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ analysis.plugin_name }}</strong>
+                            {% if analysis.plugin_version %}
+                                <span class="badge bg-secondary ms-2">v{{ analysis.plugin_version }}</span>
+                            {% endif %}
+                            {% if analysis.success %}
+                                <span class="badge bg-success ms-2"><i class="bi bi-check-circle"></i> Exitoso</span>
+                            {% else %}
+                                <span class="badge bg-danger ms-2"><i class="bi bi-x-circle"></i> Error</span>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">
+                            {{ analysis.analyzed_at.strftime('%d/%m/%Y %H:%M') }}
+                            por {{ analysis.analyzed_by.nombre }}
+                        </small>
+                    </div>
+                    <div class="card-body">
+                        {% if analysis.success %}
+                            {% if analysis.plugin_name == 'exif_extractor' %}
+                                <!-- EXIF Results -->
+                                {% set result = analysis.result_data %}
+                                {% if result.has_exif %}
+                                    <div class="row">
+                                        {% if result.camera_info %}
+                                        <div class="col-md-6">
+                                            <h6 class="text-primary"><i class="bi bi-camera"></i> Información de Cámara</h6>
+                                            <dl class="row small">
+                                                {% for key, value in result.camera_info.items() %}
+                                                    {% if value %}
+                                                        <dt class="col-sm-5">{{ key }}:</dt>
+                                                        <dd class="col-sm-7">{{ value }}</dd>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </dl>
+                                        </div>
+                                        {% endif %}
+                                        {% if result.gps %}
+                                        <div class="col-md-6">
+                                            <h6 class="text-success"><i class="bi bi-geo-alt"></i> Coordenadas GPS</h6>
+                                            <p>Lat: {{ "%.6f"|format(result.gps.latitude) }}, Lon: {{ "%.6f"|format(result.gps.longitude) }}</p>
+                                            <a href="https://www.google.com/maps?q={{ result.gps.latitude }},{{ result.gps.longitude }}"
+                                               target="_blank" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-geo-alt"></i> Ver en Mapa
+                                            </a>
+                                        </div>
+                                        {% endif %}
+                                        {% if result.datetime_info %}
+                                        <div class="col-md-6 mt-3">
+                                            <h6 class="text-warning"><i class="bi bi-calendar"></i> Información de Fecha</h6>
+                                            <dl class="row small">
+                                                {% for key, value in result.datetime_info.items() %}
+                                                    {% if value %}
+                                                        <dt class="col-sm-5">{{ key }}:</dt>
+                                                        <dd class="col-sm-7">{{ value }}</dd>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </dl>
+                                        </div>
+                                        {% endif %}
+                                        {% if result.image_info %}
+                                        <div class="col-md-6 mt-3">
+                                            <h6 class="text-info"><i class="bi bi-image"></i> Información de Imagen</h6>
+                                            <dl class="row small">
+                                                <dt class="col-sm-5">Dimensiones:</dt>
+                                                <dd class="col-sm-7">{{ result.image_info.width }} x {{ result.image_info.height }} px</dd>
+                                                <dt class="col-sm-5">Formato:</dt>
+                                                <dd class="col-sm-7">{{ result.image_info.format }}</dd>
+                                                <dt class="col-sm-5">Modo:</dt>
+                                                <dd class="col-sm-7">{{ result.image_info.mode }}</dd>
+                                            </dl>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <p class="text-muted mb-0">{{ result.message }}</p>
+                                {% endif %}
+                            {% elif analysis.plugin_name == 'pdf_metadata' %}
+                                <!-- PDF Metadata Results -->
+                                <dl class="row small">
+                                    {% for key, value in analysis.result_data.items() %}
+                                        <dt class="col-sm-3">{{ key }}:</dt>
+                                        <dd class="col-sm-9">{{ value }}</dd>
+                                    {% endfor %}
+                                </dl>
+                            {% else %}
+                                <!-- Generic JSON results -->
+                                <pre class="bg-light p-2 rounded small mb-0"><code>{{ analysis.result_data | tojson(indent=2) }}</code></pre>
+                            {% endif %}
+                        {% else %}
+                            <div class="alert alert-danger mb-0">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <strong>Error:</strong> {{ analysis.error_message }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Evidence Details -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-primary text-white">
@@ -400,7 +514,7 @@
 
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const executeButtons = document.querySelectorAll('.execute-plugin-btn');

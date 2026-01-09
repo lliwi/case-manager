@@ -12,9 +12,11 @@ import pluggy
 try:
     from PIL import Image
     from PIL.ExifTags import TAGS, GPSTAGS
+    from PIL.TiffImagePlugin import IFDRational
     PILLOW_AVAILABLE = True
 except ImportError:
     PILLOW_AVAILABLE = False
+    IFDRational = None
 
 hookimpl = pluggy.HookimplMarker("casemanager")
 
@@ -23,6 +25,59 @@ class ExifExtractorPlugin:
     """Plugin for extracting EXIF metadata from images."""
 
     SUPPORTED_FORMATS = ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.webp']
+
+    def _make_json_serializable(self, obj):
+        """
+        Convert PIL/EXIF objects to JSON-serializable types.
+
+        Args:
+            obj: Object to convert
+
+        Returns:
+            JSON-serializable version of the object
+        """
+        # Handle IFDRational (PIL rational numbers)
+        if IFDRational and isinstance(obj, IFDRational):
+            return float(obj)
+
+        # Handle tuples (convert to list or float if it's a rational)
+        if isinstance(obj, tuple):
+            if len(obj) == 2 and all(isinstance(x, (int, float)) for x in obj):
+                # Rational number as tuple
+                if obj[1] != 0:
+                    return float(obj[0]) / float(obj[1])
+                return float(obj[0])
+            return [self._make_json_serializable(item) for item in obj]
+
+        # Handle lists
+        if isinstance(obj, list):
+            return [self._make_json_serializable(item) for item in obj]
+
+        # Handle dictionaries
+        if isinstance(obj, dict):
+            return {key: self._make_json_serializable(value) for key, value in obj.items()}
+
+        # Handle bytes (skip or convert to hex string)
+        if isinstance(obj, bytes):
+            # For short bytes, convert to hex; for long ones, skip
+            if len(obj) <= 64:
+                return obj.hex()
+            return None
+
+        # Handle strings - remove null bytes that PostgreSQL can't handle
+        if isinstance(obj, str):
+            # Remove null bytes and other problematic characters
+            return obj.replace('\x00', '').replace('\u0000', '')
+
+        # Return as-is for other JSON-serializable types
+        if isinstance(obj, (int, float, bool, type(None))):
+            return obj
+
+        # For other types, convert to string representation
+        try:
+            return str(obj)
+        except Exception:
+            return None
 
     @hookimpl
     def get_info(self):
@@ -92,7 +147,8 @@ class ExifExtractorPlugin:
                     'height': img.height
                 }
 
-                return {
+                # Build result dictionary
+                result = {
                     'success': True,
                     'has_exif': True,
                     'file_path': file_path,
@@ -102,6 +158,9 @@ class ExifExtractorPlugin:
                     'camera_info': self._extract_camera_info(parsed_exif),
                     'datetime_info': self._extract_datetime_info(parsed_exif)
                 }
+
+                # Convert all values to JSON-serializable types
+                return self._make_json_serializable(result)
 
         except Exception as e:
             return {

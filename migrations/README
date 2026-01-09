@@ -1,0 +1,43 @@
+Database Migrations for Case Manager
+=====================================
+
+This directory contains database migration scripts managed by Flask-Migrate (Alembic).
+
+## For New Installations
+
+When setting up a new instance of Case Manager:
+
+```bash
+# Inside the Docker container
+docker exec casemanager_web flask db upgrade
+```
+
+This will create all tables including:
+- users, roles, audit_logs
+- cases, evidences, chain_of_custody
+- evidence_analyses (forensic plugin results)
+- graph nodes and relationships
+- timeline events, reports
+- custom legitimacy and relationship types
+
+## For Existing Installations
+
+The initial migration (f12d06e18f99) is a baseline that marks the current state.
+All tables including evidence_analyses already exist.
+
+## Creating New Migrations
+
+When you modify models:
+
+```bash
+docker exec casemanager_web flask db revision --autogenerate -m "Description of changes"
+docker exec casemanager_web flask db upgrade
+```
+
+## Important Notes
+
+- evidence_analyses table stores forensic plugin analysis results
+- result_data column uses JSONB for efficient querying in PostgreSQL
+- analyzed_at field is indexed for performance
+- When the same plugin is re-executed on the same evidence, the existing analysis is updated
+- Only one analysis record exists per evidence+plugin combination (latest version)

@@ -1,6 +1,7 @@
 """
 Plugin routes for plugin management and execution.
 """
+from datetime import datetime
 from flask import render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
 from app.blueprints.plugins import plugins_bp
@@ -132,6 +133,9 @@ def api_analyze_evidence(evidence_id, plugin_name):
     """
     API endpoint to analyze evidence with a plugin.
 
+    Executes forensic plugin, stores results in database, and updates
+    evidence metadata if relevant information is extracted (e.g., GPS coordinates).
+
     Args:
         evidence_id: Evidence ID
         plugin_name: Plugin name to execute
@@ -139,6 +143,9 @@ def api_analyze_evidence(evidence_id, plugin_name):
     Returns:
         JSON response with analysis results
     """
+    from app.models.evidence_analysis import EvidenceAnalysis
+    from app.extensions import db
+
     evidence = Evidence.query.get_or_404(evidence_id)
 
     # Check permissions
@@ -152,9 +159,60 @@ def api_analyze_evidence(evidence_id, plugin_name):
         # Execute plugin
         result = plugin_manager.execute_forensic_plugin(plugin_name, file_path)
 
+        # Get plugin info for version
+        plugin_info = plugin_manager.get_plugin_by_name(plugin_name)
+        plugin_version = plugin_info.get_info().get('version') if plugin_info else None
+
+        # Check if analysis already exists for this evidence + plugin combination
+        existing_analysis = EvidenceAnalysis.get_latest_by_plugin(evidence.id, plugin_name)
+
+        if existing_analysis:
+            # Update existing analysis
+            existing_analysis.plugin_version = plugin_version
+            existing_analysis.success = result.get('success', False)
+            existing_analysis.result_data = result.get('result', {})
+            existing_analysis.error_message = result.get('error')
+            existing_analysis.analyzed_by_id = current_user.id
+            existing_analysis.analyzed_at = datetime.utcnow()
+            analysis = existing_analysis
+        else:
+            # Create new analysis
+            analysis = EvidenceAnalysis(
+                evidence_id=evidence.id,
+                plugin_name=plugin_name,
+                plugin_version=plugin_version,
+                success=result.get('success', False),
+                result_data=result.get('result', {}),
+                error_message=result.get('error'),
+                analyzed_by_id=current_user.id
+            )
+            db.session.add(analysis)
+
+        # Update evidence metadata if relevant data extracted
+        if result.get('success') and plugin_name == 'exif_extractor':
+            result_data = result.get('result', {})
+
+            # Update GPS coordinates if found
+            if result_data.get('gps'):
+                gps_data = result_data['gps']
+                evidence.geolocation_lat = gps_data.get('latitude')
+                evidence.geolocation_lon = gps_data.get('longitude')
+
+                # Log chain of custody update
+                from app.models.evidence import ChainOfCustody
+                ChainOfCustody.log(
+                    action='METADATA_UPDATED',
+                    evidence=evidence,
+                    user=current_user,
+                    notes=f'GPS coordinates extracted from EXIF: {gps_data.get("latitude")}, {gps_data.get("longitude")}'
+                )
+
+        db.session.commit()
+
         return jsonify(result)
 
     except Exception as e:
+        db.session.rollback()
         return jsonify({
             'success': False,
             'error': str(e)

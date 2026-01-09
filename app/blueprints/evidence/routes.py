@@ -170,13 +170,18 @@ def evidence_detail(evidence_id):
     from app.plugins import plugin_manager
     applicable_plugins = plugin_manager.get_applicable_plugins_for_evidence(evidence)
 
+    # Get previous analyses
+    from app.models.evidence_analysis import EvidenceAnalysis
+    previous_analyses = EvidenceAnalysis.get_all_for_evidence(evidence_id)
+
     return render_template(
         'evidence/detail.html',
         evidence=evidence,
         case=case,
         custody_entries=custody_entries,
         EvidenceType=EvidenceType,
-        applicable_plugins=applicable_plugins
+        applicable_plugins=applicable_plugins,
+        previous_analyses=previous_analyses
     )
 
 
