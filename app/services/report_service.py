@@ -77,6 +77,7 @@ class ReportService:
             include_graph=kwargs.get('include_graph', False),
             include_chain_of_custody=kwargs.get('include_chain_of_custody', True),
             include_plugin_results=kwargs.get('include_plugin_results', False),
+            include_evidence_thumbnails=kwargs.get('include_evidence_thumbnails', False),
             status=ReportStatus.DRAFT
         )
 
@@ -463,6 +464,87 @@ class ReportService:
                     hash_text = f'<b>[{idx}]</b> <font name="Courier" size="7">{evidence.sha256_hash if evidence.sha256_hash else "N/A"}</font>'
                     story.append(Paragraph(hash_text, body_style))
                     story.append(Spacer(1, 0.1*cm))
+
+                # Add image thumbnails if enabled
+                if report.include_evidence_thumbnails:
+                    story.append(Spacer(1, 0.5*cm))
+                    story.append(Paragraph('<b>Miniaturas de Evidencias (Imágenes):</b>', body_style))
+                    story.append(Spacer(1, 0.3*cm))
+
+                    image_evidences = [e for e in evidence_list if e.is_image()]
+
+                    if image_evidences:
+                        # Create a grid of thumbnails (2 per row)
+                        thumb_data = []
+                        thumb_row = []
+
+                        for idx, evidence in enumerate(image_evidences, 1):
+                            try:
+                                # Get decrypted path
+                                img_path = evidence.get_decrypted_path()
+
+                                # Create thumbnail
+                                from PIL import Image
+                                img = Image.open(img_path)
+
+                                # Resize maintaining aspect ratio
+                                img.thumbnail((150, 150), Image.Resampling.LANCZOS)
+
+                                # Save thumbnail to temp
+                                thumb_filename = f'thumb_{evidence.id}_{datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.jpg'
+                                thumb_path = os.path.join('/tmp', thumb_filename)
+                                img.convert('RGB').save(thumb_path, 'JPEG', quality=85)
+
+                                # Add to report
+                                thumb_img = RLImage(thumb_path, width=4*cm, height=4*cm, kind='proportional')
+
+                                # Create cell with image and caption
+                                cell_content = [
+                                    thumb_img,
+                                    Paragraph(f'<font size="7">[{idx}] {evidence.original_filename[:20]}...</font>', body_style)
+                                ]
+
+                                thumb_row.append(cell_content)
+
+                                # Store for cleanup
+                                if not hasattr(report, '_temp_files'):
+                                    report._temp_files = []
+                                report._temp_files.append(thumb_path)
+
+                                # Clean decrypted temp if different from original
+                                if evidence.is_encrypted and img_path != evidence.file_path:
+                                    try:
+                                        os.remove(img_path)
+                                    except:
+                                        pass
+
+                                # Add row when we have 2 images or it's the last one
+                                if len(thumb_row) == 2 or idx == len(image_evidences):
+                                    # Pad row if necessary (add empty cell with Paragraph instead of string)
+                                    while len(thumb_row) < 2:
+                                        thumb_row.append([Paragraph('', body_style)])
+                                    thumb_data.append(thumb_row)
+                                    thumb_row = []
+
+                            except Exception as e:
+                                current_app.logger.error(f'Error creating thumbnail for evidence {evidence.id}: {e}')
+                                continue
+
+                        if thumb_data:
+                            # Create table with thumbnails
+                            thumb_table = Table(thumb_data, colWidths=[8*cm, 8*cm])
+                            thumb_table.setStyle(TableStyle([
+                                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                                ('LEFTPADDING', (0, 0), (-1, -1), 10),
+                                ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+                                ('TOPPADDING', (0, 0), (-1, -1), 5),
+                                ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+                            ]))
+                            story.append(thumb_table)
+                    else:
+                        story.append(Paragraph('<i>No hay evidencias de tipo imagen.</i>', body_style))
+
             else:
                 story.append(Paragraph('No se encontraron evidencias asociadas.', body_style))
 

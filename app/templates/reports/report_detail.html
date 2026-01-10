@@ -151,6 +151,10 @@
                                     <i class="bi bi-{% if report.include_plugin_results %}check-circle-fill{% else %}circle{% endif %}"></i>
                                     Resultados de Plugins
                                 </li>
+                                <li class="{% if report.include_evidence_thumbnails %}text-success{% else %}text-muted{% endif %}">
+                                    <i class="bi bi-{% if report.include_evidence_thumbnails %}check-circle-fill{% else %}circle{% endif %}"></i>
+                                    Miniaturas de Imágenes
+                                </li>
                             </ul>
                         </div>
                     </div>
