@@ -28,8 +28,9 @@ RUN chmod 755 /entrypoint.sh
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
 
-# Create data directories
-RUN mkdir -p /app/data/evidence /app/data/uploads /app/data/exports && \
+# Create data directories with proper permissions
+RUN mkdir -p /app/data/evidence /app/data/uploads /app/data/exports /app/data/reports && \
+    chmod -R 777 /app/data && \
     chown -R appuser:appuser /app/data
 
 # Expose port

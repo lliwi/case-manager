@@ -109,8 +109,8 @@
                                     <dt class="col-sm-5">Tamaño:</dt>
                                     <dd class="col-sm-7">{{ (report.file_size / 1024)|round(2) }} KB</dd>
 
-                                    <dt class="col-sm-5">SHA-256:</dt>
-                                    <dd class="col-sm-7"><code class="small">{{ report.file_hash_sha256[:16] }}...</code></dd>
+                                    <dt class="col-sm-12">SHA-256:</dt>
+                                    <dd class="col-sm-12"><code class="small" style="word-break: break-all;">{{ report.file_hash_sha256 }}</code></dd>
                                 </dl>
                             {% endif %}
 

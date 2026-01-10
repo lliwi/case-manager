@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Informe - {{ report.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">Editar Informe</h1>
+                <a href="{{ url_for('reports.report_detail', report_id=report.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Cancelar
+                </a>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0"><i class="bi bi-pencil-square"></i> Editar Borrador</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('reports.edit_report', report_id=report.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="report_type" class="form-label">Tipo de Informe</label>
+                                <select class="form-select" id="report_type" name="report_type" disabled>
+                                    {% for rt in report_types %}
+                                        <option value="{{ rt.name }}" {% if rt == report.report_type %}selected{% endif %}>{{ rt.value }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">El tipo de informe no puede modificarse</small>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="title" class="form-label">Título del Informe</label>
+                                <input type="text" class="form-control" id="title" name="title"
+                                       value="{{ report.title }}" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="description" name="description" rows="2">{{ report.description or '' }}</textarea>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6 class="mb-3">Contenido del Informe</h6>
+
+                        <div class="mb-3">
+                            <label for="introduction" class="form-label">1. Introducción</label>
+                            <textarea class="form-control" id="introduction" name="introduction" rows="3">{{ report.introduction or '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="methodology" class="form-label">2. Metodología</label>
+                            <textarea class="form-control" id="methodology" name="methodology" rows="3">{{ report.methodology or '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="findings" class="form-label">3. Hallazgos</label>
+                            <textarea class="form-control" id="findings" name="findings" rows="4">{{ report.findings or '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="conclusions" class="form-label">4. Conclusiones</label>
+                            <textarea class="form-control" id="conclusions" name="conclusions" rows="3">{{ report.conclusions or '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="recommendations" class="form-label">5. Recomendaciones</label>
+                            <textarea class="form-control" id="recommendations" name="recommendations" rows="2">{{ report.recommendations or '' }}</textarea>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6 class="mb-3">Elementos a Incluir</h6>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="include_evidence_list"
+                                           name="include_evidence_list" {% if report.include_evidence_list %}checked{% endif %}>
+                                    <label class="form-check-label" for="include_evidence_list">
+                                        <i class="bi bi-folder2-open"></i> Relación de Evidencias
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="include_timeline"
+                                           name="include_timeline" {% if report.include_timeline %}checked{% endif %}>
+                                    <label class="form-check-label" for="include_timeline">
+                                        <i class="bi bi-clock-history"></i> Cronología de Eventos
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="include_chain_of_custody"
+                                           name="include_chain_of_custody" {% if report.include_chain_of_custody %}checked{% endif %}>
+                                    <label class="form-check-label" for="include_chain_of_custody">
+                                        <i class="bi bi-shield-lock"></i> Cadena de Custodia
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="include_graph"
+                                           name="include_graph" {% if report.include_graph %}checked{% endif %}>
+                                    <label class="form-check-label" for="include_graph">
+                                        <i class="bi bi-diagram-3"></i> Grafo de Relaciones
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="include_plugin_results"
+                                           name="include_plugin_results" {% if report.include_plugin_results %}checked{% endif %}>
+                                    <label class="form-check-label" for="include_plugin_results">
+                                        <i class="bi bi-plugin"></i> Resultados de Plugins
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-warning btn-lg">
+                                <i class="bi bi-save"></i> Guardar Cambios
+                            </button>
+                            <a href="{{ url_for('reports.report_detail', report_id=report.id) }}" class="btn btn-outline-secondary">
+                                Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="alert alert-warning mt-4">
+                <h6 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Nota</h6>
+                <p class="mb-0 small">
+                    Una vez generado el PDF del informe, ya no podrá ser editado. Asegúrate de revisar todo el contenido
+                    antes de generar la versión final.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

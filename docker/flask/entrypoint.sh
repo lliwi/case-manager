@@ -15,6 +15,11 @@ while ! nc -z neo4j 7687 2>/dev/null; do
 done
 echo "Neo4j is ready!"
 
+# Ensure data directories exist (they should already exist from Dockerfile)
+echo "Checking data directories..."
+mkdir -p /app/data/uploads /app/data/evidence /app/data/exports /app/data/reports 2>/dev/null || true
+echo "Data directories ready!"
+
 # Run database migrations
 echo "Running database migrations..."
 flask db upgrade || echo "No migrations to run"

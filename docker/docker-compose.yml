@@ -26,6 +26,13 @@ services:
       NEO4J_PLUGINS: '["apoc"]'
       NEO4J_server_memory_heap_max__size: 2G
       NEO4J_dbms_security_procedures_unrestricted: apoc.*
+      # Accept license agreement for community edition
+      NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
+      # Reduce verbose logging
+      NEO4J_server_logs_gc_enabled: "false"
+      NEO4J_dbms_logs_query_enabled: "OFF"
+      # Disable strict validation to ignore enterprise-only settings
+      NEO4J_server_config_strict__validation_enabled: "false"
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
@@ -76,6 +83,7 @@ services:
       - evidence_data:/app/data/evidence
       - upload_data:/app/data/uploads
       - export_data:/app/data/exports
+      - report_data:/app/data/reports
     depends_on:
       postgres:
         condition: service_healthy
@@ -182,6 +190,8 @@ volumes:
   upload_data:
     driver: local
   export_data:
+    driver: local
+  report_data:
     driver: local
 
 networks:

@@ -322,23 +322,23 @@
                                     {% endif %}
 
                                     <!-- Date Info -->
-                                    {% if result.metadata and (result.metadata.creationdate or result.metadata.moddate) %}
+                                    {% if result.date_info and (result.date_info.creation_date or result.date_info.modification_date) %}
                                     <div class="col-md-6 mb-3">
                                         <h6 class="text-warning"><i class="bi bi-calendar"></i> Fechas</h6>
                                         <dl class="row small">
-                                            {% if result.metadata.creationdate %}
+                                            {% if result.date_info.creation_date %}
                                                 <dt class="col-sm-5">Creación:</dt>
-                                                <dd class="col-sm-7">{{ result.metadata.creationdate }}</dd>
+                                                <dd class="col-sm-7">{{ result.date_info.creation_date }}</dd>
                                             {% endif %}
-                                            {% if result.metadata.moddate %}
+                                            {% if result.date_info.modification_date %}
                                                 <dt class="col-sm-5">Modificación:</dt>
-                                                <dd class="col-sm-7">{{ result.metadata.moddate }}</dd>
+                                                <dd class="col-sm-7">{{ result.date_info.modification_date }}</dd>
                                             {% endif %}
                                         </dl>
                                     </div>
                                     {% endif %}
 
-                                    <!-- XMP Metadata -->
+                                    <!-- XMP Metadata - Software -->
                                     {% if result.xmp_metadata and result.xmp_metadata.creator_tool %}
                                     <div class="col-md-6 mb-3">
                                         <h6 class="text-success"><i class="bi bi-tools"></i> Software</h6>
@@ -348,6 +348,23 @@
                                             {% if result.xmp_metadata.producer %}
                                                 <dt class="col-sm-5">Productor:</dt>
                                                 <dd class="col-sm-7">{{ result.xmp_metadata.producer }}</dd>
+                                            {% endif %}
+                                        </dl>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- XMP Metadata - Dates -->
+                                    {% if result.xmp_metadata and (result.xmp_metadata.create_date or result.xmp_metadata.modify_date) %}
+                                    <div class="col-md-6 mb-3">
+                                        <h6 class="text-info"><i class="bi bi-calendar-event"></i> Fechas XMP</h6>
+                                        <dl class="row small">
+                                            {% if result.xmp_metadata.create_date %}
+                                                <dt class="col-sm-5">Creación XMP:</dt>
+                                                <dd class="col-sm-7">{{ result.xmp_metadata.create_date }}</dd>
+                                            {% endif %}
+                                            {% if result.xmp_metadata.modify_date %}
+                                                <dt class="col-sm-5">Modificación XMP:</dt>
+                                                <dd class="col-sm-7">{{ result.xmp_metadata.modify_date }}</dd>
                                             {% endif %}
                                         </dl>
                                     </div>

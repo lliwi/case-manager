@@ -227,7 +227,7 @@ class PDFMetadataPlugin:
             xmp_metadata: XMP metadata object
 
         Returns:
-            dict: Parsed XMP metadata
+            dict: Parsed XMP metadata with formatted dates
         """
         try:
             xmp_dict = {}
@@ -239,12 +239,20 @@ class PDFMetadataPlugin:
                 xmp_dict['title'] = self._make_json_serializable(xmp_metadata.dc_title)
             if hasattr(xmp_metadata, 'dc_description'):
                 xmp_dict['description'] = self._make_json_serializable(xmp_metadata.dc_description)
+
+            # Format XMP dates (these are typically ISO format strings)
             if hasattr(xmp_metadata, 'xmp_create_date'):
-                xmp_dict['create_date'] = self._make_json_serializable(xmp_metadata.xmp_create_date)
+                date_str = self._make_json_serializable(xmp_metadata.xmp_create_date)
+                xmp_dict['create_date'] = self._format_iso_date(date_str) if date_str else None
+
             if hasattr(xmp_metadata, 'xmp_modify_date'):
-                xmp_dict['modify_date'] = self._make_json_serializable(xmp_metadata.xmp_modify_date)
+                date_str = self._make_json_serializable(xmp_metadata.xmp_modify_date)
+                xmp_dict['modify_date'] = self._format_iso_date(date_str) if date_str else None
+
             if hasattr(xmp_metadata, 'xmp_metadata_date'):
-                xmp_dict['metadata_date'] = self._make_json_serializable(xmp_metadata.xmp_metadata_date)
+                date_str = self._make_json_serializable(xmp_metadata.xmp_metadata_date)
+                xmp_dict['metadata_date'] = self._format_iso_date(date_str) if date_str else None
+
             if hasattr(xmp_metadata, 'xmp_creator_tool'):
                 xmp_dict['creator_tool'] = self._make_json_serializable(xmp_metadata.xmp_creator_tool)
             if hasattr(xmp_metadata, 'pdf_producer'):
@@ -254,6 +262,75 @@ class PDFMetadataPlugin:
 
         except Exception:
             return None
+
+    def _format_iso_date(self, iso_date_str: str) -> str:
+        """
+        Format ISO date string to human-readable format.
+
+        Args:
+            iso_date_str: ISO format date string (YYYY-MM-DDTHH:MM:SS±HH:MM or YYYY-MM-DDTHH:MM:SS)
+
+        Returns:
+            str: Formatted date (dd/mm/yyyy HH:MM:SS UTC±HH:MM) or original string
+        """
+        if not iso_date_str or not isinstance(iso_date_str, str):
+            return iso_date_str
+
+        try:
+            # Check if string has timezone info
+            has_timezone = '+' in iso_date_str or iso_date_str.endswith('Z') or (
+                '-' in iso_date_str and iso_date_str.rfind('-') > 10
+            )
+
+            # Replace Z with +00:00 for UTC
+            normalized_str = iso_date_str.replace('Z', '+00:00')
+
+            # Try different ISO formats
+            formats_with_tz = [
+                '%Y-%m-%dT%H:%M:%S%z',
+                '%Y-%m-%dT%H:%M:%S.%f%z'
+            ]
+            formats_without_tz = [
+                '%Y-%m-%dT%H:%M:%S',
+                '%Y-%m-%dT%H:%M:%S.%f'
+            ]
+
+            dt = None
+
+            # Try with timezone first
+            if has_timezone:
+                for fmt in formats_with_tz:
+                    try:
+                        dt = datetime.strptime(normalized_str, fmt)
+                        break
+                    except ValueError:
+                        continue
+
+            # Try without timezone
+            if dt is None:
+                for fmt in formats_without_tz:
+                    try:
+                        dt = datetime.strptime(normalized_str, fmt)
+                        break
+                    except ValueError:
+                        continue
+
+            if dt:
+                formatted_date = dt.strftime('%d/%m/%Y %H:%M:%S')
+
+                # Extract timezone if present
+                if dt.tzinfo:
+                    tz_offset = dt.strftime('%z')
+                    # Format timezone as UTC±HH:MM
+                    tz_formatted = f" UTC{tz_offset[:3]}:{tz_offset[3:]}"
+                    return f"{formatted_date}{tz_formatted}"
+                else:
+                    return formatted_date
+
+            # If parsing fails, return original string
+            return iso_date_str
+        except Exception:
+            return iso_date_str
 
     def _extract_author_info(self, metadata: dict) -> Dict[str, Any]:
         """
@@ -280,41 +357,69 @@ class PDFMetadataPlugin:
             metadata: Parsed metadata
 
         Returns:
-            dict: Date information
+            dict: Date information with human-readable formatted dates
         """
-        date_info = {
-            'creation_date': metadata.get('creation_date'),
-            'modification_date': metadata.get('mod_date')
-        }
+        date_info = {}
 
-        # Try to parse PDF date format (D:YYYYMMDDHHmmSS)
-        for key in ['creation_date', 'modification_date']:
-            if date_info[key]:
-                parsed_date = self._parse_pdf_date(str(date_info[key]))
-                if parsed_date:
-                    date_info[f'{key}_parsed'] = parsed_date
+        # Parse creation date
+        creation_date_raw = metadata.get('creationdate')
+        if creation_date_raw:
+            parsed_date = self._parse_pdf_date(str(creation_date_raw))
+            date_info['creation_date'] = parsed_date if parsed_date else creation_date_raw
+        else:
+            date_info['creation_date'] = None
+
+        # Parse modification date
+        mod_date_raw = metadata.get('moddate')
+        if mod_date_raw:
+            parsed_date = self._parse_pdf_date(str(mod_date_raw))
+            date_info['modification_date'] = parsed_date if parsed_date else mod_date_raw
+        else:
+            date_info['modification_date'] = None
 
         return date_info
 
     def _parse_pdf_date(self, pdf_date: str) -> str:
         """
-        Parse PDF date format to ISO format.
+        Parse PDF date format to human-readable format with timezone.
 
         Args:
-            pdf_date: PDF date string (D:YYYYMMDDHHmmSS)
+            pdf_date: PDF date string (D:YYYYMMDDHHmmSS±HH'mm')
 
         Returns:
-            str: ISO format date or None
+            str: Formatted date (dd/mm/yyyy HH:MM:SS UTC±HH:MM) or None
         """
         try:
             # Remove 'D:' prefix if present
             if pdf_date.startswith('D:'):
                 pdf_date = pdf_date[2:]
 
-            # Basic format: YYYYMMDDHHmmSS
-            if len(pdf_date) >= 14:
-                dt = datetime.strptime(pdf_date[:14], '%Y%m%d%H%M%S')
-                return dt.isoformat()
+            # Extract timezone if present (format: ±HH'mm' or ±HHmm)
+            timezone_str = ""
+            date_part = pdf_date
+
+            # Look for timezone indicator (+ or -)
+            for tz_idx, char in enumerate(pdf_date[14:], start=14):
+                if char in ['+', '-']:
+                    date_part = pdf_date[:tz_idx]
+                    tz_raw = pdf_date[tz_idx:]
+
+                    # Parse timezone (format: ±HH'mm' or ±HHmm)
+                    tz_sign = tz_raw[0]
+                    tz_numbers = tz_raw[1:].replace("'", "")
+
+                    if len(tz_numbers) >= 2:
+                        tz_hours = tz_numbers[:2]
+                        tz_minutes = tz_numbers[2:4] if len(tz_numbers) >= 4 else "00"
+                        timezone_str = f" UTC{tz_sign}{tz_hours}:{tz_minutes}"
+                    break
+
+            # Parse the date part (YYYYMMDDHHmmSS)
+            if len(date_part) >= 14:
+                dt = datetime.strptime(date_part[:14], '%Y%m%d%H%M%S')
+                # Format as dd/mm/yyyy HH:MM:SS
+                formatted_date = dt.strftime('%d/%m/%Y %H:%M:%S')
+                return f"{formatted_date}{timezone_str}"
         except Exception:
             pass
         return None

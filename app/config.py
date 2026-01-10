@@ -49,6 +49,7 @@ class Config:
     UPLOAD_FOLDER = os.path.join(os.getcwd(), 'data', 'uploads')
     EVIDENCE_FOLDER = os.path.join(os.getcwd(), 'data', 'evidence')
     EXPORT_FOLDER = os.path.join(os.getcwd(), 'data', 'exports')
+    REPORTS_PATH = os.path.join(os.getcwd(), 'data', 'reports')
     ALLOWED_EVIDENCE_EXTENSIONS = {
         'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff',  # Images
         'mp4', 'avi', 'mov', 'mkv', 'flv',  # Video
