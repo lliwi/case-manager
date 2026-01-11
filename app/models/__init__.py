@@ -16,6 +16,8 @@ from app.models.relationship_type_custom import RelationshipTypeCustom
 from app.models.timeline import TimelineEvent, EventType
 from app.models.report import Report, ReportType, ReportStatus
 from app.models.api_key import ApiKey
+from app.models.osint_validation import OSINTValidation
+from app.models.osint_contact import OSINTContact
 
 __all__ = [
     'User', 'Role', 'AuditLog',
@@ -26,5 +28,6 @@ __all__ = [
     'AddressNode', 'EvidenceNode', 'SocialProfileNode',
     'TimelineEvent', 'EventType',
     'Report', 'ReportType', 'ReportStatus',
-    'ApiKey'
+    'ApiKey',
+    'OSINTValidation', 'OSINTContact'
 ]

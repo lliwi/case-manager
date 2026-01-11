@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Contactos OSINT - {{ case.numero_orden }} - Case Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2>
+                        <i class="bi bi-search"></i> Contactos OSINT
+                    </h2>
+                    <p class="text-muted mb-0">
+                        Caso: <strong>{{ case.numero_orden }}</strong> - {{ case.objeto_investigacion[:80] }}
+                    </p>
+                </div>
+                <a href="{{ url_for('osint.create', case_id=case.id) }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Nuevo Contacto
+                </a>
+            </div>
+
+            <!-- Statistics -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-collection"></i> Total Contactos
+                            </h5>
+                            <h2 class="mb-0">{{ stats.total }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-check-circle"></i> Validados
+                            </h5>
+                            <h2 class="mb-0">{{ stats.validated }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-exclamation-triangle"></i> Alto Riesgo
+                            </h5>
+                            <h2 class="mb-0">{{ stats.high_risk }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-pie-chart"></i> Por Tipo
+                            </h5>
+                            <small>
+                                <i class="bi bi-envelope"></i> {{ stats.by_type.email }} |
+                                <i class="bi bi-telephone"></i> {{ stats.by_type.phone }} |
+                                <i class="bi bi-person-circle"></i> {{ stats.by_type.social_profile }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search/Filter Form -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="bi bi-funnel"></i> Filtros de Búsqueda
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('osint.case_contacts', case_id=case.id) }}">
+                        <div class="row">
+                            <div class="col-md-4">
+                                {{ search_form.search_term(class="form-control", placeholder="Buscar...") }}
+                            </div>
+                            <div class="col-md-2">
+                                {{ search_form.contact_type(class="form-select") }}
+                            </div>
+                            <div class="col-md-2">
+                                {{ search_form.status(class="form-select") }}
+                            </div>
+                            <div class="col-md-3">
+                                {{ search_form.validation_status(class="form-select") }}
+                            </div>
+                            <div class="col-md-1">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Contacts List -->
+            {% if contacts %}
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Contacto</th>
+                                        <th>Nombre</th>
+                                        <th>Estado</th>
+                                        <th>Validación</th>
+                                        <th>Riesgo</th>
+                                        <th>Fecha</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for contact in contacts %}
+                                    <tr>
+                                        <td>
+                                            <i class="{{ contact.get_type_icon() }}"></i>
+                                            {{ contact.contact_type }}
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('osint.detail', case_id=case.id, contact_id=contact.id) }}">
+                                                <strong>{{ contact.contact_value }}</strong>
+                                            </a>
+                                            {% if contact.description %}
+                                            <br><small class="text-muted">{{ contact.description[:50] }}{% if contact.description|length > 50 %}...{% endif %}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ contact.name if contact.name else '-' }}</td>
+                                        <td>
+                                            <span class="badge {{ contact.get_status_badge_class() }}">
+                                                {{ contact.status }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if contact.is_validated %}
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle"></i> Validado
+                                                </span>
+                                                <br><small class="text-muted">
+                                                    {{ contact.validation_date.strftime('%d/%m/%Y') }}
+                                                </small>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Sin validar</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if contact.is_validated %}
+                                                <span class="badge {{ contact.get_risk_badge_class() }}">
+                                                    {{ contact.risk_level }}: {{ contact.fraud_score }}/100
+                                                </span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <small>{{ contact.created_at.strftime('%d/%m/%Y') }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="{{ url_for('osint.detail', case_id=case.id, contact_id=contact.id) }}"
+                                                   class="btn btn-outline-info"
+                                                   title="Ver detalles">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <a href="{{ url_for('osint.edit', case_id=case.id, contact_id=contact.id) }}"
+                                                   class="btn btn-outline-primary"
+                                                   title="Editar">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                {% if not contact.is_validated and contact.contact_type in ['email', 'phone'] %}
+                                                <button type="button"
+                                                        class="btn btn-outline-success validate-btn"
+                                                        data-contact-id="{{ contact.id }}"
+                                                        data-case-id="{{ case.id }}"
+                                                        title="Validar">
+                                                    <i class="bi bi-lightning"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-info text-center">
+                    <i class="bi bi-info-circle"></i>
+                    <h5 class="mt-2">No hay contactos OSINT en este caso</h5>
+                    <p class="mb-3">Añade tu primer contacto para comenzar a gestionar investigaciones OSINT en este caso.</p>
+                    <a href="{{ url_for('osint.create', case_id=case.id) }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Crear Primer Contacto
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Toast for validation results -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="validationToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <strong class="me-auto" id="validationToastTitle">Validación OSINT</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="validationToastBody">
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const validateButtons = document.querySelectorAll('.validate-btn');
+    const validationToast = new bootstrap.Toast(document.getElementById('validationToast'));
+
+    validateButtons.forEach(button => {
+        button.addEventListener('click', async function() {
+            const contactId = this.getAttribute('data-contact-id');
+            const caseId = this.getAttribute('data-case-id');
+            const originalHtml = this.innerHTML;
+
+            // Show loading state
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+                const headers = {
+                    'Content-Type': 'application/json',
+                };
+
+                if (csrfToken) {
+                    headers['X-CSRFToken'] = csrfToken;
+                }
+
+                const response = await fetch(`/osint/case/${caseId}/${contactId}/validate`, {
+                    method: 'POST',
+                    headers: headers
+                });
+
+                const data = await response.json();
+
+                const toastTitle = document.getElementById('validationToastTitle');
+                const toastBody = document.getElementById('validationToastBody');
+
+                if (data.success) {
+                    toastTitle.textContent = '✓ Validación Exitosa';
+                    toastBody.innerHTML = `<div class="text-success">${data.message}</div>`;
+                    validationToast.show();
+
+                    // Reload page after 2 seconds
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    toastTitle.textContent = '✗ Error en Validación';
+                    toastBody.innerHTML = `<div class="text-danger">${data.error}</div>`;
+                    validationToast.show();
+                }
+
+            } catch (error) {
+                const toastTitle = document.getElementById('validationToastTitle');
+                const toastBody = document.getElementById('validationToastBody');
+                toastTitle.textContent = '✗ Error';
+                toastBody.innerHTML = `<div class="text-danger">Error: ${error.message}</div>`;
+                validationToast.show();
+            } finally {
+                this.disabled = false;
+                this.innerHTML = originalHtml;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

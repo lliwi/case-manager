@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle de Validación - OSINT{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="bi bi-shield-check"></i> Detalle de Validación
+                </h2>
+                <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
+            </div>
+
+            <!-- Summary Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-{{ validation.get_risk_badge_class().replace('bg-', '') }} text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-{{ validation.get_type_icon() }}"></i>
+                        {{ validation.contact_value }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Tipo:</strong> {{ validation.contact_type }}</p>
+                            <p><strong>Válido:</strong>
+                                {% if validation.is_valid %}
+                                    <span class="badge bg-success">Sí</span>
+                                {% else %}
+                                    <span class="badge bg-danger">No</span>
+                                {% endif %}
+                            </p>
+                            <p><strong>Puntuación de Fraude:</strong>
+                                <span class="badge {{ validation.get_risk_badge_class() }} fs-5">
+                                    {{ validation.fraud_score }}/100
+                                </span>
+                            </p>
+                            <p><strong>Nivel de Riesgo:</strong>
+                                <span class="badge {{ validation.get_risk_badge_class() }}">
+                                    {{ validation.risk_level }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Fecha de Validación:</strong><br>
+                                {{ validation.validation_date.strftime('%d/%m/%Y %H:%M:%S') }}
+                            </p>
+                            <p><strong>Validado por:</strong><br>
+                                {{ validation.validated_by.email }}
+                            </p>
+                            <p><strong>Servicio:</strong> {{ validation.service_name }}</p>
+                            {% if validation.case %}
+                            <p><strong>Caso:</strong>
+                                <a href="{{ url_for('cases.detail', case_id=validation.case_id) }}">
+                                    {{ validation.case.numero_orden }}
+                                </a>
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if validation.notes %}
+                    <div class="alert alert-info mt-3">
+                        <strong>Notas:</strong><br>
+                        {{ validation.notes }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Interpretation -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightbulb"></i> Interpretación
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% set summary = validation.get_summary() %}
+                    <div class="alert alert-{{ 'success' if validation.fraud_score < 75 else 'warning' if validation.fraud_score < 90 else 'danger' }}">
+                        <h6><strong>Recomendación:</strong></h6>
+                        <p class="mb-0">{{ summary.recommendation }}</p>
+                    </div>
+
+                    {% if validation.contact_type == 'email' %}
+                    <h6>Detalles de Email:</h6>
+                    <ul>
+                        <li><strong>Email Desechable:</strong> {{ 'Sí' if summary.disposable else 'No' }}</li>
+                        <li><strong>SMTP Score:</strong> {{ summary.smtp_score }}/3</li>
+                        <li><strong>Deliverability:</strong> {{ summary.deliverability }}</li>
+                        <li><strong>Leaked:</strong> {{ 'Sí (encontrado en brechas)' if summary.leaked else 'No' }}</li>
+                    </ul>
+                    {% elif validation.contact_type == 'phone' %}
+                    <h6>Detalles de Teléfono:</h6>
+                    <ul>
+                        <li><strong>Línea Activa:</strong> {{ 'Sí' if summary.active else 'No' }}</li>
+                        <li><strong>Operador:</strong> {{ summary.carrier }}</li>
+                        <li><strong>Tipo de Línea:</strong> {{ summary.line_type }}</li>
+                        <li><strong>VOIP:</strong> {{ 'Sí' if summary.voip else 'No' }}</li>
+                        <li><strong>País:</strong> {{ summary.country }}</li>
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Raw Data -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="bi bi-code-square"></i> Datos Completos (JSON)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <pre class="bg-dark text-light p-3 rounded"><code>{{ validation.raw_data | tojson(indent=2) }}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -97,6 +97,7 @@ def register_blueprints(app):
     from app.blueprints.reports import reports_bp
     from app.blueprints.admin import admin_bp
     from app.blueprints.tasks import tasks_bp
+    from app.blueprints.osint import osint
 
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -110,6 +111,7 @@ def register_blueprints(app):
     app.register_blueprint(reports_bp, url_prefix='/reports')
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(tasks_bp, url_prefix='/tasks')
+    app.register_blueprint(osint, url_prefix='/osint')
 
     # Root route
     @app.route('/')

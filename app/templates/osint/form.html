@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Case Manager{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-{% if contact %}pencil{% else %}plus-circle{% endif %}"></i>
+                        {{ title }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() }}
+
+                        <!-- Contact Type -->
+                        <div class="mb-3">
+                            {{ form.contact_type.label(class="form-label") }}
+                            {{ form.contact_type(class="form-select" + (" is-invalid" if form.contact_type.errors else "")) }}
+                            {% if form.contact_type.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.contact_type.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Selecciona el tipo de contacto que deseas añadir a la investigación
+                            </div>
+                        </div>
+
+                        <!-- Contact Value -->
+                        <div class="mb-3">
+                            {{ form.contact_value.label(class="form-label") }}
+                            {{ form.contact_value(class="form-control" + (" is-invalid" if form.contact_value.errors else "")) }}
+                            {% if form.contact_value.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.contact_value.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                <strong>Ejemplos:</strong><br>
+                                • Email: usuario@example.com<br>
+                                • Teléfono: +34612345678 (formato internacional)<br>
+                                • Perfil Social: @username o URL completa<br>
+                                • Username: nombre_usuario
+                            </div>
+                        </div>
+
+                        <!-- Name -->
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label") }}
+                            {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                            {% if form.name.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.name.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Nombre de la persona asociada a este contacto (opcional)
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else "")) }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.description.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Contexto sobre este contacto: dónde se encontró, relevancia, etc.
+                            </div>
+                        </div>
+
+                        <!-- Source -->
+                        <div class="mb-3">
+                            {{ form.source.label(class="form-label") }}
+                            {{ form.source(class="form-control" + (" is-invalid" if form.source.errors else "")) }}
+                            {% if form.source.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.source.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Origen de este contacto (ej: redes sociales, documento, testimonio)
+                            </div>
+                        </div>
+
+                        <!-- Tags -->
+                        <div class="mb-3">
+                            {{ form.tags.label(class="form-label") }}
+                            {{ form.tags(class="form-control" + (" is-invalid" if form.tags.errors else "")) }}
+                            {% if form.tags.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.tags.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Etiquetas separadas por comas (ej: sospechoso, testigo, principal)
+                            </div>
+                        </div>
+
+                        <!-- Case Association (only shown if not in case context) -->
+                        {% if not case %}
+                        <div class="mb-3">
+                            {{ form.case_id.label(class="form-label") }}
+                            {{ form.case_id(class="form-select" + (" is-invalid" if form.case_id.errors else "")) }}
+                            {% if form.case_id.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.case_id.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Vincula este contacto a un caso específico (opcional)
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            Este contacto se creará automáticamente asociado al caso <strong>{{ case.numero_orden }}</strong>
+                        </div>
+                        {% endif %}
+
+                        <!-- Submit Buttons -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-between mt-4">
+                            {% if case %}
+                                <a href="{{ url_for('osint.detail', case_id=case.id, contact_id=contact.id) if contact else url_for('osint.case_contacts', case_id=case.id) }}"
+                                   class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle"></i> Cancelar
+                                </a>
+                            {% else %}
+                                <a href="{{ url_for('osint.detail_no_case', contact_id=contact.id) if contact else url_for('osint.index') }}"
+                                   class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle"></i> Cancelar
+                                </a>
+                            {% endif %}
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Help Card -->
+            <div class="card mt-3 border-info">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-info-circle text-info"></i> Consejos
+                    </h6>
+                    <ul class="mb-0 small">
+                        <li><strong>Validación automática:</strong> Los emails y teléfonos pueden ser validados con IPQualityScore después de crearlos</li>
+                        <li><strong>Casos:</strong> Puedes vincular contactos a casos para organizarlos mejor</li>
+                        <li><strong>Etiquetas:</strong> Usa etiquetas para categorizar contactos (ej: alto-riesgo, verificado, principal)</li>
+                        <li><strong>Descripción:</strong> Documenta el contexto para mantener trazabilidad de la investigación</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const contactTypeSelect = document.getElementById('contact_type');
+    const contactValueInput = document.getElementById('contact_value');
+
+    // Update placeholder based on contact type
+    contactTypeSelect.addEventListener('change', function() {
+        const type = this.value;
+        const placeholders = {
+            'email': 'usuario@example.com',
+            'phone': '+34612345678',
+            'social_profile': '@username o https://twitter.com/username',
+            'username': 'nombre_usuario',
+            'other': 'Valor del contacto'
+        };
+        contactValueInput.placeholder = placeholders[type] || placeholders['other'];
+    });
+});
+</script>
+{% endblock %}
