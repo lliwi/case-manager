@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}{% if editing %}Editar{% else %}Crear{% endif %} API Key - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-{% if editing %}pencil{% else %}plus-circle{% endif %}"></i>
+                        {% if editing %}Editar{% else %}Crear Nueva{% endif %} API Key
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Información de Seguridad:</strong>
+                        Las API keys se almacenan encriptadas con AES-256. Solo los administradores pueden verlas y gestionarlas.
+                        {% if editing %}
+                        Deja el campo "API Key" vacío si no deseas cambiarla.
+                        {% endif %}
+                    </div>
+
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Servicio -->
+                        <div class="mb-3">
+                            {{ form.service_name.label(class="form-label") }}
+                            <span class="text-danger">*</span>
+                            {{ form.service_name(class="form-select" + (" is-invalid" if form.service_name.errors else "")) }}
+                            {% if form.service_name.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.service_name.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Selecciona el servicio para el cual es esta API Key
+                            </small>
+                        </div>
+
+                        <!-- Nombre de la API Key -->
+                        <div class="mb-3">
+                            {{ form.key_name.label(class="form-label") }}
+                            <span class="text-danger">*</span>
+                            {{ form.key_name(class="form-control" + (" is-invalid" if form.key_name.errors else "")) }}
+                            {% if form.key_name.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.key_name.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Nombre descriptivo para identificar esta API Key (ej: "IPQualityScore - Producción")
+                            </small>
+                        </div>
+
+                        <!-- API Key -->
+                        <div class="mb-3">
+                            {{ form.api_key.label(class="form-label") }}
+                            {% if not editing %}<span class="text-danger">*</span>{% endif %}
+                            <div class="input-group">
+                                {{ form.api_key(class="form-control" + (" is-invalid" if form.api_key.errors else ""), id="apiKeyInput") }}
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                    <i class="bi bi-eye" id="toggleIcon"></i>
+                                </button>
+                            </div>
+                            {% if form.api_key.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.api_key.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                {% if editing %}
+                                    Deja este campo vacío si no deseas cambiar la API Key actual. La clave actual es: <code>{{ api_key.get_masked_key() }}</code>
+                                {% else %}
+                                    Introduce la API Key proporcionada por el servicio
+                                {% endif %}
+                            </small>
+                        </div>
+
+                        <!-- Descripción -->
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else "")) }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.description.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Descripción opcional del propósito de esta API Key (ej: "Para validación de correos electrónicos en formularios de registro")
+                            </small>
+                        </div>
+
+                        <!-- Activa -->
+                        <div class="mb-3 form-check">
+                            {{ form.is_active(class="form-check-input") }}
+                            {{ form.is_active.label(class="form-check-label") }}
+                            <small class="form-text text-muted d-block ms-4">
+                                Las API keys inactivas no se utilizarán en las validaciones
+                            </small>
+                        </div>
+
+                        <!-- Service-specific information -->
+                        <div id="serviceInfo" class="alert alert-light border">
+                            <h6><i class="bi bi-info-circle"></i> Información del Servicio</h6>
+                            <div id="ipqualityscoreInfo" style="display: none;">
+                                <p class="mb-2"><strong>IPQualityScore:</strong></p>
+                                <ul class="mb-0">
+                                    <li>Validación de emails: detecta correos temporales, spam traps y typos</li>
+                                    <li>Validación de teléfonos: verifica números activos, detecta VOIPs y números temporales</li>
+                                    <li>Puntuación de fraude: 0-100 (90+ es considerado alto riesgo)</li>
+                                    <li><a href="https://www.ipqualityscore.com/create-account" target="_blank">Obtener API Key</a></li>
+                                    <li><a href="https://www.ipqualityscore.com/documentation" target="_blank">Documentación</a></li>
+                                </ul>
+                            </div>
+                            <div id="otherInfo" style="display: none;">
+                                <p class="mb-0">Servicio genérico. Consulta la documentación del proveedor para obtener tu API Key.</p>
+                            </div>
+                        </div>
+
+                        <!-- Security Notice -->
+                        <div class="alert alert-warning">
+                            <i class="bi bi-shield-exclamation"></i>
+                            <strong>Advertencia de Seguridad:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Nunca compartas las API keys con usuarios no autorizados</li>
+                                <li>Las API keys tienen acceso completo a los servicios contratados</li>
+                                <li>Revoca y elimina las API keys que ya no uses</li>
+                                <li>Todas las acciones con API keys quedan registradas en auditoría</li>
+                            </ul>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('admin.api_keys') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i>
+                                {% if editing %}Actualizar{% else %}Crear{% endif %} API Key
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle password visibility
+    const togglePassword = document.getElementById('togglePassword');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const toggleIcon = document.getElementById('toggleIcon');
+
+    togglePassword.addEventListener('click', function() {
+        const type = apiKeyInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        apiKeyInput.setAttribute('type', type);
+        toggleIcon.classList.toggle('bi-eye');
+        toggleIcon.classList.toggle('bi-eye-slash');
+    });
+
+    // Show service-specific information
+    const serviceSelect = document.getElementById('service_name');
+    const ipqualityscoreInfo = document.getElementById('ipqualityscoreInfo');
+    const otherInfo = document.getElementById('otherInfo');
+
+    function updateServiceInfo() {
+        const selectedService = serviceSelect.value;
+
+        ipqualityscoreInfo.style.display = 'none';
+        otherInfo.style.display = 'none';
+
+        if (selectedService === 'ipqualityscore') {
+            ipqualityscoreInfo.style.display = 'block';
+        } else {
+            otherInfo.style.display = 'block';
+        }
+    }
+
+    serviceSelect.addEventListener('change', updateServiceInfo);
+    updateServiceInfo(); // Initial call
+});
+</script>
+{% endblock %}

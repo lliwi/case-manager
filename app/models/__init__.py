@@ -15,6 +15,7 @@ from app.models.graph import (
 from app.models.relationship_type_custom import RelationshipTypeCustom
 from app.models.timeline import TimelineEvent, EventType
 from app.models.report import Report, ReportType, ReportStatus
+from app.models.api_key import ApiKey
 
 __all__ = [
     'User', 'Role', 'AuditLog',
@@ -24,5 +25,6 @@ __all__ = [
     'PersonNode', 'CompanyNode', 'PhoneNode', 'EmailNode', 'VehicleNode',
     'AddressNode', 'EvidenceNode', 'SocialProfileNode',
     'TimelineEvent', 'EventType',
-    'Report', 'ReportType', 'ReportStatus'
+    'Report', 'ReportType', 'ReportStatus',
+    'ApiKey'
 ]

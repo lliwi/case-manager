@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block title %}Detalles de API Key - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="bi bi-key"></i> Detalles de API Key
+                </h2>
+                <div>
+                    <a href="{{ url_for('admin.edit_api_key', key_id=api_key.id) }}" class="btn btn-primary">
+                        <i class="bi bi-pencil"></i> Editar
+                    </a>
+                    <a href="{{ url_for('admin.api_keys') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Main Information -->
+                <div class="col-lg-8">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="bi bi-info-circle"></i> Información General
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-sm-4">
+                                    <strong>Nombre:</strong>
+                                </div>
+                                <div class="col-sm-8">
+                                    {{ api_key.key_name }}
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-sm-4">
+                                    <strong>Servicio:</strong>
+                                </div>
+                                <div class="col-sm-8">
+                                    {% if api_key.service_name == 'ipqualityscore' %}
+                                        <span class="badge bg-primary">IPQualityScore</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ api_key.service_name }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-sm-4">
+                                    <strong>API Key (Enmascarada):</strong>
+                                </div>
+                                <div class="col-sm-8">
+                                    <code>{{ api_key.get_masked_key() }}</code>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-sm-4">
+                                    <strong>Estado:</strong>
+                                </div>
+                                <div class="col-sm-8">
+                                    {% if api_key.is_active %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> Activa
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="bi bi-pause-circle"></i> Inactiva
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            {% if api_key.description %}
+                            <div class="row mb-3">
+                                <div class="col-sm-4">
+                                    <strong>Descripción:</strong>
+                                </div>
+                                <div class="col-sm-8">
+                                    {{ api_key.description }}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Usage Statistics -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="bi bi-graph-up"></i> Estadísticas de Uso
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-info text-white">
+                                        <div class="card-body">
+                                            <h3 class="mb-0">{{ api_key.usage_count }}</h3>
+                                            <small>Usos Totales</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-primary text-white">
+                                        <div class="card-body">
+                                            <h6 class="mb-0">Último Uso</h6>
+                                            <small>
+                                                {% if api_key.last_used_at %}
+                                                    {{ api_key.last_used_at.strftime('%d/%m/%Y %H:%M') }}
+                                                {% else %}
+                                                    Nunca utilizada
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="col-lg-4">
+                    <!-- Actions -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="bi bi-lightning"></i> Acciones
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <button type="button"
+                                        class="btn btn-success test-key-btn"
+                                        data-key-id="{{ api_key.id }}"
+                                        {% if not api_key.is_active %}disabled{% endif %}>
+                                    <i class="bi bi-lightning-charge"></i> Probar Conexión
+                                </button>
+
+                                <form method="POST"
+                                      action="{{ url_for('admin.toggle_api_key', key_id=api_key.id) }}"
+                                      onsubmit="return confirm('¿Está seguro de cambiar el estado de esta API Key?');">
+                                    <button type="submit" class="btn btn-warning w-100">
+                                        <i class="bi bi-{% if api_key.is_active %}pause{% else %}play{% endif %}-circle"></i>
+                                        {% if api_key.is_active %}Desactivar{% else %}Activar{% endif %}
+                                    </button>
+                                </form>
+
+                                <form method="POST"
+                                      action="{{ url_for('admin.delete_api_key', key_id=api_key.id) }}"
+                                      onsubmit="return confirm('¿Está seguro de eliminar esta API Key? Esta acción no se puede deshacer.');">
+                                    <button type="submit" class="btn btn-danger w-100">
+                                        <i class="bi bi-trash"></i> Eliminar
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Creation Info -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="bi bi-clock-history"></i> Información de Creación
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-2">
+                                <strong>Creada por:</strong><br>
+                                {{ api_key.created_by.email }}
+                            </p>
+                            <p class="mb-2">
+                                <strong>Fecha de creación:</strong><br>
+                                {{ api_key.created_at.strftime('%d/%m/%Y %H:%M') }}
+                            </p>
+                            {% if api_key.updated_at and api_key.updated_at != api_key.created_at %}
+                            <p class="mb-0">
+                                <strong>Última actualización:</strong><br>
+                                {{ api_key.updated_at.strftime('%d/%m/%Y %H:%M') }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Service Info -->
+                    {% if api_key.service_name == 'ipqualityscore' %}
+                    <div class="card shadow-sm border-info">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">
+                                <i class="bi bi-info-circle"></i> Información de IPQualityScore
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="small mb-2">
+                                <strong>Características:</strong>
+                            </p>
+                            <ul class="small mb-2">
+                                <li>Validación de emails</li>
+                                <li>Validación de teléfonos</li>
+                                <li>Detección de fraude</li>
+                                <li>Análisis de riesgo</li>
+                            </ul>
+                            <a href="https://www.ipqualityscore.com/documentation" target="_blank" class="btn btn-sm btn-outline-info w-100">
+                                <i class="bi bi-book"></i> Ver Documentación
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast for test results -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="testToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <strong class="me-auto" id="testToastTitle">Test de API Key</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="testToastBody">
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const testButton = document.querySelector('.test-key-btn');
+    const testToast = new bootstrap.Toast(document.getElementById('testToast'));
+
+    if (testButton) {
+        testButton.addEventListener('click', async function() {
+            const keyId = this.getAttribute('data-key-id');
+            const originalHtml = this.innerHTML;
+
+            // Show loading state
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Probando...';
+
+            try {
+                // Get CSRF token from meta tag
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+                const headers = {
+                    'Content-Type': 'application/json',
+                };
+
+                if (csrfToken) {
+                    headers['X-CSRFToken'] = csrfToken;
+                }
+
+                const response = await fetch(`{{ url_for('admin.test_api_key', key_id=api_key.id) }}`, {
+                    method: 'POST',
+                    headers: headers
+                });
+
+                const data = await response.json();
+
+                // Show toast
+                const toastTitle = document.getElementById('testToastTitle');
+                const toastBody = document.getElementById('testToastBody');
+
+                if (data.success) {
+                    toastTitle.textContent = '✓ Test Exitoso';
+                    toastBody.innerHTML = `<div class="text-success">${data.message}</div>`;
+                    if (data.details) {
+                        toastBody.innerHTML += `<small class="text-muted">${JSON.stringify(data.details, null, 2)}</small>`;
+                    }
+                } else {
+                    toastTitle.textContent = '✗ Test Fallido';
+                    toastBody.innerHTML = `<div class="text-danger">${data.error}</div>`;
+                }
+
+                testToast.show();
+
+                // Reload page after 2 seconds to update usage count
+                if (data.success) {
+                    setTimeout(() => location.reload(), 2000);
+                }
+
+            } catch (error) {
+                const toastTitle = document.getElementById('testToastTitle');
+                const toastBody = document.getElementById('testToastBody');
+                toastTitle.textContent = '✗ Error';
+                toastBody.innerHTML = `<div class="text-danger">Error al probar la API Key: ${error.message}</div>`;
+                testToast.show();
+            } finally {
+                // Restore button state
+                this.disabled = false;
+                this.innerHTML = originalHtml;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

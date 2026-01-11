@@ -2,7 +2,7 @@
 Forms for admin functionality.
 """
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, BooleanField, SelectMultipleField
+from wtforms import StringField, TextAreaField, BooleanField, SelectMultipleField, SelectField, PasswordField
 from wtforms.validators import DataRequired, Length, Optional
 
 
@@ -76,4 +76,53 @@ class RelationshipTypeCustomForm(FlaskForm):
     is_active = BooleanField(
         'Activo',
         default=True
+    )
+
+
+class ApiKeyForm(FlaskForm):
+    """Form for creating/editing API keys."""
+    service_name = SelectField(
+        'Servicio',
+        choices=[
+            ('ipqualityscore', 'IPQualityScore (Email/Phone Validation)'),
+            ('other', 'Otro servicio')
+        ],
+        validators=[DataRequired(message='El servicio es obligatorio')],
+        render_kw={'class': 'form-select'}
+    )
+
+    key_name = StringField(
+        'Nombre de la API Key',
+        validators=[
+            DataRequired(message='El nombre es obligatorio'),
+            Length(min=3, max=200, message='El nombre debe tener entre 3 y 200 caracteres')
+        ],
+        render_kw={'placeholder': 'Ej: IPQualityScore - Producción'}
+    )
+
+    api_key = PasswordField(
+        'API Key',
+        validators=[
+            DataRequired(message='La API Key es obligatoria'),
+            Length(min=10, message='La API Key debe tener al menos 10 caracteres')
+        ],
+        render_kw={
+            'placeholder': 'Introduce la API Key del servicio',
+            'autocomplete': 'off'
+        }
+    )
+
+    description = TextAreaField(
+        'Descripción (opcional)',
+        validators=[Optional()],
+        render_kw={
+            'placeholder': 'Descripción del propósito de esta API Key...',
+            'rows': 3
+        }
+    )
+
+    is_active = BooleanField(
+        'Activa',
+        default=True,
+        render_kw={'class': 'form-check-input'}
     )

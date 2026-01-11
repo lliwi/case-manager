@@ -819,5 +819,260 @@ def edit_relationship_type(type_id):
         flash(f'Tipo de relación "{custom_type.label}" actualizado exitosamente', 'success')
         return redirect(url_for('admin.relationship_types'))
 
-    return render_template('admin/relationship_type_form.html', 
+    return render_template('admin/relationship_type_form.html',
                            form=form, editing=True, custom_type=custom_type)
+
+
+# ============================================================================
+# API KEY MANAGEMENT
+# ============================================================================
+
+@admin_bp.route('/api-keys')
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_API_KEYS_LIST_VIEWED', 'admin')
+def api_keys():
+    """List all API keys."""
+    from app.models.api_key import ApiKey
+
+    # Get all API keys (excluding soft deleted)
+    keys = ApiKey.query.filter_by(is_deleted=False).order_by(
+        desc(ApiKey.created_at)
+    ).all()
+
+    # Group by service
+    keys_by_service = {}
+    for key in keys:
+        if key.service_name not in keys_by_service:
+            keys_by_service[key.service_name] = []
+        keys_by_service[key.service_name].append(key)
+
+    return render_template(
+        'admin/api_keys.html',
+        keys=keys,
+        keys_by_service=keys_by_service,
+        total_keys=len(keys)
+    )
+
+
+@admin_bp.route('/api-keys/create', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_API_KEY_CREATE', 'admin')
+def create_api_key():
+    """Create a new API key."""
+    from app.blueprints.admin.forms import ApiKeyForm
+    from app.models.api_key import ApiKey
+
+    form = ApiKeyForm()
+
+    if form.validate_on_submit():
+        # Check if key name already exists for this service
+        existing = ApiKey.query.filter_by(
+            service_name=form.service_name.data,
+            key_name=form.key_name.data,
+            is_deleted=False
+        ).first()
+
+        if existing:
+            flash(f'Ya existe una API Key con el nombre "{form.key_name.data}" para este servicio', 'danger')
+            return render_template('admin/api_key_form.html', form=form, editing=False)
+
+        # Create new API key
+        try:
+            api_key = ApiKey(
+                service_name=form.service_name.data,
+                key_name=form.key_name.data,
+                api_key=form.api_key.data,
+                description=form.description.data,
+                created_by_id=current_user.id
+            )
+            api_key.is_active = form.is_active.data
+
+            db.session.add(api_key)
+            db.session.commit()
+
+            flash(f'API Key "{api_key.key_name}" creada exitosamente', 'success')
+            return redirect(url_for('admin.api_keys'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al crear la API Key: {str(e)}', 'danger')
+            return render_template('admin/api_key_form.html', form=form, editing=False)
+
+    return render_template('admin/api_key_form.html', form=form, editing=False)
+
+
+@admin_bp.route('/api-keys/<int:key_id>')
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_API_KEY_VIEWED', 'admin')
+def api_key_detail(key_id):
+    """View API key details."""
+    from app.models.api_key import ApiKey
+
+    api_key = ApiKey.query.get_or_404(key_id)
+
+    if api_key.is_deleted:
+        flash('Esta API Key ha sido eliminada', 'warning')
+        return redirect(url_for('admin.api_keys'))
+
+    return render_template(
+        'admin/api_key_detail.html',
+        api_key=api_key
+    )
+
+
+@admin_bp.route('/api-keys/<int:key_id>/edit', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_API_KEY_EDIT', 'admin')
+def edit_api_key(key_id):
+    """Edit an API key."""
+    from app.blueprints.admin.forms import ApiKeyForm
+    from app.models.api_key import ApiKey
+
+    api_key = ApiKey.query.get_or_404(key_id)
+
+    if api_key.is_deleted:
+        flash('Esta API Key ha sido eliminada', 'warning')
+        return redirect(url_for('admin.api_keys'))
+
+    form = ApiKeyForm()
+
+    # Pre-populate form on GET
+    if request.method == 'GET':
+        form.service_name.data = api_key.service_name
+        form.key_name.data = api_key.key_name
+        form.description.data = api_key.description
+        form.is_active.data = api_key.is_active
+        # Don't populate api_key field for security
+
+    if form.validate_on_submit():
+        # Check if key name already exists (excluding current record)
+        existing = ApiKey.query.filter(
+            ApiKey.service_name == form.service_name.data,
+            ApiKey.key_name == form.key_name.data,
+            ApiKey.id != key_id,
+            ApiKey.is_deleted == False
+        ).first()
+
+        if existing:
+            flash(f'Ya existe una API Key con el nombre "{form.key_name.data}" para este servicio', 'danger')
+            return render_template('admin/api_key_form.html',
+                                   form=form, editing=True, api_key=api_key)
+
+        # Update API key
+        try:
+            api_key.service_name = form.service_name.data
+            api_key.key_name = form.key_name.data
+            api_key.description = form.description.data
+            api_key.is_active = form.is_active.data
+
+            # Only update the actual API key if a new one was provided
+            if form.api_key.data:
+                api_key.set_api_key(form.api_key.data)
+
+            api_key.updated_at = datetime.utcnow()
+
+            db.session.commit()
+
+            flash(f'API Key "{api_key.key_name}" actualizada exitosamente', 'success')
+            return redirect(url_for('admin.api_keys'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al actualizar la API Key: {str(e)}', 'danger')
+            return render_template('admin/api_key_form.html',
+                                   form=form, editing=True, api_key=api_key)
+
+    return render_template('admin/api_key_form.html',
+                           form=form, editing=True, api_key=api_key)
+
+
+@admin_bp.route('/api-keys/<int:key_id>/toggle', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_API_KEY_TOGGLE', 'admin')
+def toggle_api_key(key_id):
+    """Toggle active status of an API key."""
+    from app.models.api_key import ApiKey
+
+    api_key = ApiKey.query.get_or_404(key_id)
+
+    if api_key.is_deleted:
+        flash('Esta API Key ha sido eliminada', 'warning')
+        return redirect(url_for('admin.api_keys'))
+
+    api_key.is_active = not api_key.is_active
+    api_key.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    status = 'activada' if api_key.is_active else 'desactivada'
+    flash(f'API Key "{api_key.key_name}" {status} exitosamente', 'success')
+
+    return redirect(url_for('admin.api_keys'))
+
+
+@admin_bp.route('/api-keys/<int:key_id>/delete', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_API_KEY_DELETE', 'admin')
+def delete_api_key(key_id):
+    """Delete an API key."""
+    from app.models.api_key import ApiKey
+
+    api_key = ApiKey.query.get_or_404(key_id)
+
+    if api_key.is_deleted:
+        flash('Esta API Key ya ha sido eliminada', 'warning')
+        return redirect(url_for('admin.api_keys'))
+
+    # Soft delete
+    try:
+        api_key.soft_delete(current_user)
+        flash(f'API Key "{api_key.key_name}" eliminada exitosamente', 'success')
+    except Exception as e:
+        flash(f'Error al eliminar: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.api_keys'))
+
+
+@admin_bp.route('/api-keys/<int:key_id>/test', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_API_KEY_TEST', 'admin')
+def test_api_key(key_id):
+    """Test an API key."""
+    from app.models.api_key import ApiKey
+
+    api_key = ApiKey.query.get_or_404(key_id)
+
+    if api_key.is_deleted or not api_key.is_active:
+        return jsonify({
+            'success': False,
+            'error': 'La API Key no está activa'
+        }), 400
+
+    # Test the API key based on service
+    if api_key.service_name == 'ipqualityscore':
+        from app.services.ipqualityscore_service import IPQualityScoreService
+
+        service = IPQualityScoreService(api_key)
+        test_result = service.test_connection()
+
+        if test_result['success']:
+            api_key.increment_usage()
+            return jsonify({
+                'success': True,
+                'message': 'Conexión exitosa con IPQualityScore',
+                'details': test_result.get('details', {})
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': test_result.get('error', 'Error desconocido')
+            }), 400
+    else:
+        return jsonify({
+            'success': False,
+            'error': 'Servicio no soportado para testing'
+        }), 400
