@@ -246,11 +246,13 @@ class XAPIService:
         # Build parameters
         params = {
             'max_results': max_results,
-            'tweet.fields': 'id,text,created_at,author_id,public_metrics,referenced_tweets,entities,lang'
+            'tweet.fields': 'id,text,created_at,author_id,public_metrics,referenced_tweets,entities,lang,attachments',
+            'expansions': 'attachments.media_keys',
+            'media.fields': 'url,preview_image_url,type,alt_text,width,height'
         }
 
         if not include_metrics:
-            params['tweet.fields'] = 'id,text,created_at,author_id,referenced_tweets,entities,lang'
+            params['tweet.fields'] = 'id,text,created_at,author_id,referenced_tweets,entities,lang,attachments'
 
         try:
             endpoint = self.USER_TWEETS_ENDPOINT.format(user_id)
@@ -261,10 +263,24 @@ class XAPIService:
 
             tweets = result.get('data', [])
             meta = result.get('meta', {})
+            includes = result.get('includes', {})
 
-            # Add interpretation to tweets
+            # Create a media lookup dictionary for easy access
+            media_dict = {}
+            if 'media' in includes:
+                for media in includes['media']:
+                    media_dict[media['media_key']] = media
+
+            # Add interpretation and media to tweets
             for tweet in tweets:
                 tweet['interpretation'] = self._interpret_tweet(tweet)
+
+                # Attach media if present
+                if 'attachments' in tweet and 'media_keys' in tweet['attachments']:
+                    tweet['media'] = []
+                    for media_key in tweet['attachments']['media_keys']:
+                        if media_key in media_dict:
+                            tweet['media'].append(media_dict[media_key])
 
             return {
                 'success': True,

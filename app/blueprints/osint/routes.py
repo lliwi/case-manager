@@ -843,6 +843,144 @@ def x_tweets_lookup_no_case(contact_id):
         }), 500
 
 
+@osint.route('/case/<int:case_id>/<int:contact_id>/save-tweet-evidence', methods=['POST'])
+@login_required
+@require_detective()
+def save_tweet_evidence(case_id, contact_id):
+    """Save a tweet as evidence in the case"""
+    import json
+    import hashlib
+    import os
+    from app.models.evidence import Evidence, EvidenceType
+    from flask import current_app
+
+    case = Case.query.get_or_404(case_id)
+    contact = OSINTContact.query.get_or_404(contact_id)
+
+    if contact.case_id != case_id:
+        return jsonify({
+            'success': False,
+            'error': 'El contacto no pertenece a este caso'
+        }), 400
+
+    try:
+        data = request.get_json()
+        tweet_index = data.get('tweet_index')
+
+        if tweet_index is None:
+            return jsonify({
+                'success': False,
+                'error': 'Índice de tweet no proporcionado'
+            }), 400
+
+        # Get tweet data from contact
+        if not contact.extra_data or 'x_tweets' not in contact.extra_data:
+            return jsonify({
+                'success': False,
+                'error': 'No hay datos de tweets disponibles'
+            }), 400
+
+        tweets_data = contact.extra_data['x_tweets']['data']
+        tweets = tweets_data.get('tweets', [])
+
+        if tweet_index >= len(tweets):
+            return jsonify({
+                'success': False,
+                'error': 'Índice de tweet inválido'
+            }), 400
+
+        tweet = tweets[tweet_index]
+        user_data = tweets_data.get('user', {})
+
+        # Create evidence JSON file
+        evidence_data = {
+            'source': 'X (Twitter)',
+            'type': 'tweet',
+            'tweet_id': tweet.get('id'),
+            'tweet_url': f"https://x.com/{user_data.get('username')}/status/{tweet.get('id')}",
+            'author': {
+                'id': user_data.get('id'),
+                'username': user_data.get('username'),
+                'display_name': user_data.get('name'),
+                'verified': user_data.get('verified', False),
+                'profile_url': f"https://x.com/{user_data.get('username')}"
+            },
+            'content': {
+                'text': tweet.get('text'),
+                'created_at': tweet.get('created_at'),
+                'language': tweet.get('lang')
+            },
+            'metrics': tweet.get('public_metrics', {}),
+            'entities': tweet.get('entities', {}),
+            'media': tweet.get('media', []),
+            'engagement': tweet.get('interpretation', {}),
+            'captured_at': datetime.utcnow().isoformat(),
+            'captured_by': current_user.email,
+            'osint_contact_id': contact.id
+        }
+
+        # Create filename
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        filename = f"tweet_{tweet.get('id')}_{timestamp}.json"
+
+        # Ensure evidence directory exists
+        evidence_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'evidences', str(case_id))
+        os.makedirs(evidence_dir, exist_ok=True)
+
+        file_path = os.path.join(evidence_dir, filename)
+
+        # Write JSON file
+        json_content = json.dumps(evidence_data, indent=2, ensure_ascii=False)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(json_content)
+
+        # Calculate hashes
+        sha256_hash = hashlib.sha256(json_content.encode('utf-8')).hexdigest()
+        sha512_hash = hashlib.sha512(json_content.encode('utf-8')).hexdigest()
+
+        # Get file size
+        file_size = os.path.getsize(file_path)
+
+        # Create evidence record
+        evidence = Evidence(
+            case_id=case_id,
+            filename=filename,
+            original_filename=filename,
+            file_path=file_path,
+            file_size=file_size,
+            mime_type='application/json',
+            evidence_type=EvidenceType.CAPTURA_WEB,
+            sha256_hash=sha256_hash,
+            sha512_hash=sha512_hash,
+            is_encrypted=False,  # JSON is stored in plain text for now
+            acquisition_date=datetime.utcnow(),
+            acquisition_method='OSINT - X API Capture',
+            acquisition_tool='Case Manager X Integration',
+            source_location=evidence_data['tweet_url'],
+            description=f"Tweet de @{user_data.get('username')}: {tweet.get('text')[:100]}...",
+            tags=f"osint,twitter,x,{user_data.get('username')},{tweet.get('lang', 'unknown')}",
+            extracted_metadata=evidence_data,
+            uploaded_by_id=current_user.id
+        )
+
+        db.session.add(evidence)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Tweet guardado como evidencia #{evidence.id}',
+            'evidence_id': evidence.id
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error saving tweet as evidence: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error al guardar evidencia: {str(e)}'
+        }), 500
+
+
 @osint.route('/export')
 @login_required
 def export():

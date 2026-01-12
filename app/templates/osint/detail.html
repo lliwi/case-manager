@@ -178,8 +178,8 @@
                                     </div>
 
                                     <!-- Analysis -->
-                                    {% if x_profile.summary %}
-                                    <div class="alert alert-info mt-3 mb-0">
+                                    {% if x_profile.summary and x_profile.summary.text %}
+                                    <div class="alert alert-info alert-permanent mt-3 mb-0">
                                         <strong><i class="bi bi-graph-up"></i> Análisis:</strong><br>
                                         {{ x_profile.summary.text }}
                                     </div>
@@ -243,12 +243,51 @@
                                             <strong>@{{ x_tweets.user.username }}</strong>
                                             <small class="text-muted">{{ tweet.created_at_formatted }}</small>
                                         </div>
-                                        <a href="{{ tweet.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-box-arrow-up-right"></i> Ver en X
-                                        </a>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ tweet.url }}" target="_blank" class="btn btn-outline-primary">
+                                                <i class="bi bi-box-arrow-up-right"></i> Ver en X
+                                            </a>
+                                            {% if case %}
+                                            <button type="button" class="btn btn-outline-success save-tweet-evidence"
+                                                    data-tweet-id="{{ tweet.id }}"
+                                                    data-tweet-index="{{ loop.index0 }}"
+                                                    title="Guardar como evidencia">
+                                                <i class="bi bi-shield-check"></i> Guardar
+                                            </button>
+                                            {% endif %}
+                                        </div>
                                     </div>
 
                                     <p class="mb-2">{{ tweet.text }}</p>
+
+                                    <!-- Tweet Media (Images/Videos) -->
+                                    {% if tweet.media %}
+                                    <div class="row g-2 mb-3">
+                                        {% for media in tweet.media %}
+                                        {% if media.type == 'photo' %}
+                                        <div class="col-md-6">
+                                            <a href="{{ media.url }}" target="_blank" data-lightbox="tweet-{{ tweet.id }}">
+                                                <img src="{{ media.url }}" class="img-fluid rounded" alt="{{ media.alt_text or 'Tweet image' }}" style="max-height: 300px; object-fit: cover; width: 100%;">
+                                            </a>
+                                            {% if media.alt_text %}
+                                            <small class="text-muted d-block mt-1">{{ media.alt_text }}</small>
+                                            {% endif %}
+                                        </div>
+                                        {% elif media.type == 'video' or media.type == 'animated_gif' %}
+                                        <div class="col-md-6">
+                                            <div class="position-relative">
+                                                <img src="{{ media.preview_image_url }}" class="img-fluid rounded" alt="Video preview" style="max-height: 300px; object-fit: cover; width: 100%;">
+                                                <div class="position-absolute top-50 start-50 translate-middle">
+                                                    <span class="badge bg-dark bg-opacity-75 fs-5">
+                                                        <i class="bi bi-play-circle"></i> {{ 'GIF' if media.type == 'animated_gif' else 'Video' }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
 
                                     <!-- Tweet Type Badges -->
                                     <div class="mb-2">
@@ -647,6 +686,73 @@ document.addEventListener('DOMContentLoaded', function() {
             } finally {
                 submitButton.disabled = false;
                 submitButton.innerHTML = originalHtml;
+            }
+        });
+    });
+
+    // Handle save tweet as evidence
+    const saveTweetButtons = document.querySelectorAll('.save-tweet-evidence');
+
+    saveTweetButtons.forEach(button => {
+        button.addEventListener('click', async function() {
+            const tweetId = this.getAttribute('data-tweet-id');
+            const tweetIndex = this.getAttribute('data-tweet-index');
+            const originalHtml = this.innerHTML;
+
+            // Show loading state
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+                const headers = {
+                    'Content-Type': 'application/json',
+                };
+
+                if (csrfToken) {
+                    headers['X-CSRFToken'] = csrfToken;
+                }
+
+                const response = await fetch(window.location.pathname + '/save-tweet-evidence', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        tweet_index: parseInt(tweetIndex)
+                    })
+                });
+
+                const data = await response.json();
+
+                const toastTitle = document.getElementById('validationToastTitle');
+                const toastBody = document.getElementById('validationToastBody');
+
+                if (data.success) {
+                    toastTitle.textContent = '✓ Evidencia Guardada';
+                    toastBody.innerHTML = `<div class="text-success">${data.message}</div>`;
+                    validationToast.show();
+
+                    // Change button to indicate it's saved
+                    this.classList.remove('btn-outline-success');
+                    this.classList.add('btn-success');
+                    this.innerHTML = '<i class="bi bi-check-circle"></i> Guardado';
+                    this.disabled = true;
+                } else {
+                    toastTitle.textContent = '✗ Error';
+                    toastBody.innerHTML = `<div class="text-danger">${data.error}</div>`;
+                    validationToast.show();
+                    this.disabled = false;
+                    this.innerHTML = originalHtml;
+                }
+
+            } catch (error) {
+                const toastTitle = document.getElementById('validationToastTitle');
+                const toastBody = document.getElementById('validationToastBody');
+                toastTitle.textContent = '✗ Error';
+                toastBody.innerHTML = `<div class="text-danger">Error: ${error.message}</div>`;
+                validationToast.show();
+                this.disabled = false;
+                this.innerHTML = originalHtml;
             }
         });
     });
