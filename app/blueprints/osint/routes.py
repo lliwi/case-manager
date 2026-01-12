@@ -11,6 +11,10 @@ from app.plugins.osint.ipqualityscore_validator import IPQualityScoreValidatorPl
 from app.utils.decorators import require_detective
 from app import db
 from datetime import datetime
+from sqlalchemy.orm.attributes import flag_modified
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @osint.route('/')
@@ -189,11 +193,13 @@ def detail(case_id, contact_id):
     validate_form = ValidateContactForm()
     validate_form.contact_id.data = contact.id
 
-    # Get validation history for this contact
-    validations = OSINTValidation.query.filter_by(
-        contact_value=contact.contact_value,
-        contact_type=contact.contact_type
-    ).order_by(OSINTValidation.validation_date.desc()).all()
+    # Get validation history for this contact (only for validable types)
+    validations = []
+    if contact.contact_type in ['email', 'phone']:
+        validations = OSINTValidation.query.filter_by(
+            contact_value=contact.contact_value,
+            contact_type=contact.contact_type
+        ).order_by(OSINTValidation.validation_date.desc()).all()
 
     return render_template('osint/detail.html',
                           case=case,
@@ -216,11 +222,13 @@ def detail_no_case(contact_id):
     validate_form = ValidateContactForm()
     validate_form.contact_id.data = contact.id
 
-    # Get validation history for this contact
-    validations = OSINTValidation.query.filter_by(
-        contact_value=contact.contact_value,
-        contact_type=contact.contact_type
-    ).order_by(OSINTValidation.validation_date.desc()).all()
+    # Get validation history for this contact (only for validable types)
+    validations = []
+    if contact.contact_type in ['email', 'phone']:
+        validations = OSINTValidation.query.filter_by(
+            contact_value=contact.contact_value,
+            contact_type=contact.contact_type
+        ).order_by(OSINTValidation.validation_date.desc()).all()
 
     return render_template('osint/detail.html',
                           contact=contact,
@@ -567,6 +575,272 @@ def validation_detail(validation_id):
     validation = OSINTValidation.query.get_or_404(validation_id)
 
     return render_template('osint/validation_detail.html', validation=validation)
+
+
+@osint.route('/case/<int:case_id>/<int:contact_id>/x-profile', methods=['POST'])
+@login_required
+@require_detective()
+def x_profile_lookup(case_id, contact_id):
+    """Execute X profile lookup plugin within case context"""
+    from app.plugins.osint.x_profile_lookup import XProfileLookupPlugin
+    from datetime import datetime
+
+    case = Case.query.get_or_404(case_id)
+    contact = OSINTContact.query.get_or_404(contact_id)
+
+    # Check access
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        return jsonify({'success': False, 'error': 'No tiene permiso para modificar este caso.'}), 403
+
+    if contact.is_deleted:
+        return jsonify({'success': False, 'error': 'Este contacto ha sido eliminado.'}), 404
+
+    # Check if contact type is supported
+    if contact.contact_type not in ['social_profile', 'username']:
+        return jsonify({
+            'success': False,
+            'error': 'Solo se pueden consultar perfiles sociales o usernames con X API.'
+        }), 400
+
+    try:
+        # Initialize plugin
+        plugin = XProfileLookupPlugin()
+
+        # Perform lookup
+        result = plugin.lookup(contact.contact_value, query_type=contact.contact_type)
+
+        if not result.get('success'):
+            return jsonify(result), 400
+
+        # Save results to contact's extra_data
+        if not contact.extra_data:
+            contact.extra_data = {}
+
+        contact.extra_data['x_profile'] = {
+            'data': result,
+            'fetched_at': datetime.utcnow().isoformat(),
+            'fetched_by': current_user.email
+        }
+
+        # Mark as modified for SQLAlchemy to detect the change
+        flag_modified(contact, 'extra_data')
+
+        # Update contact name if available and not set
+        if not contact.name and result.get('display_name'):
+            contact.name = result.get('display_name')
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Información de perfil obtenida exitosamente.',
+            'result': result
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error executing X profile lookup: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error al consultar perfil: {str(e)}'
+        }), 500
+
+
+@osint.route('/<int:contact_id>/x-profile', methods=['POST'])
+@login_required
+def x_profile_lookup_no_case(contact_id):
+    """Execute X profile lookup plugin (global view)"""
+    from app.plugins.osint.x_profile_lookup import XProfileLookupPlugin
+    from datetime import datetime
+
+    contact = OSINTContact.query.get_or_404(contact_id)
+
+    if contact.is_deleted:
+        return jsonify({'success': False, 'error': 'Este contacto ha sido eliminado.'}), 404
+
+    # Check if contact type is supported
+    if contact.contact_type not in ['social_profile', 'username']:
+        return jsonify({
+            'success': False,
+            'error': 'Solo se pueden consultar perfiles sociales o usernames con X API.'
+        }), 400
+
+    try:
+        # Initialize plugin
+        plugin = XProfileLookupPlugin()
+
+        # Perform lookup
+        result = plugin.lookup(contact.contact_value, query_type=contact.contact_type)
+
+        if not result.get('success'):
+            return jsonify(result), 400
+
+        # Save results to contact's extra_data
+        if not contact.extra_data:
+            contact.extra_data = {}
+
+        contact.extra_data['x_profile'] = {
+            'data': result,
+            'fetched_at': datetime.utcnow().isoformat(),
+            'fetched_by': current_user.email
+        }
+
+        # Mark as modified for SQLAlchemy to detect the change
+        flag_modified(contact, 'extra_data')
+
+        # Update contact name if available and not set
+        if not contact.name and result.get('display_name'):
+            contact.name = result.get('display_name')
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Información de perfil obtenida exitosamente.',
+            'result': result
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error executing X profile lookup: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error al consultar perfil: {str(e)}'
+        }), 500
+
+
+@osint.route('/case/<int:case_id>/<int:contact_id>/x-tweets', methods=['POST'])
+@login_required
+@require_detective()
+def x_tweets_lookup(case_id, contact_id):
+    """Execute X tweets lookup plugin within case context"""
+    from app.plugins.osint.x_tweets_lookup import XTweetsLookupPlugin
+    from datetime import datetime
+
+    case = Case.query.get_or_404(case_id)
+    contact = OSINTContact.query.get_or_404(contact_id)
+
+    # Check access
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        return jsonify({'success': False, 'error': 'No tiene permiso para modificar este caso.'}), 403
+
+    if contact.is_deleted:
+        return jsonify({'success': False, 'error': 'Este contacto ha sido eliminado.'}), 404
+
+    # Check if contact type is supported
+    if contact.contact_type not in ['social_profile', 'username']:
+        return jsonify({
+            'success': False,
+            'error': 'Solo se pueden consultar tweets de perfiles sociales o usernames con X API.'
+        }), 400
+
+    try:
+        # Get max_results parameter (default 10)
+        max_results = int(request.form.get('max_results', 10))
+        max_results = max(5, min(100, max_results))
+
+        # Initialize plugin
+        plugin = XTweetsLookupPlugin()
+
+        # Perform lookup
+        result = plugin.lookup(contact.contact_value, query_type=contact.contact_type, max_results=max_results)
+
+        if not result.get('success'):
+            return jsonify(result), 400
+
+        # Save results to contact's extra_data
+        if not contact.extra_data:
+            contact.extra_data = {}
+
+        contact.extra_data['x_tweets'] = {
+            'data': result,
+            'fetched_at': datetime.utcnow().isoformat(),
+            'fetched_by': current_user.email,
+            'max_results': max_results
+        }
+
+        # Mark as modified for SQLAlchemy to detect the change
+        flag_modified(contact, 'extra_data')
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'{result.get("tweet_count", 0)} tweets obtenidos exitosamente.',
+            'result': result
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error executing X tweets lookup: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error al consultar tweets: {str(e)}'
+        }), 500
+
+
+@osint.route('/<int:contact_id>/x-tweets', methods=['POST'])
+@login_required
+def x_tweets_lookup_no_case(contact_id):
+    """Execute X tweets lookup plugin (global view)"""
+    from app.plugins.osint.x_tweets_lookup import XTweetsLookupPlugin
+    from datetime import datetime
+
+    contact = OSINTContact.query.get_or_404(contact_id)
+
+    if contact.is_deleted:
+        return jsonify({'success': False, 'error': 'Este contacto ha sido eliminado.'}), 404
+
+    # Check if contact type is supported
+    if contact.contact_type not in ['social_profile', 'username']:
+        return jsonify({
+            'success': False,
+            'error': 'Solo se pueden consultar tweets de perfiles sociales o usernames con X API.'
+        }), 400
+
+    try:
+        # Get max_results parameter (default 10)
+        max_results = int(request.form.get('max_results', 10))
+        max_results = max(5, min(100, max_results))
+
+        # Initialize plugin
+        plugin = XTweetsLookupPlugin()
+
+        # Perform lookup
+        result = plugin.lookup(contact.contact_value, query_type=contact.contact_type, max_results=max_results)
+
+        if not result.get('success'):
+            return jsonify(result), 400
+
+        # Save results to contact's extra_data
+        if not contact.extra_data:
+            contact.extra_data = {}
+
+        contact.extra_data['x_tweets'] = {
+            'data': result,
+            'fetched_at': datetime.utcnow().isoformat(),
+            'fetched_by': current_user.email,
+            'max_results': max_results
+        }
+
+        # Mark as modified for SQLAlchemy to detect the change
+        flag_modified(contact, 'extra_data')
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'{result.get("tweet_count", 0)} tweets obtenidos exitosamente.',
+            'result': result
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error executing X tweets lookup: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error al consultar tweets: {str(e)}'
+        }), 500
 
 
 @osint.route('/export')

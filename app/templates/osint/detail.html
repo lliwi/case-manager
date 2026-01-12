@@ -108,6 +108,193 @@
                         </div>
                     </div>
 
+                    <!-- X (Twitter) Profile Information -->
+                    {% if contact.extra_data and contact.extra_data.get('x_profile') %}
+                    {% set x_profile = contact.extra_data.x_profile.data %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-twitter-x"></i> Información de Perfil de X (Twitter)
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-3 text-center">
+                                    {% if x_profile.profile_image %}
+                                    <img src="{{ x_profile.profile_image }}" alt="{{ x_profile.display_name }}" class="img-fluid rounded-circle mb-2" style="max-width: 120px;">
+                                    {% endif %}
+                                    <h5>{{ x_profile.display_name }}</h5>
+                                    <p class="text-muted">@{{ x_profile.username }}</p>
+                                    {% if x_profile.verified %}
+                                    <span class="badge bg-primary"><i class="bi bi-patch-check-fill"></i> Verificado</span>
+                                    {% endif %}
+                                    {% if x_profile.protected %}
+                                    <span class="badge bg-warning"><i class="bi bi-lock-fill"></i> Protegido</span>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-9">
+                                    {% if x_profile.bio %}
+                                    <p class="mb-3">{{ x_profile.bio }}</p>
+                                    {% endif %}
+
+                                    <div class="row mb-2">
+                                        <div class="col-md-6">
+                                            <strong><i class="bi bi-geo-alt"></i> Ubicación:</strong> {{ x_profile.location or 'No especificada' }}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong><i class="bi bi-link-45deg"></i> Sitio web:</strong>
+                                            {% if x_profile.website %}
+                                            <a href="{{ x_profile.website }}" target="_blank">{{ x_profile.website }}</a>
+                                            {% else %}
+                                            No especificado
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="row mb-2">
+                                        <div class="col-md-12">
+                                            <strong><i class="bi bi-calendar"></i> Cuenta creada:</strong> {{ x_profile.created_at }}
+                                        </div>
+                                    </div>
+
+                                    <!-- Metrics -->
+                                    <div class="row mt-3">
+                                        <div class="col-md-3 text-center">
+                                            <h4>{{ x_profile.metrics.followers_count | default(0) }}</h4>
+                                            <small class="text-muted">Seguidores</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <h4>{{ x_profile.metrics.following_count | default(0) }}</h4>
+                                            <small class="text-muted">Siguiendo</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <h4>{{ x_profile.metrics.tweet_count | default(0) }}</h4>
+                                            <small class="text-muted">Tweets</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <h4>{{ x_profile.metrics.listed_count | default(0) }}</h4>
+                                            <small class="text-muted">Listas</small>
+                                        </div>
+                                    </div>
+
+                                    <!-- Analysis -->
+                                    {% if x_profile.summary %}
+                                    <div class="alert alert-info mt-3 mb-0">
+                                        <strong><i class="bi bi-graph-up"></i> Análisis:</strong><br>
+                                        {{ x_profile.summary.text }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="text-muted small">
+                                <i class="bi bi-clock"></i> Datos obtenidos el {{ contact.extra_data.x_profile.fetched_at }}
+                                por {{ contact.extra_data.x_profile.fetched_by }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- X (Twitter) Recent Tweets -->
+                    {% if contact.extra_data and contact.extra_data.get('x_tweets') %}
+                    {% set x_tweets = contact.extra_data.x_tweets.data %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-chat-dots"></i> Últimos Tweets ({{ x_tweets.tweet_count }})
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Timeline Analysis -->
+                            {% if x_tweets.timeline_analysis %}
+                            <div class="alert alert-light mb-3">
+                                <div class="row">
+                                    <div class="col-md-3 text-center">
+                                        <strong>{{ x_tweets.timeline_analysis.original_tweets }}</strong><br>
+                                        <small class="text-muted">Originales</small>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <strong>{{ x_tweets.timeline_analysis.retweets }}</strong><br>
+                                        <small class="text-muted">Retweets</small>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <strong>{{ x_tweets.timeline_analysis.replies }}</strong><br>
+                                        <small class="text-muted">Respuestas</small>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <strong>{{ x_tweets.timeline_analysis.avg_engagement }}</strong><br>
+                                        <small class="text-muted">Engagement Promedio</small>
+                                    </div>
+                                </div>
+                                <hr>
+                                <div class="text-center">
+                                    <strong>Tipo de contenido:</strong> {{ x_tweets.timeline_analysis.content_type | replace('_', ' ') | title }}<br>
+                                    <strong>Idioma principal:</strong> {{ x_tweets.timeline_analysis.primary_language }}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Tweets List -->
+                            {% for tweet in x_tweets.tweets[:10] %}
+                            <div class="card mb-2">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <strong>@{{ x_tweets.user.username }}</strong>
+                                            <small class="text-muted">{{ tweet.created_at_formatted }}</small>
+                                        </div>
+                                        <a href="{{ tweet.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-box-arrow-up-right"></i> Ver en X
+                                        </a>
+                                    </div>
+
+                                    <p class="mb-2">{{ tweet.text }}</p>
+
+                                    <!-- Tweet Type Badges -->
+                                    <div class="mb-2">
+                                        {% if tweet.is_retweet %}
+                                        <span class="badge bg-info"><i class="bi bi-arrow-repeat"></i> Retweet</span>
+                                        {% endif %}
+                                        {% if tweet.is_reply %}
+                                        <span class="badge bg-secondary"><i class="bi bi-reply"></i> Respuesta</span>
+                                        {% endif %}
+                                        {% if tweet.is_quote %}
+                                        <span class="badge bg-warning"><i class="bi bi-quote"></i> Quote</span>
+                                        {% endif %}
+                                        {% if tweet.has_urls %}
+                                        <span class="badge bg-light text-dark"><i class="bi bi-link"></i> Con enlaces</span>
+                                        {% endif %}
+                                        {% if tweet.has_mentions %}
+                                        <span class="badge bg-light text-dark"><i class="bi bi-at"></i> Menciones</span>
+                                        {% endif %}
+                                        {% if tweet.has_hashtags %}
+                                        <span class="badge bg-light text-dark"><i class="bi bi-hash"></i> Hashtags</span>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Engagement Metrics -->
+                                    <div class="text-muted small">
+                                        <i class="bi bi-heart"></i> {{ tweet.metrics_formatted.likes }}
+                                        <i class="bi bi-arrow-repeat ms-2"></i> {{ tweet.metrics_formatted.retweets }}
+                                        <i class="bi bi-chat ms-2"></i> {{ tweet.metrics_formatted.replies }}
+                                        {% if tweet.engagement.engagement_level %}
+                                        | <span class="badge bg-{{ 'danger' if tweet.engagement.engagement_level == 'viral' else 'success' if tweet.engagement.engagement_level == 'high' else 'warning' if tweet.engagement.engagement_level == 'medium' else 'secondary' }}">
+                                            {{ tweet.engagement.engagement_level | title }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+
+                            <div class="text-muted small mt-3">
+                                <i class="bi bi-clock"></i> Datos obtenidos el {{ contact.extra_data.x_tweets.fetched_at }}
+                                por {{ contact.extra_data.x_tweets.fetched_by }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- Validation Status -->
                     <div class="card shadow-sm mb-4">
                         <div class="card-header bg-light">
@@ -232,6 +419,33 @@
                                     {{ validate_form.notes(class="form-control mb-2", placeholder="Notas opcionales...") }}
                                     <button type="submit" class="btn btn-success w-100" id="validateButton">
                                         <i class="bi bi-lightning-charge"></i> Validar con IPQualityScore
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                                {% if contact.contact_type in ['social_profile', 'username'] %}
+                                <!-- X API Profile Lookup -->
+                                {% if case %}
+                                <form method="POST" action="{{ url_for('osint.x_profile_lookup', case_id=case.id, contact_id=contact.id) }}" class="x-api-form">
+                                {% else %}
+                                <form method="POST" action="{{ url_for('osint.x_profile_lookup_no_case', contact_id=contact.id) }}" class="x-api-form">
+                                {% endif %}
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-info w-100">
+                                        <i class="bi bi-person-circle"></i> Obtener Perfil de X (Twitter)
+                                    </button>
+                                </form>
+
+                                <!-- X API Tweets Lookup -->
+                                {% if case %}
+                                <form method="POST" action="{{ url_for('osint.x_tweets_lookup', case_id=case.id, contact_id=contact.id) }}" class="x-api-form">
+                                {% else %}
+                                <form method="POST" action="{{ url_for('osint.x_tweets_lookup_no_case', contact_id=contact.id) }}" class="x-api-form">
+                                {% endif %}
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="number" name="max_results" class="form-control mb-2" placeholder="Número de tweets (5-100)" value="10" min="5" max="100">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="bi bi-chat-dots"></i> Obtener Últimos Tweets
                                     </button>
                                 </form>
                                 {% endif %}
@@ -365,6 +579,77 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Handle X API forms (profile and tweets)
+    const xApiForms = document.querySelectorAll('.x-api-form');
+
+    xApiForms.forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalHtml = submitButton.innerHTML;
+
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Procesando...';
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                const formData = new FormData(form);
+
+                const headers = {};
+                if (csrfToken) {
+                    headers['X-CSRFToken'] = csrfToken;
+                }
+
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    headers: headers,
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                const toastTitle = document.getElementById('validationToastTitle');
+                const toastBody = document.getElementById('validationToastBody');
+
+                if (data.success) {
+                    toastTitle.textContent = '✓ Operación Exitosa';
+                    toastBody.innerHTML = `<div class="text-success">${data.message}</div>`;
+                    validationToast.show();
+
+                    // Reload page after 2 seconds to show new data
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    // Check if error is rate limit related
+                    const errorMsg = data.error || 'Error al procesar la solicitud';
+                    const isRateLimit = errorMsg.includes('Rate limit') || errorMsg.includes('límite');
+
+                    toastTitle.textContent = isRateLimit ? '⏱️ Límite de Peticiones Alcanzado' : '✗ Error';
+
+                    let errorHtml = `<div class="text-${isRateLimit ? 'warning' : 'danger'}">`;
+                    errorHtml += `<strong>${errorMsg}</strong>`;
+                    if (isRateLimit) {
+                        errorHtml += `<br><small class="text-muted">La API de X limita el número de consultas por ventana de tiempo.</small>`;
+                    }
+                    errorHtml += `</div>`;
+
+                    toastBody.innerHTML = errorHtml;
+                    validationToast.show();
+                }
+
+            } catch (error) {
+                const toastTitle = document.getElementById('validationToastTitle');
+                const toastBody = document.getElementById('validationToastBody');
+                toastTitle.textContent = '✗ Error';
+                toastBody.innerHTML = `<div class="text-danger">Error: ${error.message}</div>`;
+                validationToast.show();
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalHtml;
+            }
+        });
+    });
 });
 </script>
 {% endblock %}

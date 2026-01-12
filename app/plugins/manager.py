@@ -48,9 +48,14 @@ class PluginManager:
             self.pm.register(ExifExtractorPlugin())
             self.pm.register(PDFMetadataPlugin())
 
-            # Import and register OSINT plugins (when implemented)
-            # from app.plugins.osint.email_lookup import EmailLookupPlugin
-            # self.pm.register(EmailLookupPlugin())
+            # Import and register OSINT plugins
+            from app.plugins.osint.ipqualityscore_validator import IPQualityScoreValidatorPlugin
+            from app.plugins.osint.x_profile_lookup import XProfileLookupPlugin
+            from app.plugins.osint.x_tweets_lookup import XTweetsLookupPlugin
+
+            self.pm.register(IPQualityScoreValidatorPlugin())
+            self.pm.register(XProfileLookupPlugin())
+            self.pm.register(XTweetsLookupPlugin())
 
             self._plugins_loaded = True
             logger.info(f"Loaded {len(self.pm.get_plugins())} plugins")

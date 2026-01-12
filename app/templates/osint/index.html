@@ -15,7 +15,7 @@
                         Gestiona correos, teléfonos y perfiles bajo investigación
                     </p>
                 </div>
-                <a href="{{ url_for('osint.create') }}" class="btn btn-primary">
+                <a href="{{ url_for('osint.create_no_case') }}" class="btn btn-primary">
                     <i class="bi bi-plus-circle"></i> Nuevo Contacto
                 </a>
             </div>
@@ -130,9 +130,15 @@
                                             {{ contact.contact_type }}
                                         </td>
                                         <td>
-                                            <a href="{{ url_for('osint.detail', contact_id=contact.id) }}">
+                                            {% if contact.case_id %}
+                                            <a href="{{ url_for('osint.detail', case_id=contact.case_id, contact_id=contact.id) }}">
                                                 <strong>{{ contact.contact_value }}</strong>
                                             </a>
+                                            {% else %}
+                                            <a href="{{ url_for('osint.detail_no_case', contact_id=contact.id) }}">
+                                                <strong>{{ contact.contact_value }}</strong>
+                                            </a>
+                                            {% endif %}
                                             {% if contact.description %}
                                             <br><small class="text-muted">{{ contact.description[:50] }}{% if contact.description|length > 50 %}...{% endif %}</small>
                                             {% endif %}
@@ -178,16 +184,29 @@
                                         </td>
                                         <td>
                                             <div class="btn-group btn-group-sm" role="group">
-                                                <a href="{{ url_for('osint.detail', contact_id=contact.id) }}"
+                                                {% if contact.case_id %}
+                                                <a href="{{ url_for('osint.detail', case_id=contact.case_id, contact_id=contact.id) }}"
                                                    class="btn btn-outline-info"
                                                    title="Ver detalles">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
-                                                <a href="{{ url_for('osint.edit', contact_id=contact.id) }}"
+                                                <a href="{{ url_for('osint.edit', case_id=contact.case_id, contact_id=contact.id) }}"
                                                    class="btn btn-outline-primary"
                                                    title="Editar">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
+                                                {% else %}
+                                                <a href="{{ url_for('osint.detail_no_case', contact_id=contact.id) }}"
+                                                   class="btn btn-outline-info"
+                                                   title="Ver detalles">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <a href="{{ url_for('osint.edit_no_case', contact_id=contact.id) }}"
+                                                   class="btn btn-outline-primary"
+                                                   title="Editar">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                {% endif %}
                                                 {% if not contact.is_validated and contact.contact_type in ['email', 'phone'] %}
                                                 <button type="button"
                                                         class="btn btn-outline-success validate-btn"
@@ -210,7 +229,7 @@
                     <i class="bi bi-info-circle"></i>
                     <h5 class="mt-2">No hay contactos OSINT</h5>
                     <p class="mb-3">Crea tu primer contacto para comenzar a gestionar investigaciones OSINT.</p>
-                    <a href="{{ url_for('osint.create') }}" class="btn btn-primary">
+                    <a href="{{ url_for('osint.create_no_case') }}" class="btn btn-primary">
                         <i class="bi bi-plus-circle"></i> Crear Primer Contacto
                     </a>
                 </div>
