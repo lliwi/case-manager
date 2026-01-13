@@ -184,6 +184,9 @@ class XTweetsLookupPlugin:
                 'has_mentions': bool(tweet.get('entities', {}).get('mentions')),
                 'has_hashtags': bool(tweet.get('entities', {}).get('hashtags')),
 
+                # Media (images, videos, GIFs)
+                'media': tweet.get('media', []),
+
                 # Raw data
                 'raw': tweet
             }
