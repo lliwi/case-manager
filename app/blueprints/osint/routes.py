@@ -2,8 +2,11 @@
 OSINT Routes
 Handles CRUD operations for OSINT contacts and validations
 """
-from flask import render_template, redirect, url_for, flash, request, jsonify
+from flask import render_template, redirect, url_for, flash, request, jsonify, Response
 from flask_login import login_required, current_user
+import requests
+import base64
+import hashlib
 from app.blueprints.osint import osint
 from app.blueprints.osint.forms import OSINTContactForm, ValidateContactForm, SearchContactForm
 from app.models import OSINTContact, OSINTValidation, Case, ApiKey
@@ -1068,3 +1071,350 @@ def case_contacts(case_id):
                           contacts=contacts,
                           search_form=search_form,
                           stats=stats)
+
+
+# Instagram Profile Lookup Routes
+@osint.route('/case/<int:case_id>/<int:contact_id>/instagram-profile', methods=['POST'])
+@login_required
+@require_detective()
+def instagram_profile_lookup(case_id, contact_id):
+    """Lookup Instagram profile for a contact within case context."""
+    from app.plugins.osint.instagram_profile_lookup import InstagramProfileLookupPlugin
+    
+    case = Case.query.get_or_404(case_id)
+    contact = OSINTContact.query.get_or_404(contact_id)
+    
+    # Check access
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        return jsonify({
+            'success': False,
+            'error': 'No tiene permiso para acceder a este caso.'
+        }), 403
+    
+    if case.is_deleted or contact.is_deleted:
+        return jsonify({
+            'success': False,
+            'error': 'El caso o contacto ha sido eliminado.'
+        }), 404
+    
+    # Verify contact belongs to case
+    if contact.case_id != case_id:
+        return jsonify({
+            'success': False,
+            'error': 'El contacto no pertenece a este caso.'
+        }), 400
+    
+    try:
+        # Execute plugin
+        plugin = InstagramProfileLookupPlugin()
+        result = plugin.lookup(query=contact.contact_value)
+        
+        if result['success']:
+            # Store result in contact
+            if not contact.extra_data:
+                contact.extra_data = {}
+
+            # Extract profile data and flatten it for template compatibility
+            profile_data = result.get('profile', {})
+            analysis_data = result.get('analysis', {})
+
+            # Build flattened data structure matching template expectations
+            flattened_data = {
+                **profile_data,
+                'summary': analysis_data,  # Analysis as summary for template
+                'category_name': profile_data.get('category'),
+                'is_business_account': profile_data.get('is_business'),
+                'follower_ratio': analysis_data.get('follower_ratio', 0),
+            }
+
+            contact.extra_data['instagram_profile'] = {
+                'data': flattened_data,
+                'fetched_at': datetime.utcnow().isoformat(),
+                'fetched_by': current_user.email
+            }
+
+            # Use flag_modified to ensure SQLAlchemy tracks the change
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(contact, 'extra_data')
+
+            # Update contact name if available and not set
+            if not contact.name and profile_data.get('full_name'):
+                contact.name = profile_data.get('full_name')
+
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': f'Perfil de Instagram obtenido exitosamente',
+                'data': result
+            })
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in Instagram profile lookup: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error al obtener perfil: {str(e)}'
+        }), 500
+
+
+@osint.route('/<int:contact_id>/instagram-profile', methods=['POST'])
+@login_required
+def instagram_profile_lookup_no_case(contact_id):
+    """Lookup Instagram profile for a contact (global view)."""
+    from app.plugins.osint.instagram_profile_lookup import InstagramProfileLookupPlugin
+
+    contact = OSINTContact.query.get_or_404(contact_id)
+
+    if contact.is_deleted:
+        return jsonify({
+            'success': False,
+            'error': 'El contacto ha sido eliminado.'
+        }), 404
+    
+    try:
+        # Execute plugin
+        plugin = InstagramProfileLookupPlugin()
+        result = plugin.lookup(query=contact.contact_value)
+
+        if result['success']:
+            # Store result in contact
+            if not contact.extra_data:
+                contact.extra_data = {}
+
+            # Extract profile data and flatten it for template compatibility
+            profile_data = result.get('profile', {})
+            analysis_data = result.get('analysis', {})
+
+            # Build flattened data structure matching template expectations
+            flattened_data = {
+                **profile_data,
+                'summary': analysis_data,  # Analysis as summary for template
+                'category_name': profile_data.get('category'),
+                'is_business_account': profile_data.get('is_business'),
+                'follower_ratio': analysis_data.get('follower_ratio', 0),
+            }
+
+            contact.extra_data['instagram_profile'] = {
+                'data': flattened_data,
+                'fetched_at': datetime.utcnow().isoformat(),
+                'fetched_by': current_user.email
+            }
+
+            # Use flag_modified to ensure SQLAlchemy tracks the change
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(contact, 'extra_data')
+
+            # Update contact name if available and not set
+            if not contact.name and profile_data.get('full_name'):
+                contact.name = profile_data.get('full_name')
+
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': f'Perfil de Instagram obtenido exitosamente',
+                'data': result
+            })
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in Instagram profile lookup: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error al obtener perfil: {str(e)}'
+        }), 500
+
+
+# Instagram Posts Lookup Routes
+@osint.route('/case/<int:case_id>/<int:contact_id>/instagram-posts', methods=['POST'])
+@login_required
+@require_detective()
+def instagram_posts_lookup(case_id, contact_id):
+    """Lookup Instagram posts for a contact within case context."""
+    from app.plugins.osint.instagram_posts_lookup import InstagramPostsLookupPlugin
+    
+    case = Case.query.get_or_404(case_id)
+    contact = OSINTContact.query.get_or_404(contact_id)
+    
+    # Check access
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        return jsonify({
+            'success': False,
+            'error': 'No tiene permiso para acceder a este caso.'
+        }), 403
+    
+    if case.is_deleted or contact.is_deleted:
+        return jsonify({
+            'success': False,
+            'error': 'El caso o contacto ha sido eliminado.'
+        }), 404
+    
+    # Verify contact belongs to case
+    if contact.case_id != case_id:
+        return jsonify({
+            'success': False,
+            'error': 'El contacto no pertenece a este caso.'
+        }), 400
+    
+    try:
+        # Get max posts parameter (support both form data and JSON)
+        if request.is_json:
+            data = request.get_json() or {}
+            max_posts = data.get('max_posts', 12)
+        else:
+            max_posts = request.form.get('max_posts', 12, type=int)
+
+        # Execute plugin
+        plugin = InstagramPostsLookupPlugin()
+        result = plugin.lookup(query=contact.contact_value, max_posts=max_posts)
+
+        if result['success']:
+            # Store result in contact
+            if not contact.extra_data:
+                contact.extra_data = {}
+
+            contact.extra_data['instagram_posts'] = {
+                'data': result,
+                'fetched_at': datetime.utcnow().isoformat(),
+                'fetched_by': current_user.email
+            }
+
+            # Use flag_modified to ensure SQLAlchemy tracks the change
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(contact, 'extra_data')
+
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': f'{result["post_count"]} posts de Instagram obtenidos exitosamente',
+                'data': result
+            })
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in Instagram posts lookup: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error al obtener posts: {str(e)}'
+        }), 500
+
+
+@osint.route('/<int:contact_id>/instagram-posts', methods=['POST'])
+@login_required
+def instagram_posts_lookup_no_case(contact_id):
+    """Lookup Instagram posts for a contact (global view)."""
+    from app.plugins.osint.instagram_posts_lookup import InstagramPostsLookupPlugin
+    
+    contact = OSINTContact.query.get_or_404(contact_id)
+    
+    if contact.is_deleted:
+        return jsonify({
+            'success': False,
+            'error': 'El contacto ha sido eliminado.'
+        }), 404
+    
+    try:
+        # Get max posts parameter (support both form data and JSON)
+        if request.is_json:
+            data = request.get_json() or {}
+            max_posts = data.get('max_posts', 12)
+        else:
+            max_posts = request.form.get('max_posts', 12, type=int)
+
+        # Execute plugin
+        plugin = InstagramPostsLookupPlugin()
+        result = plugin.lookup(query=contact.contact_value, max_posts=max_posts)
+
+        if result['success']:
+            # Store result in contact
+            if not contact.extra_data:
+                contact.extra_data = {}
+
+            contact.extra_data['instagram_posts'] = {
+                'data': result,
+                'fetched_at': datetime.utcnow().isoformat(),
+                'fetched_by': current_user.email
+            }
+
+            # Use flag_modified to ensure SQLAlchemy tracks the change
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(contact, 'extra_data')
+
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': f'{result["post_count"]} posts de Instagram obtenidos exitosamente',
+                'data': result
+            })
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in Instagram posts lookup: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error al obtener posts: {str(e)}'
+        }), 500
+
+
+# Image Proxy for Instagram (to bypass CORS restrictions)
+@osint.route('/image-proxy')
+@login_required
+def image_proxy():
+    """
+    Proxy endpoint to fetch images from Instagram CDN.
+    This bypasses CORS restrictions that prevent direct image loading.
+    """
+    image_url = request.args.get('url')
+
+    if not image_url:
+        return jsonify({'error': 'URL parameter required'}), 400
+
+    # Validate that the URL is from Instagram CDN
+    allowed_domains = [
+        'cdninstagram.com',
+        'instagram.com',
+        'fbcdn.net'
+    ]
+
+    if not any(domain in image_url for domain in allowed_domains):
+        return jsonify({'error': 'Only Instagram image URLs are allowed'}), 403
+
+    try:
+        # Fetch the image with appropriate headers
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': 'https://www.instagram.com/',
+        }
+
+        response = requests.get(image_url, headers=headers, timeout=10, stream=True)
+        response.raise_for_status()
+
+        # Get content type from response
+        content_type = response.headers.get('Content-Type', 'image/jpeg')
+
+        # Return the image with appropriate headers
+        return Response(
+            response.content,
+            content_type=content_type,
+            headers={
+                'Cache-Control': 'public, max-age=86400',  # Cache for 24 hours
+                'X-Content-Type-Options': 'nosniff'
+            }
+        )
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error proxying image: {str(e)}")
+        return jsonify({'error': 'Failed to fetch image'}), 500

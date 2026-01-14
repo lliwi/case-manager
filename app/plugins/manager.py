@@ -52,10 +52,14 @@ class PluginManager:
             from app.plugins.osint.ipqualityscore_validator import IPQualityScoreValidatorPlugin
             from app.plugins.osint.x_profile_lookup import XProfileLookupPlugin
             from app.plugins.osint.x_tweets_lookup import XTweetsLookupPlugin
+            from app.plugins.osint.instagram_profile_lookup import InstagramProfileLookupPlugin
+            from app.plugins.osint.instagram_posts_lookup import InstagramPostsLookupPlugin
 
             self.pm.register(IPQualityScoreValidatorPlugin())
             self.pm.register(XProfileLookupPlugin())
             self.pm.register(XTweetsLookupPlugin())
+            self.pm.register(InstagramProfileLookupPlugin())
+            self.pm.register(InstagramPostsLookupPlugin())
 
             self._plugins_loaded = True
             logger.info(f"Loaded {len(self.pm.get_plugins())} plugins")

@@ -3,6 +3,11 @@
 {% block title %}{{ contact.contact_value }} - OSINT{% endblock %}
 
 {% block content %}
+{# Detect social media platform #}
+{% set contact_lower = contact.contact_value|lower %}
+{% set is_instagram = 'instagram.com' in contact_lower or (contact.contact_type == 'username' and not ('x.com' in contact_lower or 'twitter.com' in contact_lower)) %}
+{% set is_twitter = 'x.com' in contact_lower or 'twitter.com' in contact_lower %}
+
 <div class="container mt-4">
     <div class="row">
         <div class="col-12">
@@ -334,6 +339,209 @@
                     </div>
                     {% endif %}
 
+                    <!-- Instagram Profile Information -->
+                    {% if contact.extra_data and contact.extra_data.get('instagram_profile') %}
+                    {% set ig_profile = contact.extra_data.instagram_profile.data %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-gradient text-white" style="background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);">
+                            <h5 class="mb-0">
+                                <i class="bi bi-instagram"></i> Información de Perfil de Instagram
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-3 text-center">
+                                    {% if ig_profile.profile_pic_url %}
+                                    <img src="{{ url_for('osint.image_proxy', url=ig_profile.profile_pic_url) }}" alt="{{ ig_profile.full_name or ig_profile.username }}" class="img-fluid rounded-circle mb-2" style="max-width: 120px;">
+                                    {% endif %}
+                                    <h5>{{ ig_profile.full_name or ig_profile.username }}</h5>
+                                    <p class="text-muted">@{{ ig_profile.username }}</p>
+                                    {% if ig_profile.is_verified %}
+                                    <span class="badge" style="background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);"><i class="bi bi-patch-check-fill"></i> Verificado</span>
+                                    {% endif %}
+                                    {% if ig_profile.is_private %}
+                                    <span class="badge bg-warning"><i class="bi bi-lock-fill"></i> Privado</span>
+                                    {% endif %}
+                                    {% if ig_profile.is_business_account %}
+                                    <span class="badge bg-info"><i class="bi bi-briefcase"></i> Negocio</span>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-9">
+                                    {% if ig_profile.biography %}
+                                    <p class="mb-3">{{ ig_profile.biography }}</p>
+                                    {% endif %}
+
+                                    {% if ig_profile.external_url %}
+                                    <div class="mb-2">
+                                        <strong><i class="bi bi-link-45deg"></i> Enlace externo:</strong>
+                                        <a href="{{ ig_profile.external_url }}" target="_blank">{{ ig_profile.external_url }}</a>
+                                    </div>
+                                    {% endif %}
+
+                                    {% if ig_profile.category_name %}
+                                    <div class="mb-2">
+                                        <strong><i class="bi bi-tag"></i> Categoría:</strong> {{ ig_profile.category_name }}
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Metrics -->
+                                    <div class="row mt-3">
+                                        <div class="col-md-3 text-center">
+                                            <h4>{{ ig_profile.followers_count | default(0) }}</h4>
+                                            <small class="text-muted">Seguidores</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <h4>{{ ig_profile.following_count | default(0) }}</h4>
+                                            <small class="text-muted">Siguiendo</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <h4>{{ ig_profile.posts_count | default(0) }}</h4>
+                                            <small class="text-muted">Posts</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <h4>{{ ig_profile.follower_ratio | default(0) }}</h4>
+                                            <small class="text-muted">Ratio Seguidores</small>
+                                        </div>
+                                    </div>
+
+                                    <!-- Analysis -->
+                                    {% if ig_profile.summary and ig_profile.summary.text %}
+                                    <div class="alert alert-info alert-permanent mt-3 mb-0">
+                                        <strong><i class="bi bi-graph-up"></i> Análisis de Perfil:</strong><br>
+                                        {{ ig_profile.summary.text }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="text-muted small">
+                                <i class="bi bi-clock"></i> Datos obtenidos el {{ contact.extra_data.instagram_profile.fetched_at }}
+                                por {{ contact.extra_data.instagram_profile.fetched_by }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Instagram Posts -->
+                    {% if contact.extra_data and contact.extra_data.get('instagram_posts') %}
+                    {% set ig_posts = contact.extra_data.instagram_posts.data %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header text-white" style="background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);">
+                            <h5 class="mb-0">
+                                <i class="bi bi-images"></i> Posts de Instagram ({{ ig_posts.post_count }})
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Posts Analysis -->
+                            {% if ig_posts.posts_analysis %}
+                            <div class="alert alert-light alert-permanent mb-3">
+                                <div class="row">
+                                    <div class="col-md-3 text-center">
+                                        <strong>{{ ig_posts.posts_analysis.post_types.images }}</strong><br>
+                                        <small class="text-muted">Imágenes</small>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <strong>{{ ig_posts.posts_analysis.post_types.videos }}</strong><br>
+                                        <small class="text-muted">Videos</small>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <strong>{{ ig_posts.posts_analysis.post_types.carousels }}</strong><br>
+                                        <small class="text-muted">Carruseles</small>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <strong>{{ ig_posts.posts_analysis.avg_engagement }}</strong><br>
+                                        <small class="text-muted">Engagement Promedio</small>
+                                    </div>
+                                </div>
+                                <hr>
+                                <div class="text-center">
+                                    <strong>Tipo de contenido:</strong> {{ ig_posts.posts_analysis.content_type | replace('_', ' ') | title }}<br>
+                                    <strong>Total likes:</strong> {{ ig_posts.posts_analysis.total_likes }}<br>
+                                    <strong>Total comentarios:</strong> {{ ig_posts.posts_analysis.total_comments }}
+                                    {% if ig_posts.posts_analysis.top_hashtags %}
+                                    <br><strong>Top hashtags:</strong> {{ ig_posts.posts_analysis.top_hashtags | join(', ') }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Posts Grid -->
+                            <div class="row g-3">
+                                {% for post in ig_posts.posts[:12] %}
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <!-- Post Image/Video -->
+                                        {% if post.display_url %}
+                                        <a href="{{ post.url }}" target="_blank">
+                                            <img src="{{ url_for('osint.image_proxy', url=post.display_url) }}" class="card-img-top" alt="Instagram post" style="max-height: 250px; object-fit: cover;">
+                                        </a>
+                                        {% endif %}
+
+                                        <!-- Post Type Badge -->
+                                        <div class="position-absolute top-0 end-0 m-2">
+                                            {% if post.has_video %}
+                                            <span class="badge bg-danger"><i class="bi bi-play-circle"></i> Video</span>
+                                            {% elif post.is_carousel %}
+                                            <span class="badge bg-info"><i class="bi bi-images"></i> Carrusel ({{ post.carousel_count }})</span>
+                                            {% else %}
+                                            <span class="badge bg-primary"><i class="bi bi-image"></i> Imagen</span>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="card-body">
+                                            <!-- Caption -->
+                                            {% if post.caption %}
+                                            <p class="card-text small" style="max-height: 60px; overflow: hidden; text-overflow: ellipsis;">
+                                                {{ post.caption[:150] }}{% if post.caption|length > 150 %}...{% endif %}
+                                            </p>
+                                            {% endif %}
+
+                                            <!-- Hashtags -->
+                                            {% if post.hashtags %}
+                                            <div class="mb-2">
+                                                {% for hashtag in post.hashtags[:3] %}
+                                                <span class="badge bg-light text-dark">#{{ hashtag }}</span>
+                                                {% endfor %}
+                                                {% if post.hashtags|length > 3 %}
+                                                <span class="badge bg-light text-dark">+{{ post.hashtags|length - 3 }}</span>
+                                                {% endif %}
+                                            </div>
+                                            {% endif %}
+
+                                            <!-- Engagement Metrics -->
+                                            <div class="d-flex justify-content-between text-muted small mb-2">
+                                                <span><i class="bi bi-heart-fill text-danger"></i> {{ post.likes_count }}</span>
+                                                <span><i class="bi bi-chat-fill text-primary"></i> {{ post.comments_count }}</span>
+                                                {% if post.location %}
+                                                <span><i class="bi bi-geo-alt-fill text-success"></i> {{ post.location.name }}</span>
+                                                {% endif %}
+                                            </div>
+
+                                            <!-- Date -->
+                                            <div class="text-muted small">
+                                                <i class="bi bi-clock"></i> {{ post.timestamp_formatted }}
+                                            </div>
+
+                                            <!-- Actions -->
+                                            <div class="d-grid gap-1 mt-2">
+                                                <a href="{{ post.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-box-arrow-up-right"></i> Ver en Instagram
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="text-muted small mt-3">
+                                <i class="bi bi-clock"></i> Datos obtenidos el {{ contact.extra_data.instagram_posts.fetched_at }}
+                                por {{ contact.extra_data.instagram_posts.fetched_by }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- Validation Status -->
                     <div class="card shadow-sm mb-4">
                         <div class="card-header bg-light">
@@ -463,30 +671,59 @@
                                 {% endif %}
 
                                 {% if contact.contact_type in ['social_profile', 'username'] %}
-                                <!-- X API Profile Lookup -->
-                                {% if case %}
-                                <form method="POST" action="{{ url_for('osint.x_profile_lookup', case_id=case.id, contact_id=contact.id) }}" class="x-api-form">
-                                {% else %}
-                                <form method="POST" action="{{ url_for('osint.x_profile_lookup_no_case', contact_id=contact.id) }}" class="x-api-form">
-                                {% endif %}
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="btn btn-info w-100">
-                                        <i class="bi bi-person-circle"></i> Obtener Perfil de X (Twitter)
-                                    </button>
-                                </form>
+                                    {% if is_twitter %}
+                                    <!-- X API Profile Lookup -->
+                                    {% if case %}
+                                    <form method="POST" action="{{ url_for('osint.x_profile_lookup', case_id=case.id, contact_id=contact.id) }}" class="x-api-form">
+                                    {% else %}
+                                    <form method="POST" action="{{ url_for('osint.x_profile_lookup_no_case', contact_id=contact.id) }}" class="x-api-form">
+                                    {% endif %}
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-info w-100">
+                                            <i class="bi bi-person-circle"></i> Obtener Perfil de X (Twitter)
+                                        </button>
+                                    </form>
 
-                                <!-- X API Tweets Lookup -->
-                                {% if case %}
-                                <form method="POST" action="{{ url_for('osint.x_tweets_lookup', case_id=case.id, contact_id=contact.id) }}" class="x-api-form">
-                                {% else %}
-                                <form method="POST" action="{{ url_for('osint.x_tweets_lookup_no_case', contact_id=contact.id) }}" class="x-api-form">
-                                {% endif %}
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <input type="number" name="max_results" class="form-control mb-2" placeholder="Número de tweets (5-100)" value="10" min="5" max="100">
-                                    <button type="submit" class="btn btn-primary w-100">
-                                        <i class="bi bi-chat-dots"></i> Obtener Últimos Tweets
-                                    </button>
-                                </form>
+                                    <!-- X API Tweets Lookup -->
+                                    {% if case %}
+                                    <form method="POST" action="{{ url_for('osint.x_tweets_lookup', case_id=case.id, contact_id=contact.id) }}" class="x-api-form">
+                                    {% else %}
+                                    <form method="POST" action="{{ url_for('osint.x_tweets_lookup_no_case', contact_id=contact.id) }}" class="x-api-form">
+                                    {% endif %}
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="number" name="max_results" class="form-control mb-2" placeholder="Número de tweets (5-100)" value="10" min="5" max="100">
+                                        <button type="submit" class="btn btn-primary w-100">
+                                            <i class="bi bi-chat-dots"></i> Obtener Últimos Tweets
+                                        </button>
+                                    </form>
+                                    {% endif %}
+
+                                    {% if is_instagram %}
+                                    <!-- Instagram API Profile Lookup -->
+                                    {% if case %}
+                                    <form method="POST" action="{{ url_for('osint.instagram_profile_lookup', case_id=case.id, contact_id=contact.id) }}" class="instagram-api-form">
+                                    {% else %}
+                                    <form method="POST" action="{{ url_for('osint.instagram_profile_lookup_no_case', contact_id=contact.id) }}" class="instagram-api-form">
+                                    {% endif %}
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-info w-100">
+                                            <i class="bi bi-instagram"></i> Obtener Perfil de Instagram
+                                        </button>
+                                    </form>
+
+                                    <!-- Instagram API Posts Lookup -->
+                                    {% if case %}
+                                    <form method="POST" action="{{ url_for('osint.instagram_posts_lookup', case_id=case.id, contact_id=contact.id) }}" class="instagram-api-form">
+                                    {% else %}
+                                    <form method="POST" action="{{ url_for('osint.instagram_posts_lookup_no_case', contact_id=contact.id) }}" class="instagram-api-form">
+                                    {% endif %}
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="number" name="max_posts" class="form-control mb-2" placeholder="Número de posts (1-50)" value="12" min="1" max="50">
+                                        <button type="submit" class="btn btn-primary w-100">
+                                            <i class="bi bi-images"></i> Obtener Últimos Posts
+                                        </button>
+                                    </form>
+                                    {% endif %}
                                 {% endif %}
 
                                 {% if case %}
@@ -674,6 +911,65 @@ document.addEventListener('DOMContentLoaded', function() {
                     errorHtml += `</div>`;
 
                     toastBody.innerHTML = errorHtml;
+                    validationToast.show();
+                }
+
+            } catch (error) {
+                const toastTitle = document.getElementById('validationToastTitle');
+                const toastBody = document.getElementById('validationToastBody');
+                toastTitle.textContent = '✗ Error';
+                toastBody.innerHTML = `<div class="text-danger">Error: ${error.message}</div>`;
+                validationToast.show();
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalHtml;
+            }
+        });
+    });
+
+    // Handle Instagram API forms (profile and posts)
+    const instagramApiForms = document.querySelectorAll('.instagram-api-form');
+
+    instagramApiForms.forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalHtml = submitButton.innerHTML;
+
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Procesando...';
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                const formData = new FormData(form);
+
+                const headers = {};
+                if (csrfToken) {
+                    headers['X-CSRFToken'] = csrfToken;
+                }
+
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    headers: headers,
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                const toastTitle = document.getElementById('validationToastTitle');
+                const toastBody = document.getElementById('validationToastBody');
+
+                if (data.success) {
+                    toastTitle.textContent = '✓ Operación Exitosa';
+                    toastBody.innerHTML = `<div class="text-success">${data.message}</div>`;
+                    validationToast.show();
+
+                    // Reload page after 2 seconds to show new data
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    toastTitle.textContent = '✗ Error';
+                    toastBody.innerHTML = `<div class="text-danger">${data.error || 'Error al procesar la solicitud'}</div>`;
                     validationToast.show();
                 }
 

@@ -116,6 +116,26 @@
                                     <li><a href="https://www.ipqualityscore.com/documentation" target="_blank">Documentación</a></li>
                                 </ul>
                             </div>
+                            <div id="x_apiInfo" style="display: none;">
+                                <p class="mb-2"><strong>X API (Twitter):</strong></p>
+                                <ul class="mb-0">
+                                    <li>Bearer Token para acceso a la API v2 de X (Twitter)</li>
+                                    <li>Obtención de perfiles de usuario y tweets recientes</li>
+                                    <li>Métricas de engagement y análisis de contenido</li>
+                                    <li><a href="https://developer.x.com/en/portal/dashboard" target="_blank">Developer Portal</a></li>
+                                    <li><a href="https://developer.x.com/en/docs/twitter-api" target="_blank">Documentación API</a></li>
+                                </ul>
+                            </div>
+                            <div id="apifyInfo" style="display: none;">
+                                <p class="mb-2"><strong>Apify:</strong></p>
+                                <ul class="mb-0">
+                                    <li>Scraping de perfiles de Instagram (bio, seguidores, posts)</li>
+                                    <li>Extracción de posts con imágenes, videos y engagement</li>
+                                    <li>Actor: Instagram API Scraper (apify/instagram-api-scraper)</li>
+                                    <li><a href="https://console.apify.com/account/integrations" target="_blank">Obtener API Token</a></li>
+                                    <li><a href="https://docs.apify.com/api/v2" target="_blank">Documentación API</a></li>
+                                </ul>
+                            </div>
                             <div id="otherInfo" style="display: none;">
                                 <p class="mb-0">Servicio genérico. Consulta la documentación del proveedor para obtener tu API Key.</p>
                             </div>
@@ -167,16 +187,24 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show service-specific information
     const serviceSelect = document.getElementById('service_name');
     const ipqualityscoreInfo = document.getElementById('ipqualityscoreInfo');
+    const x_apiInfo = document.getElementById('x_apiInfo');
+    const apifyInfo = document.getElementById('apifyInfo');
     const otherInfo = document.getElementById('otherInfo');
 
     function updateServiceInfo() {
         const selectedService = serviceSelect.value;
 
         ipqualityscoreInfo.style.display = 'none';
+        x_apiInfo.style.display = 'none';
+        apifyInfo.style.display = 'none';
         otherInfo.style.display = 'none';
 
         if (selectedService === 'ipqualityscore') {
             ipqualityscoreInfo.style.display = 'block';
+        } else if (selectedService === 'x_api') {
+            x_apiInfo.style.display = 'block';
+        } else if (selectedService === 'apify') {
+            apifyInfo.style.display = 'block';
         } else {
             otherInfo.style.display = 'block';
         }
