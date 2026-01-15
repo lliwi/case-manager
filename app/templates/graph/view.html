@@ -78,6 +78,9 @@
         <a href="{{ url_for('graph.create_relationship', case_id=case.id) }}" class="btn btn-success">
             <i class="bi bi-arrows-angle-contract"></i> Nueva Relación
         </a>
+        <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#importElementsModal" onclick="loadCaseElements()">
+            <i class="bi bi-box-arrow-in-down"></i> Importar desde Caso
+        </button>
     </div>
 </div>
 
@@ -126,6 +129,14 @@
             <div class="legend-item">
                 <div class="legend-color" style="background-color: #e67e22;"></div>
                 <span>Perfil Social</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #34495e;"></div>
+                <span>Evidencia</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #16a085;"></div>
+                <span>Contacto OSINT</span>
             </div>
         </div>
     </div>
@@ -176,6 +187,103 @@
                         <span class="badge bg-secondary">{{ node_type }}: {{ count }}</span>
                     {% endfor %}
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Elements Modal -->
+<div class="modal fade" id="importElementsModal" tabindex="-1" aria-labelledby="importElementsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importElementsModalLabel">
+                    <i class="bi bi-box-arrow-in-down"></i> Importar Elementos del Caso al Grafo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Tabs -->
+                <ul class="nav nav-tabs" id="importTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="evidencias-tab" data-bs-toggle="tab" data-bs-target="#evidencias-panel" type="button" role="tab">
+                            <i class="bi bi-file-earmark-text"></i> Evidencias
+                            <span class="badge bg-secondary ms-1" id="evidencias-count">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="contactos-tab" data-bs-toggle="tab" data-bs-target="#contactos-panel" type="button" role="tab">
+                            <i class="bi bi-person-lines-fill"></i> Contactos OSINT
+                            <span class="badge bg-secondary ms-1" id="contactos-count">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="sujetos-tab" data-bs-toggle="tab" data-bs-target="#sujetos-panel" type="button" role="tab">
+                            <i class="bi bi-people"></i> Sujetos
+                            <span class="badge bg-secondary ms-1" id="sujetos-count">0</span>
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content mt-3" id="importTabsContent">
+                    <!-- Evidencias Tab -->
+                    <div class="tab-pane fade show active" id="evidencias-panel" role="tabpanel">
+                        <div id="evidencias-loading" class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            <span class="ms-2">Cargando evidencias...</span>
+                        </div>
+                        <div id="evidencias-list" class="list-group" style="display: none;"></div>
+                        <div id="evidencias-empty" class="text-center text-muted py-4" style="display: none;">
+                            <i class="bi bi-inbox display-4"></i>
+                            <p class="mt-2">No hay evidencias en este caso</p>
+                        </div>
+                    </div>
+
+                    <!-- Contactos OSINT Tab -->
+                    <div class="tab-pane fade" id="contactos-panel" role="tabpanel">
+                        <div id="contactos-loading" class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            <span class="ms-2">Cargando contactos...</span>
+                        </div>
+                        <div id="contactos-list" class="list-group" style="display: none;"></div>
+                        <div id="contactos-empty" class="text-center text-muted py-4" style="display: none;">
+                            <i class="bi bi-inbox display-4"></i>
+                            <p class="mt-2">No hay contactos OSINT en este caso</p>
+                        </div>
+                    </div>
+
+                    <!-- Sujetos Tab -->
+                    <div class="tab-pane fade" id="sujetos-panel" role="tabpanel">
+                        <div id="sujetos-loading" class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            <span class="ms-2">Cargando sujetos...</span>
+                        </div>
+                        <div id="sujetos-list" class="list-group" style="display: none;"></div>
+                        <div id="sujetos-empty" class="text-center text-muted py-4" style="display: none;">
+                            <i class="bi bi-inbox display-4"></i>
+                            <p class="mt-2">No hay sujetos definidos en este caso</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selection Summary -->
+                <div class="mt-3 p-3 bg-light rounded" id="selection-summary" style="display: none;">
+                    <strong><i class="bi bi-check2-square"></i> Seleccionados:</strong>
+                    <span id="selected-count">0</span> elementos
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" onclick="selectAllElements()">
+                    <i class="bi bi-check-all"></i> Seleccionar Todo
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="deselectAllElements()">
+                    <i class="bi bi-x-lg"></i> Deseleccionar Todo
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="importSelectedElements()" id="btn-import" disabled>
+                    <i class="bi bi-plus-circle"></i> Crear Nodos (<span id="import-count">0</span>)
+                </button>
             </div>
         </div>
     </div>
@@ -319,7 +427,11 @@ function renderGraph(data) {
             Email: { color: { background: '#f39c12', border: '#e67e22' } },
             Vehicle: { color: { background: '#9b59b6', border: '#8e44ad' } },
             Address: { color: { background: '#1abc9c', border: '#16a085' } },
-            SocialProfile: { color: { background: '#e67e22', border: '#d35400' } }
+            SocialProfile: { color: { background: '#e67e22', border: '#d35400' } },
+            Evidence: { color: { background: '#34495e', border: '#2c3e50' } },
+            OsintContact: { color: { background: '#16a085', border: '#1abc9c' } },
+            BankAccount: { color: { background: '#8e44ad', border: '#9b59b6' } },
+            IpAddress: { color: { background: '#2c3e50', border: '#34495e' } }
         }
     };
 
@@ -409,5 +521,329 @@ function reloadGraph() {
 document.addEventListener('DOMContentLoaded', function() {
     loadGraphData();
 });
+
+// =============================================================================
+// Import Case Elements Functions
+// =============================================================================
+
+let caseElements = null;
+let selectedElements = new Map();
+
+// Load case elements for import modal
+async function loadCaseElements() {
+    console.log('[Import] Loading case elements...');
+
+    // Reset state
+    selectedElements.clear();
+    updateSelectionUI();
+
+    // Show loading states
+    ['evidencias', 'contactos', 'sujetos'].forEach(type => {
+        document.getElementById(`${type}-loading`).style.display = 'block';
+        document.getElementById(`${type}-list`).style.display = 'none';
+        document.getElementById(`${type}-empty`).style.display = 'none';
+    });
+
+    try {
+        const url = '{{ url_for("graph.api_case_elements", case_id=case.id) }}';
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        caseElements = await response.json();
+        console.log('[Import] Case elements loaded:', caseElements);
+
+        // Update counts
+        document.getElementById('evidencias-count').textContent = caseElements.counts.evidences;
+        document.getElementById('contactos-count').textContent = caseElements.counts.contacts;
+        document.getElementById('sujetos-count').textContent = caseElements.counts.sujetos;
+
+        // Render lists
+        renderEvidenciasList(caseElements.evidences);
+        renderContactosList(caseElements.contacts);
+        renderSujetosList(caseElements.sujetos);
+
+    } catch (error) {
+        console.error('[Import] Error loading case elements:', error);
+        ['evidencias', 'contactos', 'sujetos'].forEach(type => {
+            document.getElementById(`${type}-loading`).innerHTML = `
+                <div class="text-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Error al cargar: ${error.message}
+                </div>
+            `;
+        });
+    }
+}
+
+// Render evidencias list
+function renderEvidenciasList(evidences) {
+    const loading = document.getElementById('evidencias-loading');
+    const list = document.getElementById('evidencias-list');
+    const empty = document.getElementById('evidencias-empty');
+
+    loading.style.display = 'none';
+
+    if (!evidences || evidences.length === 0) {
+        empty.style.display = 'block';
+        return;
+    }
+
+    list.innerHTML = evidences.map(e => `
+        <label class="list-group-item list-group-item-action d-flex align-items-center ${e.has_node ? 'bg-light' : ''}">
+            <input type="checkbox" class="form-check-input me-3 element-checkbox"
+                   data-type="evidence" data-id="${e.id}"
+                   ${e.has_node ? 'disabled' : ''}
+                   onchange="toggleElement(this)">
+            <div class="flex-grow-1">
+                <div class="fw-bold">
+                    <i class="bi bi-file-earmark-${getEvidenceIcon(e.evidence_type)}"></i>
+                    ${e.name}
+                </div>
+                <small class="text-muted">
+                    ${e.evidence_type} | ${e.sha256_hash || 'Sin hash'}
+                    ${e.has_node ? '<span class="badge bg-info ms-2">Ya en grafo</span>' : ''}
+                </small>
+            </div>
+        </label>
+    `).join('');
+
+    list.style.display = 'block';
+}
+
+// Render contactos list
+function renderContactosList(contacts) {
+    const loading = document.getElementById('contactos-loading');
+    const list = document.getElementById('contactos-list');
+    const empty = document.getElementById('contactos-empty');
+
+    loading.style.display = 'none';
+
+    if (!contacts || contacts.length === 0) {
+        empty.style.display = 'block';
+        return;
+    }
+
+    list.innerHTML = contacts.map(c => `
+        <label class="list-group-item list-group-item-action d-flex align-items-center">
+            <input type="checkbox" class="form-check-input me-3 element-checkbox"
+                   data-type="osint_contact" data-id="${c.id}"
+                   onchange="toggleElement(this)">
+            <div class="flex-grow-1">
+                <div class="fw-bold">
+                    <i class="bi bi-${getContactIcon(c.contact_type)}"></i>
+                    ${c.name || c.contact_value}
+                </div>
+                <small class="text-muted">
+                    ${c.contact_type}: ${c.contact_value}
+                    ${c.is_validated ? '<span class="badge bg-success ms-2">Validado</span>' : ''}
+                    ${c.risk_level ? `<span class="badge bg-${getRiskBadgeClass(c.risk_level)} ms-1">${c.risk_level}</span>` : ''}
+                </small>
+            </div>
+        </label>
+    `).join('');
+
+    list.style.display = 'block';
+}
+
+// Render sujetos list
+function renderSujetosList(sujetos) {
+    const loading = document.getElementById('sujetos-loading');
+    const list = document.getElementById('sujetos-list');
+    const empty = document.getElementById('sujetos-empty');
+
+    loading.style.display = 'none';
+
+    if (!sujetos || sujetos.length === 0) {
+        empty.style.display = 'block';
+        return;
+    }
+
+    list.innerHTML = sujetos.map(s => `
+        <label class="list-group-item list-group-item-action d-flex align-items-center">
+            <input type="checkbox" class="form-check-input me-3 element-checkbox"
+                   data-type="sujeto" data-id="${s.id}" data-name="${s.name}" data-dni="${s.dni_nie || ''}" data-index="${s.index}"
+                   onchange="toggleElement(this)">
+            <div class="flex-grow-1">
+                <div class="fw-bold">
+                    <i class="bi bi-person-fill"></i>
+                    ${s.name}
+                </div>
+                <small class="text-muted">
+                    ${s.dni_nie ? `DNI/NIE: ${s.dni_nie}` : 'Sin identificación'}
+                    <span class="badge bg-warning ms-2">Sujeto investigado</span>
+                </small>
+            </div>
+        </label>
+    `).join('');
+
+    list.style.display = 'block';
+}
+
+// Toggle element selection
+function toggleElement(checkbox) {
+    const type = checkbox.dataset.type;
+    const id = checkbox.dataset.id;
+    const key = `${type}:${id}`;
+
+    if (checkbox.checked) {
+        const elementData = { type, id };
+        if (type === 'sujeto') {
+            elementData.name = checkbox.dataset.name;
+            elementData.dni_nie = checkbox.dataset.dni;
+            elementData.index = parseInt(checkbox.dataset.index);
+        }
+        selectedElements.set(key, elementData);
+    } else {
+        selectedElements.delete(key);
+    }
+
+    updateSelectionUI();
+}
+
+// Setup event delegation for checkboxes (handles dynamically created elements)
+document.addEventListener('change', function(e) {
+    if (e.target && e.target.classList.contains('element-checkbox')) {
+        toggleElement(e.target);
+    }
+});
+
+// Update selection UI
+function updateSelectionUI() {
+    const count = selectedElements.size;
+    document.getElementById('selected-count').textContent = count;
+    document.getElementById('import-count').textContent = count;
+    document.getElementById('selection-summary').style.display = count > 0 ? 'block' : 'none';
+    document.getElementById('btn-import').disabled = count === 0;
+}
+
+// Select all elements
+function selectAllElements() {
+    const checkboxes = document.querySelectorAll('.element-checkbox:not(:disabled)');
+    checkboxes.forEach(cb => {
+        if (!cb.checked) {
+            cb.checked = true;
+            // Manually trigger the toggle since we're setting programmatically
+            const type = cb.dataset.type;
+            const id = cb.dataset.id;
+            const key = `${type}:${id}`;
+            const elementData = { type, id };
+            if (type === 'sujeto') {
+                elementData.name = cb.dataset.name;
+                elementData.dni_nie = cb.dataset.dni;
+                elementData.index = parseInt(cb.dataset.index);
+            }
+            selectedElements.set(key, elementData);
+        }
+    });
+    updateSelectionUI();
+}
+
+// Deselect all elements
+function deselectAllElements() {
+    const checkboxes = document.querySelectorAll('.element-checkbox');
+    checkboxes.forEach(cb => {
+        if (cb.checked) {
+            cb.checked = false;
+        }
+    });
+    selectedElements.clear();
+    updateSelectionUI();
+}
+
+// Import selected elements
+async function importSelectedElements() {
+    if (selectedElements.size === 0) return;
+
+    const btn = document.getElementById('btn-import');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Importando...';
+
+    try {
+        const elements = Array.from(selectedElements.values());
+        console.log('[Import] Importing elements:', elements);
+
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        const response = await fetch('{{ url_for("graph.api_import_elements", case_id=case.id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ elements })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('[Import] Import result:', result);
+
+        // Show result message
+        let message = `Importados: ${result.summary.created} nodos`;
+        if (result.summary.skipped > 0) {
+            message += `, ${result.summary.skipped} omitidos`;
+        }
+        if (result.summary.errors > 0) {
+            message += `, ${result.summary.errors} errores`;
+        }
+
+        alert(message);
+
+        // Close modal and reload graph
+        const modal = bootstrap.Modal.getInstance(document.getElementById('importElementsModal'));
+        modal.hide();
+
+        // Reload graph to show new nodes
+        reloadGraph();
+
+    } catch (error) {
+        console.error('[Import] Error importing elements:', error);
+        alert('Error al importar elementos: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+// Helper functions for icons and badges
+function getEvidenceIcon(type) {
+    const icons = {
+        'Imagen': 'image',
+        'Vídeo': 'play',
+        'Audio': 'music-note',
+        'Documento': 'text',
+        'Captura Web': 'globe',
+        'Email': 'envelope',
+        'Datos Digitales': 'database'
+    };
+    return icons[type] || 'file';
+}
+
+function getContactIcon(type) {
+    const icons = {
+        'email': 'envelope',
+        'phone': 'telephone',
+        'social_profile': 'person-circle',
+        'username': 'person-badge',
+        'other': 'info-circle'
+    };
+    return icons[type] || 'info-circle';
+}
+
+function getRiskBadgeClass(level) {
+    const classes = {
+        'low': 'success',
+        'medium': 'warning',
+        'high': 'warning',
+        'very_high': 'danger'
+    };
+    return classes[level] || 'secondary';
+}
 </script>
 {% endblock %}

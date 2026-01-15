@@ -20,6 +20,7 @@ class NodeType(Enum):
     SOCIAL_PROFILE = 'SocialProfile'
     BANK_ACCOUNT = 'BankAccount'
     IP_ADDRESS = 'IpAddress'
+    OSINT_CONTACT = 'OsintContact'
 
 
 class RelationshipType(Enum):
@@ -294,6 +295,36 @@ class SocialProfileNode(GraphNode):
             props['url'] = url
 
         super().__init__(node_id, NodeType.SOCIAL_PROFILE, props)
+
+
+class OsintContactNode(GraphNode):
+    """OSINT contact node in the graph."""
+
+    def __init__(self, node_id: Optional[str] = None, contact_id: int = None,
+                 name: str = None, identifier: str = None,
+                 contact_type: str = None, properties: Dict[str, Any] = None):
+        """
+        Initialize OSINT contact node.
+
+        Args:
+            node_id: Neo4j node ID
+            contact_id: PostgreSQL osint_contact.id
+            name: Contact name or identifier
+            identifier: Primary identifier (email, phone, username)
+            contact_type: Type of contact (email, phone, social_profile, etc.)
+            properties: Additional properties
+        """
+        props = properties or {}
+        if contact_id:
+            props['contact_id'] = contact_id
+        if name:
+            props['name'] = name
+        if identifier:
+            props['identifier'] = identifier
+        if contact_type:
+            props['contact_type'] = contact_type
+
+        super().__init__(node_id, NodeType.OSINT_CONTACT, props)
 
 
 class GraphRelationship:

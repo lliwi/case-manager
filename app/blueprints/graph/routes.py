@@ -12,8 +12,12 @@ from app.blueprints.graph.forms import (
 from app.models.case import Case
 from app.models.graph import (
     NodeType, RelationshipType, PersonNode, CompanyNode, PhoneNode,
-    EmailNode, VehicleNode, AddressNode, SocialProfileNode, GraphRelationship
+    EmailNode, VehicleNode, AddressNode, SocialProfileNode, GraphRelationship,
+    EvidenceNode, OsintContactNode
 )
+from app.models.evidence import Evidence
+from app.models.osint_contact import OSINTContact
+import json
 from app.services.graph_service import GraphService
 from app.services.legitimacy_service import LegitimacyService
 from app.utils.decorators import require_detective, audit_action
@@ -336,7 +340,10 @@ def api_graph_data(case_id):
             'Vehicle': '#9b59b6',     # Purple
             'Address': '#1abc9c',     # Turquoise
             'Evidence': '#34495e',    # Dark gray
-            'SocialProfile': '#e67e22' # Carrot orange
+            'SocialProfile': '#e67e22', # Carrot orange
+            'OsintContact': '#16a085',  # Sea green
+            'BankAccount': '#8e44ad',   # Wisteria purple
+            'IpAddress': '#2c3e50'      # Midnight blue
         }
 
         # Convert nodes to vis.js format
@@ -356,6 +363,14 @@ def api_graph_data(case_id):
                 label_text = node['properties'].get('city', 'Dirección')
             elif node['label'] == 'SocialProfile':
                 label_text = f"{node['properties'].get('platform', '')}: {node['properties'].get('username', '')}"
+            elif node['label'] == 'Evidence':
+                label_text = node['properties'].get('filename', 'Evidencia')
+            elif node['label'] == 'OsintContact':
+                label_text = node['properties'].get('name', node['properties'].get('identifier', 'Contacto OSINT'))
+            elif node['label'] == 'BankAccount':
+                label_text = node['properties'].get('iban', 'Cuenta Bancaria')
+            elif node['label'] == 'IpAddress':
+                label_text = node['properties'].get('ip', 'Dirección IP')
             else:
                 label_text = node['label']
 
@@ -477,3 +492,331 @@ def api_common_connections():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# =============================================================================
+# Case Elements Import API
+# =============================================================================
+
+@graph_bp.route('/api/case/<int:case_id>/case-elements')
+@login_required
+@require_detective()
+def api_case_elements(case_id):
+    """API endpoint to get all case elements available for import to graph."""
+    case = Case.query.get_or_404(case_id)
+
+    # Check access
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        abort(403)
+
+    try:
+        # Get evidences
+        evidences = Evidence.query.filter_by(
+            case_id=case_id,
+            is_deleted=False
+        ).all()
+
+        evidences_data = [{
+            'id': e.id,
+            'type': 'evidence',
+            'name': e.original_filename,
+            'evidence_type': e.evidence_type.value if e.evidence_type else 'Otros',
+            'description': e.description,
+            'sha256_hash': e.sha256_hash[:16] + '...' if e.sha256_hash else None,
+            'uploaded_at': e.uploaded_at.isoformat() if e.uploaded_at else None,
+            'has_node': bool(e.neo4j_node_id)
+        } for e in evidences]
+
+        # Get OSINT contacts
+        contacts = OSINTContact.get_active_contacts(case_id=case_id).all()
+
+        contacts_data = [{
+            'id': c.id,
+            'type': 'osint_contact',
+            'name': c.name or c.contact_value,
+            'contact_type': c.contact_type,
+            'contact_value': c.contact_value,
+            'risk_level': c.risk_level,
+            'is_validated': c.is_validated,
+            'extra_data': c.extra_data
+        } for c in contacts]
+
+        # Get sujetos (subjects) from case
+        sujetos_data = []
+        sujeto_nombres = []
+        sujeto_dnis = []
+
+        # Parse JSON arrays
+        if case.sujeto_nombres:
+            try:
+                sujeto_nombres = json.loads(case.sujeto_nombres) if isinstance(case.sujeto_nombres, str) else case.sujeto_nombres
+            except (json.JSONDecodeError, TypeError):
+                sujeto_nombres = [case.sujeto_nombres] if case.sujeto_nombres else []
+
+        if case.sujeto_dni_nie:
+            try:
+                sujeto_dnis = json.loads(case.sujeto_dni_nie) if isinstance(case.sujeto_dni_nie, str) else case.sujeto_dni_nie
+            except (json.JSONDecodeError, TypeError):
+                sujeto_dnis = [case.sujeto_dni_nie] if case.sujeto_dni_nie else []
+
+        # Build sujetos list
+        for i, nombre in enumerate(sujeto_nombres):
+            if nombre:
+                sujetos_data.append({
+                    'id': f'sujeto_{i}',
+                    'type': 'sujeto',
+                    'name': nombre,
+                    'dni_nie': sujeto_dnis[i] if i < len(sujeto_dnis) else None,
+                    'index': i
+                })
+
+        return jsonify({
+            'evidences': evidences_data,
+            'contacts': contacts_data,
+            'sujetos': sujetos_data,
+            'counts': {
+                'evidences': len(evidences_data),
+                'contacts': len(contacts_data),
+                'sujetos': len(sujetos_data)
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@graph_bp.route('/api/case/<int:case_id>/import-elements', methods=['POST'])
+@login_required
+@require_detective()
+@audit_action('GRAPH_IMPORT_ELEMENTS', 'graph')
+def api_import_elements(case_id):
+    """API endpoint to import case elements as graph nodes."""
+    case = Case.query.get_or_404(case_id)
+
+    # Check access
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        abort(403)
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    elements = data.get('elements', [])
+    if not elements:
+        return jsonify({'error': 'No elements to import'}), 400
+
+    graph_service = GraphService()
+    results = {
+        'created': [],
+        'skipped': [],
+        'errors': []
+    }
+
+    for element in elements:
+        element_type = element.get('type')
+        element_id = element.get('id')
+
+        try:
+            if element_type == 'evidence':
+                # Convert ID to int if it's a string
+                try:
+                    evidence_id = int(element_id)
+                except (ValueError, TypeError):
+                    results['errors'].append({
+                        'id': element_id,
+                        'type': element_type,
+                        'error': f'ID de evidencia inválido: {element_id}'
+                    })
+                    continue
+
+                evidence = Evidence.query.get(evidence_id)
+                if not evidence or evidence.case_id != case_id:
+                    results['errors'].append({
+                        'id': element_id,
+                        'type': element_type,
+                        'error': 'Evidencia no encontrada'
+                    })
+                    continue
+
+                # Check if already has node
+                if evidence.neo4j_node_id:
+                    results['skipped'].append({
+                        'id': element_id,
+                        'type': element_type,
+                        'reason': 'Ya existe nodo para esta evidencia',
+                        'existing_node_id': evidence.neo4j_node_id
+                    })
+                    continue
+
+                # Create evidence node
+                node = EvidenceNode(
+                    evidence_id=evidence.id,
+                    filename=evidence.original_filename,
+                    evidence_type=evidence.evidence_type.value if evidence.evidence_type else 'Otros',
+                    properties={
+                        'description': evidence.description,
+                        'sha256_hash': evidence.sha256_hash,
+                        'mime_type': evidence.mime_type,
+                        'file_size': evidence.file_size,
+                        'uploaded_at': evidence.uploaded_at.isoformat() if evidence.uploaded_at else None,
+                        'source': 'case_import'
+                    }
+                )
+
+                node_id = graph_service.create_node(node, case_id)
+
+                # Update evidence with neo4j_node_id
+                evidence.neo4j_node_id = node_id
+                from app.extensions import db
+                db.session.commit()
+
+                results['created'].append({
+                    'id': element_id,
+                    'type': element_type,
+                    'node_id': node_id,
+                    'label': evidence.original_filename
+                })
+
+            elif element_type == 'osint_contact':
+                # Convert ID to int if it's a string
+                try:
+                    contact_id = int(element_id)
+                except (ValueError, TypeError):
+                    results['errors'].append({
+                        'id': element_id,
+                        'type': element_type,
+                        'error': f'ID de contacto inválido: {element_id}'
+                    })
+                    continue
+
+                contact = OSINTContact.query.get(contact_id)
+                if not contact or contact.case_id != case_id:
+                    results['errors'].append({
+                        'id': element_id,
+                        'type': element_type,
+                        'error': 'Contacto no encontrado'
+                    })
+                    continue
+
+                # Determine node type based on contact type
+                if contact.contact_type == 'email':
+                    node = EmailNode(
+                        address=contact.contact_value,
+                        properties={
+                            'osint_contact_id': contact.id,
+                            'name': contact.name,
+                            'is_validated': contact.is_validated,
+                            'risk_level': contact.risk_level,
+                            'source': 'osint_contact'
+                        }
+                    )
+                elif contact.contact_type == 'phone':
+                    node = PhoneNode(
+                        number=contact.contact_value,
+                        properties={
+                            'osint_contact_id': contact.id,
+                            'name': contact.name,
+                            'is_validated': contact.is_validated,
+                            'risk_level': contact.risk_level,
+                            'source': 'osint_contact'
+                        }
+                    )
+                elif contact.contact_type == 'social_profile':
+                    # Extract platform from extra_data if available
+                    platform = 'Unknown'
+                    extra = contact.extra_data or {}
+                    if 'instagram_profile' in extra:
+                        platform = 'Instagram'
+                    elif 'x_profile' in extra or 'twitter_profile' in extra:
+                        platform = 'X/Twitter'
+
+                    node = SocialProfileNode(
+                        platform=platform,
+                        username=contact.contact_value,
+                        properties={
+                            'osint_contact_id': contact.id,
+                            'name': contact.name,
+                            'is_validated': contact.is_validated,
+                            'extra_data': extra,
+                            'source': 'osint_contact'
+                        }
+                    )
+                else:
+                    # Generic OSINT contact node
+                    node = OsintContactNode(
+                        contact_id=contact.id,
+                        name=contact.name or contact.contact_value,
+                        identifier=contact.contact_value,
+                        contact_type=contact.contact_type,
+                        properties={
+                            'is_validated': contact.is_validated,
+                            'risk_level': contact.risk_level,
+                            'source': 'osint_contact'
+                        }
+                    )
+
+                node_id = graph_service.create_node(node, case_id)
+
+                results['created'].append({
+                    'id': element_id,
+                    'type': element_type,
+                    'node_id': node_id,
+                    'label': contact.name or contact.contact_value
+                })
+
+            elif element_type == 'sujeto':
+                # Sujetos don't have database IDs, use index
+                sujeto_index = element.get('index', 0)
+                sujeto_name = element.get('name')
+                sujeto_dni = element.get('dni_nie')
+
+                if not sujeto_name:
+                    results['errors'].append({
+                        'id': element_id,
+                        'type': element_type,
+                        'error': 'Nombre de sujeto no proporcionado'
+                    })
+                    continue
+
+                node = PersonNode(
+                    name=sujeto_name,
+                    dni_cif=sujeto_dni,
+                    properties={
+                        'role': 'Sujeto investigado',
+                        'sujeto_index': sujeto_index,
+                        'source': 'case_sujeto'
+                    }
+                )
+
+                node_id = graph_service.create_node(node, case_id)
+
+                results['created'].append({
+                    'id': element_id,
+                    'type': element_type,
+                    'node_id': node_id,
+                    'label': sujeto_name
+                })
+
+            else:
+                results['errors'].append({
+                    'id': element_id,
+                    'type': element_type,
+                    'error': f'Tipo de elemento no soportado: {element_type}'
+                })
+
+        except Exception as e:
+            results['errors'].append({
+                'id': element_id,
+                'type': element_type,
+                'error': str(e)
+            })
+
+    return jsonify({
+        'success': True,
+        'results': results,
+        'summary': {
+            'created': len(results['created']),
+            'skipped': len(results['skipped']),
+            'errors': len(results['errors'])
+        }
+    })
