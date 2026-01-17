@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Vista Previa - {{ report.title }} - Case Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h4 class="mb-0">
+                        <i class="bi bi-file-earmark-pdf text-danger"></i>
+                        {{ report.title }}
+                    </h4>
+                    <small class="text-muted">
+                        Caso {{ report.case.numero_orden }} |
+                        Versión {{ report.version }} |
+                        {{ report.report_type.value }}
+                    </small>
+                </div>
+                <div class="btn-group">
+                    <a href="{{ url_for('reports.report_detail', report_id=report.id) }}"
+                       class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver
+                    </a>
+                    <a href="{{ url_for('reports.view_pdf', report_id=report.id) }}"
+                       class="btn btn-outline-primary" target="_blank">
+                        <i class="bi bi-box-arrow-up-right"></i> Abrir en nueva pestaña
+                    </a>
+                    <a href="{{ url_for('reports.download_pdf', report_id=report.id) }}"
+                       class="btn btn-success">
+                        <i class="bi bi-download"></i> Descargar
+                    </a>
+                </div>
+            </div>
+
+            <!-- PDF Info Bar -->
+            <div class="alert alert-info py-2 mb-3">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Informe generado:</strong>
+                        {{ report.generated_at.strftime('%d/%m/%Y %H:%M') if report.generated_at else '-' }}
+                    </div>
+                    <div class="col-auto">
+                        <strong>Tamaño:</strong>
+                        {{ (report.file_size / 1024)|round(2) if report.file_size else 0 }} KB
+                    </div>
+                    <div class="col-auto">
+                        {% if report.is_signed %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-patch-check-fill"></i> Firmado digitalmente
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary">
+                                <i class="bi bi-file-earmark-text"></i> Sin firmar
+                            </span>
+                        {% endif %}
+                    </div>
+                    <div class="col-auto ms-auto">
+                        <span class="badge bg-{{ 'success' if report.status.name == 'COMPLETED' else 'primary' if report.status.name == 'SIGNED' else 'secondary' }}">
+                            {{ report.status.value }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PDF Viewer -->
+            <div class="card shadow">
+                <div class="card-body p-0">
+                    <iframe
+                        src="{{ url_for('reports.view_pdf', report_id=report.id) }}"
+                        class="w-100 border-0"
+                        style="height: calc(100vh - 220px); min-height: 600px;"
+                        title="Vista previa del informe PDF">
+                        <p>Tu navegador no soporta la visualización de PDFs.
+                           <a href="{{ url_for('reports.download_pdf', report_id=report.id) }}">Descargar PDF</a>
+                        </p>
+                    </iframe>
+                </div>
+            </div>
+
+            <!-- Hash verification -->
+            {% if report.file_hash_sha256 %}
+            <div class="card mt-3">
+                <div class="card-header bg-light py-2">
+                    <small class="text-muted">
+                        <i class="bi bi-shield-check"></i> Verificación de integridad
+                    </small>
+                </div>
+                <div class="card-body py-2">
+                    <small>
+                        <strong>SHA-256:</strong>
+                        <code class="user-select-all">{{ report.file_hash_sha256 }}</code>
+                    </small>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

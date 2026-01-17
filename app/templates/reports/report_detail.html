@@ -181,6 +181,10 @@
                                 {% endif %}
 
                                 {% if report.status.name == 'COMPLETED' or report.status.name == 'SIGNED' %}
+                                    <a href="{{ url_for('reports.preview_report', report_id=report.id) }}"
+                                       class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye"></i> Ver PDF
+                                    </a>
                                     <a href="{{ url_for('reports.download_pdf', report_id=report.id) }}"
                                        class="btn btn-sm btn-success">
                                         <i class="bi bi-download"></i> Descargar PDF

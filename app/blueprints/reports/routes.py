@@ -229,6 +229,52 @@ def download_pdf(report_id):
     )
 
 
+@reports_bp.route('/report/<int:report_id>/preview')
+@login_required
+@audit_action('REPORT_PREVIEW', 'report')
+def preview_report(report_id):
+    """Preview report PDF in application."""
+    report = Report.query.get_or_404(report_id)
+
+    # Check permissions
+    if report.case.detective_id != current_user.id and not current_user.has_role('admin'):
+        flash('No tienes permisos para ver este informe', 'error')
+        return redirect(url_for('cases.index'))
+
+    # Check if PDF exists
+    if not report.file_path or not os.path.exists(report.file_path):
+        flash('El PDF no ha sido generado aún', 'error')
+        return redirect(url_for('reports.report_detail', report_id=report_id))
+
+    return render_template('reports/preview_report.html', report=report)
+
+
+@reports_bp.route('/report/<int:report_id>/view')
+@login_required
+@audit_action('REPORT_VIEW_PDF', 'report')
+def view_pdf(report_id):
+    """View report PDF in browser."""
+    report = Report.query.get_or_404(report_id)
+
+    # Check permissions
+    if report.case.detective_id != current_user.id and not current_user.has_role('admin'):
+        flash('No tienes permisos para ver este informe', 'error')
+        return redirect(url_for('cases.index'))
+
+    # Check if PDF exists
+    if not report.file_path or not os.path.exists(report.file_path):
+        flash('El PDF no ha sido generado aún', 'error')
+        return redirect(url_for('reports.report_detail', report_id=report_id))
+
+    # Send file inline (view in browser)
+    return send_file(
+        report.file_path,
+        as_attachment=False,
+        download_name=report.get_file_name(),
+        mimetype='application/pdf'
+    )
+
+
 @reports_bp.route('/report/<int:report_id>/export-json')
 @login_required
 @audit_action('REPORT_EXPORT_JSON', 'report')
