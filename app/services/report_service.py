@@ -10,6 +10,7 @@ from app.models.timeline import TimelineEvent
 from app.models.audit import AuditLog
 from app.models.user import User
 from app.models.evidence_analysis import EvidenceAnalysis
+from app.models.osint_contact import OSINTContact
 from app.extensions import db
 from app.utils.hashing import calculate_file_hashes
 from app.services.graph_service import GraphService
@@ -78,6 +79,7 @@ class ReportService:
             include_chain_of_custody=kwargs.get('include_chain_of_custody', True),
             include_plugin_results=kwargs.get('include_plugin_results', False),
             include_evidence_thumbnails=kwargs.get('include_evidence_thumbnails', False),
+            include_osint_contacts=kwargs.get('include_osint_contacts', False),
             status=ReportStatus.DRAFT
         )
 
@@ -573,6 +575,268 @@ class ReportService:
             story.append(Spacer(1, 0.5*cm))
             section_num += 1
 
+        # OSINT Contacts
+        if report.include_osint_contacts:
+            story.append(PageBreak())
+            story.append(Paragraph(f'{section_num}. CONTACTOS OSINT', heading_style))
+
+            osint_contacts = OSINTContact.query.filter_by(
+                case_id=report.case_id,
+                is_deleted=False
+            ).order_by(OSINTContact.created_at.desc()).all()
+
+            if osint_contacts:
+                # Create OSINT contacts table
+                contact_data = [['#', 'Tipo', 'Valor', 'Nombre', 'Validado', 'Riesgo']]
+                for idx, contact in enumerate(osint_contacts, 1):
+                    contact_data.append([
+                        str(idx),
+                        contact.contact_type or '-',
+                        contact.contact_value[:40] + '...' if len(contact.contact_value or '') > 40 else (contact.contact_value or '-'),
+                        contact.name[:25] + '...' if len(contact.name or '') > 25 else (contact.name or '-'),
+                        'Sí' if contact.is_validated else 'No',
+                        contact.risk_level or '-'
+                    ])
+
+                contact_table = Table(contact_data, colWidths=[1*cm, 2.5*cm, 5*cm, 3.5*cm, 1.5*cm, 1.5*cm])
+                contact_table.setStyle(TableStyle([
+                    ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 9),
+                    ('FONT', (0, 1), (-1, -1), 'Helvetica', 8),
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#16a085')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ]))
+                story.append(contact_table)
+                story.append(Spacer(1, 0.5*cm))
+
+                # Add detailed info for validated contacts
+                validated_contacts = [c for c in osint_contacts if c.is_validated and c.extra_data and isinstance(c.extra_data, dict)]
+                if validated_contacts:
+                    story.append(Paragraph('<b>Detalles de contactos validados:</b>', body_style))
+                    story.append(Spacer(1, 0.2*cm))
+
+                    for contact in validated_contacts[:10]:  # Limit to first 10
+                        story.append(Paragraph(f'<b>{contact.contact_type}: {contact.contact_value}</b>', body_style))
+
+                        extra = contact.extra_data or {}
+                        details = []
+
+                        # Instagram profile data
+                        if 'instagram_profile' in extra and isinstance(extra.get('instagram_profile'), dict):
+                            ig = extra['instagram_profile']
+                            if ig.get('full_name'):
+                                details.append(f"Nombre completo: {ig['full_name']}")
+                            if ig.get('biography'):
+                                bio = str(ig['biography'])[:100]
+                                details.append(f"Biografía: {bio}...")
+                            if ig.get('follower_count'):
+                                details.append(f"Seguidores: {ig['follower_count']}")
+                            if ig.get('following_count'):
+                                details.append(f"Siguiendo: {ig['following_count']}")
+
+                        # X/Twitter profile data
+                        if 'x_profile' in extra or 'twitter_profile' in extra:
+                            tw = extra.get('x_profile') or extra.get('twitter_profile') or {}
+                            if isinstance(tw, dict):
+                                if tw.get('name'):
+                                    details.append(f"Nombre: {tw['name']}")
+                                if tw.get('description'):
+                                    desc = str(tw['description'])[:100]
+                                    details.append(f"Descripción: {desc}...")
+                                if tw.get('followers_count'):
+                                    details.append(f"Seguidores: {tw['followers_count']}")
+                                if tw.get('location'):
+                                    details.append(f"Ubicación: {tw['location']}")
+
+                        # Email validation data
+                        if 'holehe_results' in extra and isinstance(extra.get('holehe_results'), dict):
+                            holehe = extra['holehe_results']
+                            services_found = holehe.get('services_found')
+                            if services_found and isinstance(services_found, list):
+                                services = services_found[:5]
+                                details.append(f"Servicios encontrados: {', '.join(str(s) for s in services)}")
+
+                        for detail in details:
+                            story.append(Paragraph(f'  • {detail}', body_style))
+
+                        story.append(Spacer(1, 0.2*cm))
+
+                # Add tweets saved as evidence
+                tweet_evidences = [e for e in evidence_list if e.extracted_metadata and isinstance(e.extracted_metadata, dict) and e.extracted_metadata.get('type') == 'tweet']
+                if tweet_evidences:
+                    story.append(Spacer(1, 0.5*cm))
+                    story.append(Paragraph('<b>Tweets guardados como evidencia:</b>', body_style))
+                    story.append(Spacer(1, 0.2*cm))
+
+                    # Create tweet evidence table
+                    tweet_ev_data = [['#', 'Autor', 'Tweet', 'Fecha', 'Likes', 'RT']]
+                    for idx, ev in enumerate(tweet_evidences[:20], 1):  # Limit to 20
+                        meta = ev.extracted_metadata or {}
+                        author = meta.get('author') or {}
+                        content = meta.get('content') or {}
+                        metrics = meta.get('metrics') or {}
+
+                        text = (content.get('text') or '')[:60]
+                        if len(content.get('text') or '') > 60:
+                            text += '...'
+
+                        created_at = content.get('created_at') or ''
+                        tweet_ev_data.append([
+                            str(idx),
+                            f"@{author.get('username') or '-'}",
+                            text or '-',
+                            created_at[:10] if created_at else '-',
+                            str(metrics.get('like_count', 0) or 0),
+                            str(metrics.get('retweet_count', 0) or 0)
+                        ])
+
+                    if len(tweet_ev_data) > 1:
+                        tweet_ev_table = Table(tweet_ev_data, colWidths=[0.8*cm, 2.5*cm, 7*cm, 2*cm, 1.5*cm, 1.2*cm])
+                        tweet_ev_table.setStyle(TableStyle([
+                            ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 8),
+                            ('FONT', (0, 1), (-1, -1), 'Helvetica', 7),
+                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1DA1F2')),
+                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                            ('ALIGN', (4, 0), (5, -1), 'CENTER'),
+                            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                        ]))
+                        story.append(tweet_ev_table)
+                        story.append(Spacer(1, 0.3*cm))
+
+                # Add X/Twitter Tweets from contacts section
+                contacts_with_tweets = [c for c in osint_contacts if c.extra_data and ('x_tweets' in c.extra_data or 'tweets' in c.extra_data)]
+                if contacts_with_tweets:
+                    story.append(Spacer(1, 0.5*cm))
+                    story.append(Paragraph('<b>Tweets de X (Twitter) de contactos OSINT:</b>', body_style))
+                    story.append(Spacer(1, 0.2*cm))
+
+                    for contact in contacts_with_tweets:
+                        extra = contact.extra_data or {}
+                        # Structure: extra_data['x_tweets']['data']['tweets']
+                        tweets_container = extra.get('x_tweets') or extra.get('tweets') or {}
+                        if isinstance(tweets_container, dict):
+                            tweets_data = tweets_container.get('data') or tweets_container or {}
+                            tweets = tweets_data.get('tweets', []) if isinstance(tweets_data, dict) else []
+                            user_info = tweets_data.get('user') or {} if isinstance(tweets_data, dict) else {}
+                        else:
+                            tweets = []
+                            user_info = {}
+
+                        if tweets and isinstance(tweets, list):
+                            username = (user_info.get('username') if user_info else None) or contact.contact_value
+                            story.append(Paragraph(f'<b>@{username}</b> ({len(tweets)} tweets)', body_style))
+                            story.append(Spacer(1, 0.1*cm))
+
+                            # Create tweets table
+                            tweet_table_data = [['Fecha', 'Tweet', 'Likes', 'RT']]
+                            for tweet in tweets[:15]:  # Limit to first 15 tweets
+                                if not tweet or not isinstance(tweet, dict):
+                                    continue
+                                text = (tweet.get('text') or '')[:80]
+                                if len(tweet.get('text') or '') > 80:
+                                    text += '...'
+                                metrics = tweet.get('metrics') or tweet.get('public_metrics') or {}
+                                created_at = tweet.get('created_at_formatted') or tweet.get('created_at') or ''
+                                date_str = created_at[:10] if created_at else '-'
+                                tweet_table_data.append([
+                                    date_str,
+                                    text or '-',
+                                    str(metrics.get('like_count', metrics.get('likes', 0)) if metrics else 0),
+                                    str(metrics.get('retweet_count', metrics.get('retweets', 0)) if metrics else 0)
+                                ])
+
+                            if len(tweet_table_data) > 1:
+                                tweet_table = Table(tweet_table_data, colWidths=[2*cm, 10*cm, 1.5*cm, 1.5*cm])
+                                tweet_table.setStyle(TableStyle([
+                                    ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 8),
+                                    ('FONT', (0, 1), (-1, -1), 'Helvetica', 7),
+                                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1DA1F2')),
+                                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                                    ('ALIGN', (2, 0), (3, -1), 'CENTER'),
+                                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                                    ('WORDWRAP', (1, 0), (1, -1), True),
+                                ]))
+                                story.append(tweet_table)
+                                story.append(Spacer(1, 0.3*cm))
+
+                # Add Instagram Posts section
+                contacts_with_posts = [c for c in osint_contacts if c.extra_data and ('instagram_posts' in c.extra_data or 'posts' in c.extra_data)]
+                if contacts_with_posts:
+                    story.append(Spacer(1, 0.5*cm))
+                    story.append(Paragraph('<b>Posts de Instagram de contactos OSINT:</b>', body_style))
+                    story.append(Spacer(1, 0.2*cm))
+
+                    for contact in contacts_with_posts:
+                        extra = contact.extra_data or {}
+                        # Structure: extra_data['instagram_posts']['data']['posts']
+                        posts_container = extra.get('instagram_posts') or extra.get('posts') or {}
+                        if isinstance(posts_container, dict):
+                            posts_data = posts_container.get('data') or posts_container or {}
+                            posts = posts_data.get('posts', []) if isinstance(posts_data, dict) else []
+                            profile_info = posts_data.get('profile') or {} if isinstance(posts_data, dict) else {}
+                        else:
+                            posts = []
+                            profile_info = {}
+
+                        if posts and isinstance(posts, list):
+                            username = (profile_info.get('username') if profile_info else None) or contact.contact_value
+                            story.append(Paragraph(f'<b>@{username}</b> ({len(posts)} posts)', body_style))
+                            story.append(Spacer(1, 0.1*cm))
+
+                            # Create posts table
+                            post_table_data = [['Fecha', 'Caption', 'Tipo', 'Likes', 'Comentarios']]
+                            for post in posts[:15]:  # Limit to first 15 posts
+                                if not post or not isinstance(post, dict):
+                                    continue
+                                caption = (post.get('caption') or '')[:60]
+                                if len(post.get('caption') or '') > 60:
+                                    caption += '...'
+                                timestamp = post.get('timestamp_formatted') or post.get('timestamp') or ''
+                                date_str = timestamp[:10] if timestamp else '-'
+                                post_type = post.get('type') or 'Image'
+                                if post_type == 'Sidecar':
+                                    post_type = 'Carrusel'
+                                elif post_type == 'Video':
+                                    post_type = 'Video'
+                                else:
+                                    post_type = 'Imagen'
+
+                                post_table_data.append([
+                                    date_str,
+                                    caption if caption else '(sin caption)',
+                                    post_type,
+                                    str(post.get('likes_count', 0) or 0),
+                                    str(post.get('comments_count', 0) or 0)
+                                ])
+
+                            if len(post_table_data) > 1:
+                                post_table = Table(post_table_data, colWidths=[2*cm, 7.5*cm, 1.5*cm, 2*cm, 2*cm])
+                                post_table.setStyle(TableStyle([
+                                    ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 8),
+                                    ('FONT', (0, 1), (-1, -1), 'Helvetica', 7),
+                                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E1306C')),
+                                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                                    ('ALIGN', (2, 0), (4, -1), 'CENTER'),
+                                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                                    ('WORDWRAP', (1, 0), (1, -1), True),
+                                ]))
+                                story.append(post_table)
+                                story.append(Spacer(1, 0.3*cm))
+
+            else:
+                story.append(Paragraph('No se encontraron contactos OSINT asociados al caso.', body_style))
+
+            story.append(Spacer(1, 0.5*cm))
+            section_num += 1
+
         # Plugin analysis results
         if report.include_plugin_results:
             story.append(PageBreak())
@@ -868,6 +1132,14 @@ class ReportService:
                 is_deleted=False
             ).order_by(TimelineEvent.event_date.asc()).all()
             data['timeline'] = [e.to_dict() for e in timeline_events]
+
+        # Include OSINT contacts if requested
+        if report.include_osint_contacts:
+            osint_contacts = OSINTContact.query.filter_by(
+                case_id=report.case_id,
+                is_deleted=False
+            ).all()
+            data['osint_contacts'] = [c.to_dict() for c in osint_contacts]
 
         # Log export
         user = User.query.get(user_id)

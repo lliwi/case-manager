@@ -73,6 +73,7 @@ def create_report(case_id):
     include_chain_of_custody = request.form.get('include_chain_of_custody') == 'on'
     include_plugin_results = request.form.get('include_plugin_results') == 'on'
     include_evidence_thumbnails = request.form.get('include_evidence_thumbnails') == 'on'
+    include_osint_contacts = request.form.get('include_osint_contacts') == 'on'
 
     if not title:
         flash('El título es requerido', 'error')
@@ -98,7 +99,8 @@ def create_report(case_id):
         include_graph=include_graph,
         include_chain_of_custody=include_chain_of_custody,
         include_plugin_results=include_plugin_results,
-        include_evidence_thumbnails=include_evidence_thumbnails
+        include_evidence_thumbnails=include_evidence_thumbnails,
+        include_osint_contacts=include_osint_contacts
     )
 
     flash(f'Informe "{title}" creado exitosamente', 'success')
@@ -163,6 +165,7 @@ def edit_report(report_id):
     report.include_chain_of_custody = request.form.get('include_chain_of_custody') == 'on'
     report.include_plugin_results = request.form.get('include_plugin_results') == 'on'
     report.include_evidence_thumbnails = request.form.get('include_evidence_thumbnails') == 'on'
+    report.include_osint_contacts = request.form.get('include_osint_contacts') == 'on'
 
     db.session.commit()
 

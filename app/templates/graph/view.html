@@ -34,6 +34,19 @@
         border-radius: 50%;
         margin-right: 8px;
     }
+    /* Custom badge colors */
+    .bg-purple {
+        background-color: #9b59b6 !important;
+        color: white;
+    }
+    .bg-orange {
+        background-color: #e67e22 !important;
+        color: white;
+    }
+    .bg-teal {
+        background-color: #16a085 !important;
+        color: white;
+    }
 </style>
 {% endblock %}
 
@@ -187,6 +200,203 @@
                         <span class="badge bg-secondary">{{ node_type }}: {{ count }}</span>
                     {% endfor %}
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Node Details Modal -->
+<div class="modal fade" id="nodeDetailsModal" tabindex="-1" aria-labelledby="nodeDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="nodeDetailsModalLabel">
+                    <i class="bi bi-info-circle"></i> Detalles del Nodo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Node Type Badge -->
+                <div class="mb-3">
+                    <span class="badge fs-6" id="node-type-badge">Tipo</span>
+                    <span class="text-muted ms-2" id="node-id-display"></span>
+                </div>
+
+                <!-- View Mode -->
+                <div id="node-view-mode">
+                    <table class="table table-bordered">
+                        <tbody id="node-properties-table">
+                            <!-- Properties will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Edit Mode -->
+                <div id="node-edit-mode" style="display: none;">
+                    <form id="node-edit-form">
+                        <div id="node-edit-fields">
+                            <!-- Edit fields will be populated dynamically -->
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <!-- View Mode Buttons -->
+                <div id="node-view-buttons">
+                    <button type="button" class="btn btn-outline-primary" onclick="enterEditMode()">
+                        <i class="bi bi-pencil"></i> Editar
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" onclick="confirmDeleteNode()">
+                        <i class="bi bi-trash"></i> Eliminar
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+                <!-- Edit Mode Buttons -->
+                <div id="node-edit-buttons" style="display: none;">
+                    <button type="button" class="btn btn-outline-secondary" onclick="cancelEditMode()">
+                        <i class="bi bi-x-lg"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="saveNodeChanges()">
+                        <i class="bi bi-check-lg"></i> Guardar Cambios
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteNodeModal" tabindex="-1" aria-labelledby="deleteNodeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteNodeModalLabel">
+                    <i class="bi bi-exclamation-triangle"></i> Confirmar Eliminación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de que desea eliminar el nodo <strong id="delete-node-label"></strong>?</p>
+                <p class="text-danger mb-0">
+                    <i class="bi bi-exclamation-circle"></i>
+                    Esta acción también eliminará todas las relaciones conectadas a este nodo y no se puede deshacer.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="executeDeleteNode()">
+                    <i class="bi bi-trash"></i> Eliminar Nodo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Relationship Details Modal -->
+<div class="modal fade" id="relationshipDetailsModal" tabindex="-1" aria-labelledby="relationshipDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="relationshipDetailsModalLabel">
+                    <i class="bi bi-arrows-angle-contract"></i> Detalles de la Relación
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Relationship Type Badge -->
+                <div class="mb-3">
+                    <span class="badge bg-secondary fs-6" id="rel-type-badge">Tipo</span>
+                    <span class="text-muted ms-2" id="rel-id-display"></span>
+                </div>
+
+                <!-- Connection Info -->
+                <div class="alert alert-light mb-3">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <span class="badge bg-primary me-2" id="rel-from-label">Origen</span>
+                        <i class="bi bi-arrow-right mx-2"></i>
+                        <span class="badge bg-success" id="rel-to-label">Destino</span>
+                    </div>
+                </div>
+
+                <!-- View Mode -->
+                <div id="rel-view-mode">
+                    <table class="table table-bordered">
+                        <tbody id="rel-properties-table">
+                            <!-- Properties will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Edit Mode -->
+                <div id="rel-edit-mode" style="display: none;">
+                    <form id="rel-edit-form">
+                        <div class="mb-3">
+                            <label class="form-label" for="edit-rel-confidence">Confianza (0-100%)</label>
+                            <input type="range" class="form-range" id="edit-rel-confidence" name="confidence" min="0" max="1" step="0.1">
+                            <div class="text-center"><span id="confidence-value">100</span>%</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="edit-rel-start_date">Fecha de Inicio</label>
+                            <input type="date" class="form-control" id="edit-rel-start_date" name="start_date">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="edit-rel-end_date">Fecha de Fin</label>
+                            <input type="date" class="form-control" id="edit-rel-end_date" name="end_date">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="edit-rel-notes">Notas</label>
+                            <textarea class="form-control" id="edit-rel-notes" name="notes" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <!-- View Mode Buttons -->
+                <div id="rel-view-buttons">
+                    <button type="button" class="btn btn-outline-primary" onclick="enterRelEditMode()">
+                        <i class="bi bi-pencil"></i> Editar
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" onclick="confirmDeleteRelationship()">
+                        <i class="bi bi-trash"></i> Eliminar
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+                <!-- Edit Mode Buttons -->
+                <div id="rel-edit-buttons" style="display: none;">
+                    <button type="button" class="btn btn-outline-secondary" onclick="cancelRelEditMode()">
+                        <i class="bi bi-x-lg"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="saveRelationshipChanges()">
+                        <i class="bi bi-check-lg"></i> Guardar Cambios
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Relationship Confirmation Modal -->
+<div class="modal fade" id="deleteRelationshipModal" tabindex="-1" aria-labelledby="deleteRelationshipModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteRelationshipModalLabel">
+                    <i class="bi bi-exclamation-triangle"></i> Confirmar Eliminación de Relación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de que desea eliminar la relación <strong id="delete-rel-label"></strong>?</p>
+                <p class="text-muted mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    Esta acción eliminará la conexión entre los dos nodos pero no eliminará los nodos en sí.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="executeDeleteRelationship()">
+                    <i class="bi bi-trash"></i> Eliminar Relación
+                </button>
             </div>
         </div>
     </div>
@@ -441,13 +651,17 @@ function renderGraph(data) {
         network = new vis.Network(container, graphData, options);
         console.log('[Graph] Network created successfully:', network);
 
-        // Add click event listener
+        // Add click event listener for nodes
         network.on('click', function(params) {
-            console.log('[Graph] Node clicked:', params);
+            console.log('[Graph] Click event:', params);
             if (params.nodes.length > 0) {
                 const nodeId = params.nodes[0];
                 const node = nodes.get(nodeId);
                 showNodeDetails(node);
+            } else if (params.edges.length > 0) {
+                const edgeId = params.edges[0];
+                const edge = edges.get(edgeId);
+                showRelationshipDetails(edge, nodes);
             }
         });
 
@@ -462,10 +676,613 @@ function renderGraph(data) {
     }
 }
 
-// Show node details in console (can be expanded to modal)
+// =============================================================================
+// Node Details, Edit, and Delete Functions
+// =============================================================================
+
+let currentNode = null;
+
+// Property labels for display
+const propertyLabels = {
+    'name': 'Nombre',
+    'dni_cif': 'DNI/CIF',
+    'cif': 'CIF',
+    'birth_date': 'Fecha de Nacimiento',
+    'number': 'Número',
+    'carrier': 'Operador',
+    'address': 'Dirección Email',
+    'provider': 'Proveedor',
+    'plate': 'Matrícula',
+    'make': 'Marca',
+    'model': 'Modelo',
+    'street': 'Calle',
+    'city': 'Ciudad',
+    'postal_code': 'Código Postal',
+    'platform': 'Plataforma',
+    'username': 'Usuario',
+    'url': 'URL',
+    'filename': 'Archivo',
+    'evidence_type': 'Tipo de Evidencia',
+    'description': 'Descripción',
+    'identifier': 'Identificador',
+    'contact_type': 'Tipo de Contacto',
+    'notes': 'Notas',
+    'role': 'Rol',
+    'created_at': 'Fecha de Creación',
+    'updated_at': 'Última Actualización',
+    'case_id': 'ID del Caso',
+    'source': 'Origen',
+    'iban': 'IBAN',
+    'account_number': 'Número de Cuenta',
+    'bank_name': 'Nombre del Banco',
+    'ip': 'Dirección IP',
+    'hostname': 'Nombre de Host'
+};
+
+// Node type colors for badges
+const nodeTypeColors = {
+    'Person': 'bg-primary',
+    'Company': 'bg-danger',
+    'Phone': 'bg-success',
+    'Email': 'bg-warning text-dark',
+    'Vehicle': 'bg-purple',
+    'Address': 'bg-info',
+    'SocialProfile': 'bg-orange',
+    'Evidence': 'bg-dark',
+    'OsintContact': 'bg-teal',
+    'BankAccount': 'bg-purple',
+    'IpAddress': 'bg-dark'
+};
+
+// Node type labels in Spanish
+const nodeTypeLabels = {
+    'Person': 'Persona',
+    'Company': 'Empresa',
+    'Phone': 'Teléfono',
+    'Email': 'Email',
+    'Vehicle': 'Vehículo',
+    'Address': 'Dirección',
+    'SocialProfile': 'Perfil Social',
+    'Evidence': 'Evidencia',
+    'OsintContact': 'Contacto OSINT',
+    'BankAccount': 'Cuenta Bancaria',
+    'IpAddress': 'Dirección IP'
+};
+
+// Editable properties by node type
+const editableProperties = {
+    'Person': ['name', 'dni_cif', 'birth_date', 'notes'],
+    'Company': ['name', 'cif', 'notes'],
+    'Phone': ['number', 'carrier', 'notes'],
+    'Email': ['address', 'provider', 'notes'],
+    'Vehicle': ['plate', 'make', 'model', 'notes'],
+    'Address': ['street', 'city', 'postal_code', 'notes'],
+    'SocialProfile': ['platform', 'username', 'url', 'notes'],
+    'Evidence': ['description', 'notes'],
+    'OsintContact': ['name', 'identifier', 'description', 'notes'],
+    'BankAccount': ['iban', 'account_number', 'bank_name', 'notes'],
+    'IpAddress': ['ip', 'hostname', 'notes']
+};
+
+// Show node details in modal
 function showNodeDetails(node) {
-    console.log('Node clicked:', node);
-    // TODO: Show modal with node details and relationships
+    console.log('[NodeDetails] Node clicked:', node);
+    currentNode = node;
+
+    const nodeType = node.group;
+    const properties = node.properties || {};
+
+    // Set node type badge
+    const typeBadge = document.getElementById('node-type-badge');
+    typeBadge.className = `badge fs-6 ${nodeTypeColors[nodeType] || 'bg-secondary'}`;
+    typeBadge.textContent = nodeTypeLabels[nodeType] || nodeType;
+
+    // Set node ID
+    document.getElementById('node-id-display').textContent = `ID: ${node.id}`;
+
+    // Populate properties table
+    const propertiesTable = document.getElementById('node-properties-table');
+    let tableHtml = '';
+
+    // Properties to skip in display
+    const skipProperties = ['case_id', 'created_at', 'updated_at', 'source'];
+
+    for (const [key, value] of Object.entries(properties)) {
+        if (value !== null && value !== undefined && value !== '') {
+            const label = propertyLabels[key] || key;
+            let displayValue = value;
+
+            // Format dates
+            if (key.includes('date') || key.includes('_at')) {
+                if (typeof value === 'string' && value.includes('T')) {
+                    displayValue = new Date(value).toLocaleString('es-ES');
+                }
+            }
+
+            tableHtml += `
+                <tr>
+                    <th style="width: 30%;">${label}</th>
+                    <td>${displayValue}</td>
+                </tr>
+            `;
+        }
+    }
+
+    if (!tableHtml) {
+        tableHtml = '<tr><td colspan="2" class="text-muted text-center">No hay propiedades</td></tr>';
+    }
+
+    propertiesTable.innerHTML = tableHtml;
+
+    // Ensure we're in view mode
+    document.getElementById('node-view-mode').style.display = 'block';
+    document.getElementById('node-edit-mode').style.display = 'none';
+    document.getElementById('node-view-buttons').style.display = 'block';
+    document.getElementById('node-edit-buttons').style.display = 'none';
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('nodeDetailsModal'));
+    modal.show();
+}
+
+// Enter edit mode
+function enterEditMode() {
+    if (!currentNode) return;
+
+    const nodeType = currentNode.group;
+    const properties = currentNode.properties || {};
+    const editable = editableProperties[nodeType] || [];
+
+    // Build edit form
+    const editFields = document.getElementById('node-edit-fields');
+    let formHtml = '';
+
+    for (const prop of editable) {
+        const label = propertyLabels[prop] || prop;
+        const value = properties[prop] || '';
+        const inputType = prop.includes('date') ? 'date' : 'text';
+
+        formHtml += `
+            <div class="mb-3">
+                <label class="form-label" for="edit-${prop}">${label}</label>
+                ${prop === 'notes' || prop === 'description' ?
+                    `<textarea class="form-control" id="edit-${prop}" name="${prop}" rows="3">${value}</textarea>` :
+                    `<input type="${inputType}" class="form-control" id="edit-${prop}" name="${prop}" value="${value}">`
+                }
+            </div>
+        `;
+    }
+
+    if (!formHtml) {
+        formHtml = '<p class="text-muted">Este tipo de nodo no tiene propiedades editables.</p>';
+    }
+
+    editFields.innerHTML = formHtml;
+
+    // Switch to edit mode
+    document.getElementById('node-view-mode').style.display = 'none';
+    document.getElementById('node-edit-mode').style.display = 'block';
+    document.getElementById('node-view-buttons').style.display = 'none';
+    document.getElementById('node-edit-buttons').style.display = 'block';
+}
+
+// Cancel edit mode
+function cancelEditMode() {
+    document.getElementById('node-view-mode').style.display = 'block';
+    document.getElementById('node-edit-mode').style.display = 'none';
+    document.getElementById('node-view-buttons').style.display = 'block';
+    document.getElementById('node-edit-buttons').style.display = 'none';
+}
+
+// Save node changes
+async function saveNodeChanges() {
+    if (!currentNode) return;
+
+    const nodeType = currentNode.group;
+    const editable = editableProperties[nodeType] || [];
+
+    // Collect form data
+    const properties = {};
+    for (const prop of editable) {
+        const input = document.getElementById(`edit-${prop}`);
+        if (input) {
+            properties[prop] = input.value;
+        }
+    }
+
+    console.log('[NodeDetails] Saving changes:', properties);
+
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    try {
+        const response = await fetch(`/graph/api/node/${currentNode.id}/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                case_id: {{ case.id }},
+                node_type: nodeType,
+                properties: properties
+            })
+        });
+
+        const responseText = await response.text();
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            console.error('[NodeDetails] Response is not JSON:', responseText.substring(0, 200));
+            throw new Error('El servidor devolvió una respuesta inesperada');
+        }
+
+        if (!response.ok) {
+            throw new Error(result.error || `HTTP error! status: ${response.status}`);
+        }
+
+        console.log('[NodeDetails] Update result:', result);
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('nodeDetailsModal'));
+        modal.hide();
+
+        // Show success message
+        alert('Nodo actualizado correctamente');
+
+        // Reload graph to reflect changes
+        reloadGraph();
+
+    } catch (error) {
+        console.error('[NodeDetails] Error updating node:', error);
+        alert('Error al actualizar el nodo: ' + error.message);
+    }
+}
+
+// Confirm delete node
+function confirmDeleteNode() {
+    if (!currentNode) return;
+
+    // Set node label in confirmation modal
+    document.getElementById('delete-node-label').textContent = currentNode.label || currentNode.id;
+
+    // Hide details modal, show confirmation
+    const detailsModal = bootstrap.Modal.getInstance(document.getElementById('nodeDetailsModal'));
+    detailsModal.hide();
+
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteNodeModal'));
+    deleteModal.show();
+}
+
+// Execute delete node
+async function executeDeleteNode() {
+    if (!currentNode) return;
+
+    const nodeType = currentNode.group;
+
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    try {
+        const response = await fetch(`/graph/api/node/${currentNode.id}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                case_id: {{ case.id }},
+                node_type: nodeType
+            })
+        });
+
+        const responseText = await response.text();
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            console.error('[NodeDetails] Response is not JSON:', responseText.substring(0, 200));
+            throw new Error('El servidor devolvió una respuesta inesperada. Asegúrate de reiniciar el servidor.');
+        }
+
+        if (!response.ok) {
+            throw new Error(result.error || `HTTP error! status: ${response.status}`);
+        }
+
+        console.log('[NodeDetails] Delete result:', result);
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('deleteNodeModal'));
+        modal.hide();
+
+        // Show success message
+        alert('Nodo eliminado correctamente');
+
+        // Clear current node reference
+        currentNode = null;
+
+        // Reload graph to reflect changes
+        reloadGraph();
+
+    } catch (error) {
+        console.error('[NodeDetails] Error deleting node:', error);
+        alert('Error al eliminar el nodo: ' + error.message);
+    }
+}
+
+// =============================================================================
+// Relationship Details, Edit, and Delete Functions
+// =============================================================================
+
+let currentRelationship = null;
+let graphNodes = null;  // Store reference to nodes DataSet
+
+// Relationship type labels in Spanish
+const relationshipTypeLabels = {
+    'FAMILIAR_DE': 'Familiar de',
+    'SOCIO_DE': 'Socio de',
+    'EMPLEADO_DE': 'Empleado de',
+    'UTILIZA_TELEFONO': 'Utiliza teléfono',
+    'UTILIZA_EMAIL': 'Utiliza email',
+    'UTILIZA_VEHICULO': 'Utiliza vehículo',
+    'PROPIETARIO_DE': 'Propietario de',
+    'RESIDE_EN': 'Reside en',
+    'VISTO_EN': 'Visto en',
+    'CONTACTO_CON': 'Contacto con',
+    'VINCULADO_A_EVIDENCIA': 'Vinculado a evidencia',
+    'PERFIL_DE': 'Perfil de',
+    'TITULAR_DE': 'Titular de',
+    'TRANSFERENCIA_A': 'Transferencia a',
+    'CONEXION_DESDE': 'Conexión desde'
+};
+
+// Property labels for relationships
+const relPropertyLabels = {
+    'confidence': 'Confianza',
+    'start_date': 'Fecha de Inicio',
+    'end_date': 'Fecha de Fin',
+    'notes': 'Notas',
+    'created_at': 'Fecha de Creación',
+    'updated_at': 'Última Actualización'
+};
+
+// Show relationship details in modal
+function showRelationshipDetails(edge, nodes) {
+    console.log('[RelDetails] Edge clicked:', edge);
+    currentRelationship = edge;
+    graphNodes = nodes;
+
+    const properties = edge.properties || {};
+
+    // Set relationship type badge
+    const typeBadge = document.getElementById('rel-type-badge');
+    const relType = edge.title || edge.label || 'Relación';
+    typeBadge.textContent = relationshipTypeLabels[relType] || relType.replace(/_/g, ' ');
+
+    // Set relationship ID
+    document.getElementById('rel-id-display').textContent = `ID: ${edge.id}`;
+
+    // Set from/to labels
+    const fromNode = nodes.get(edge.from);
+    const toNode = nodes.get(edge.to);
+    document.getElementById('rel-from-label').textContent = fromNode ? fromNode.label : edge.from;
+    document.getElementById('rel-to-label').textContent = toNode ? toNode.label : edge.to;
+
+    // Populate properties table
+    const propertiesTable = document.getElementById('rel-properties-table');
+    let tableHtml = '';
+
+    for (const [key, value] of Object.entries(properties)) {
+        if (value !== null && value !== undefined && value !== '') {
+            const label = relPropertyLabels[key] || propertyLabels[key] || key;
+            let displayValue = value;
+
+            // Format confidence as percentage
+            if (key === 'confidence') {
+                displayValue = `${Math.round(value * 100)}%`;
+            }
+            // Format dates
+            else if (key.includes('date') || key.includes('_at')) {
+                if (typeof value === 'string' && value.includes('T')) {
+                    displayValue = new Date(value).toLocaleString('es-ES');
+                } else if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    displayValue = new Date(value).toLocaleDateString('es-ES');
+                }
+            }
+
+            tableHtml += `
+                <tr>
+                    <th style="width: 30%;">${label}</th>
+                    <td>${displayValue}</td>
+                </tr>
+            `;
+        }
+    }
+
+    if (!tableHtml) {
+        tableHtml = '<tr><td colspan="2" class="text-muted text-center">No hay propiedades adicionales</td></tr>';
+    }
+
+    propertiesTable.innerHTML = tableHtml;
+
+    // Ensure we're in view mode
+    document.getElementById('rel-view-mode').style.display = 'block';
+    document.getElementById('rel-edit-mode').style.display = 'none';
+    document.getElementById('rel-view-buttons').style.display = 'block';
+    document.getElementById('rel-edit-buttons').style.display = 'none';
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('relationshipDetailsModal'));
+    modal.show();
+}
+
+// Enter relationship edit mode
+function enterRelEditMode() {
+    if (!currentRelationship) return;
+
+    const properties = currentRelationship.properties || {};
+
+    // Set confidence slider
+    const confidence = properties.confidence || 1;
+    document.getElementById('edit-rel-confidence').value = confidence;
+    document.getElementById('confidence-value').textContent = Math.round(confidence * 100);
+
+    // Set dates
+    document.getElementById('edit-rel-start_date').value = properties.start_date || '';
+    document.getElementById('edit-rel-end_date').value = properties.end_date || '';
+
+    // Set notes
+    document.getElementById('edit-rel-notes').value = properties.notes || '';
+
+    // Add confidence slider event listener
+    document.getElementById('edit-rel-confidence').oninput = function() {
+        document.getElementById('confidence-value').textContent = Math.round(this.value * 100);
+    };
+
+    // Switch to edit mode
+    document.getElementById('rel-view-mode').style.display = 'none';
+    document.getElementById('rel-edit-mode').style.display = 'block';
+    document.getElementById('rel-view-buttons').style.display = 'none';
+    document.getElementById('rel-edit-buttons').style.display = 'block';
+}
+
+// Cancel relationship edit mode
+function cancelRelEditMode() {
+    document.getElementById('rel-view-mode').style.display = 'block';
+    document.getElementById('rel-edit-mode').style.display = 'none';
+    document.getElementById('rel-view-buttons').style.display = 'block';
+    document.getElementById('rel-edit-buttons').style.display = 'none';
+}
+
+// Save relationship changes
+async function saveRelationshipChanges() {
+    if (!currentRelationship) return;
+
+    // Collect form data
+    const properties = {
+        confidence: parseFloat(document.getElementById('edit-rel-confidence').value),
+        start_date: document.getElementById('edit-rel-start_date').value || null,
+        end_date: document.getElementById('edit-rel-end_date').value || null,
+        notes: document.getElementById('edit-rel-notes').value || null
+    };
+
+    console.log('[RelDetails] Saving changes:', properties);
+
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    try {
+        const response = await fetch(`/graph/api/relationship/${currentRelationship.id}/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                case_id: {{ case.id }},
+                properties: properties
+            })
+        });
+
+        const responseText = await response.text();
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            console.error('[RelDetails] Response is not JSON:', responseText.substring(0, 200));
+            throw new Error('El servidor devolvió una respuesta inesperada');
+        }
+
+        if (!response.ok) {
+            throw new Error(result.error || `HTTP error! status: ${response.status}`);
+        }
+
+        console.log('[RelDetails] Update result:', result);
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('relationshipDetailsModal'));
+        modal.hide();
+
+        // Show success message
+        alert('Relación actualizada correctamente');
+
+        // Reload graph to reflect changes
+        reloadGraph();
+
+    } catch (error) {
+        console.error('[RelDetails] Error updating relationship:', error);
+        alert('Error al actualizar la relación: ' + error.message);
+    }
+}
+
+// Confirm delete relationship
+function confirmDeleteRelationship() {
+    if (!currentRelationship) return;
+
+    // Set relationship label in confirmation modal
+    const relType = currentRelationship.title || currentRelationship.label || 'Relación';
+    document.getElementById('delete-rel-label').textContent = relationshipTypeLabels[relType] || relType.replace(/_/g, ' ');
+
+    // Hide details modal, show confirmation
+    const detailsModal = bootstrap.Modal.getInstance(document.getElementById('relationshipDetailsModal'));
+    detailsModal.hide();
+
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteRelationshipModal'));
+    deleteModal.show();
+}
+
+// Execute delete relationship
+async function executeDeleteRelationship() {
+    if (!currentRelationship) return;
+
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    try {
+        const response = await fetch(`/graph/api/relationship/${currentRelationship.id}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                case_id: {{ case.id }}
+            })
+        });
+
+        const responseText = await response.text();
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            console.error('[RelDetails] Response is not JSON:', responseText.substring(0, 200));
+            throw new Error('El servidor devolvió una respuesta inesperada');
+        }
+
+        if (!response.ok) {
+            throw new Error(result.error || `HTTP error! status: ${response.status}`);
+        }
+
+        console.log('[RelDetails] Delete result:', result);
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('deleteRelationshipModal'));
+        modal.hide();
+
+        // Show success message
+        alert('Relación eliminada correctamente');
+
+        // Clear current relationship reference
+        currentRelationship = null;
+
+        // Reload graph to reflect changes
+        reloadGraph();
+
+    } catch (error) {
+        console.error('[RelDetails] Error deleting relationship:', error);
+        alert('Error al eliminar la relación: ' + error.message);
+    }
 }
 
 // Update counts

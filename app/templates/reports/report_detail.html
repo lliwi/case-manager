@@ -155,6 +155,10 @@
                                     <i class="bi bi-{% if report.include_evidence_thumbnails %}check-circle-fill{% else %}circle{% endif %}"></i>
                                     Miniaturas de Imágenes
                                 </li>
+                                <li class="{% if report.include_osint_contacts %}text-success{% else %}text-muted{% endif %}">
+                                    <i class="bi bi-{% if report.include_osint_contacts %}check-circle-fill{% else %}circle{% endif %}"></i>
+                                    Datos OSINT
+                                </li>
                             </ul>
                         </div>
                     </div>

@@ -274,12 +274,178 @@ def delete_node(node_id):
     return redirect(url_for('graph.case_graph', case_id=case_id))
 
 
+@graph_bp.route('/api/node/<node_id>/update', methods=['POST'])
+@login_required
+@require_detective()
+@audit_action('GRAPH_NODE_UPDATE', 'graph')
+def api_update_node(node_id):
+    """API endpoint to update a node's properties."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    case_id = data.get('case_id')
+    node_type_str = data.get('node_type')
+    properties = data.get('properties', {})
+
+    if not case_id or not node_type_str:
+        return jsonify({'error': 'Missing required parameters: case_id, node_type'}), 400
+
+    case = Case.query.get_or_404(case_id)
+
+    # Check access
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        return jsonify({'error': 'No tiene permiso para modificar este caso'}), 403
+
+    try:
+        node_type = NodeType(node_type_str)
+        graph_service = GraphService()
+
+        # Update the node
+        success = graph_service.update_node(node_id, node_type, properties)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Nodo actualizado correctamente',
+                'node_id': node_id
+            })
+        else:
+            return jsonify({'error': 'No se pudo actualizar el nodo'}), 500
+
+    except ValueError as e:
+        return jsonify({'error': f'Tipo de nodo no válido: {node_type_str}'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@graph_bp.route('/api/node/<node_id>/delete', methods=['POST'])
+@login_required
+@require_detective()
+@audit_action('GRAPH_NODE_DELETE', 'graph')
+def api_delete_node(node_id):
+    """API endpoint to delete a node from the graph."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    case_id = data.get('case_id')
+    node_type_str = data.get('node_type')
+
+    if not case_id or not node_type_str:
+        return jsonify({'error': 'Missing required parameters: case_id, node_type'}), 400
+
+    case = Case.query.get_or_404(case_id)
+
+    # Check access
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        return jsonify({'error': 'No tiene permiso para modificar este caso'}), 403
+
+    try:
+        node_type = NodeType(node_type_str)
+        graph_service = GraphService()
+        success = graph_service.delete_node(node_id, node_type)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Nodo eliminado correctamente',
+                'node_id': node_id
+            })
+        else:
+            return jsonify({'error': 'No se pudo eliminar el nodo'}), 500
+
+    except ValueError as e:
+        return jsonify({'error': f'Tipo de nodo no válido: {node_type_str}'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@graph_bp.route('/api/relationship/<relationship_id>/update', methods=['POST'])
+@login_required
+@require_detective()
+@audit_action('GRAPH_RELATIONSHIP_UPDATE', 'graph')
+def api_update_relationship(relationship_id):
+    """API endpoint to update a relationship's properties."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    case_id = data.get('case_id')
+    properties = data.get('properties', {})
+
+    if not case_id:
+        return jsonify({'error': 'Missing required parameter: case_id'}), 400
+
+    case = Case.query.get_or_404(case_id)
+
+    # Check access
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        return jsonify({'error': 'No tiene permiso para modificar este caso'}), 403
+
+    try:
+        graph_service = GraphService()
+
+        # Update the relationship
+        success = graph_service.update_relationship(relationship_id, properties)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Relación actualizada correctamente',
+                'relationship_id': relationship_id
+            })
+        else:
+            return jsonify({'error': 'No se pudo actualizar la relación'}), 500
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@graph_bp.route('/api/relationship/<relationship_id>/delete', methods=['POST'])
+@login_required
+@require_detective()
+@audit_action('GRAPH_RELATIONSHIP_DELETE', 'graph')
+def api_delete_relationship(relationship_id):
+    """API endpoint to delete a relationship from the graph."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    case_id = data.get('case_id')
+
+    if not case_id:
+        return jsonify({'error': 'Missing required parameter: case_id'}), 400
+
+    case = Case.query.get_or_404(case_id)
+
+    # Check access
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        return jsonify({'error': 'No tiene permiso para modificar este caso'}), 403
+
+    try:
+        graph_service = GraphService()
+        success = graph_service.delete_relationship(relationship_id)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Relación eliminada correctamente',
+                'relationship_id': relationship_id
+            })
+        else:
+            return jsonify({'error': 'No se pudo eliminar la relación'}), 500
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @graph_bp.route('/relationship/<relationship_id>/delete', methods=['POST'])
 @login_required
 @require_detective()
 @audit_action('GRAPH_RELATIONSHIP_DELETE', 'graph')
 def delete_relationship(relationship_id):
-    """Delete a relationship from the graph."""
+    """Delete a relationship from the graph (form-based, legacy)."""
     case_id = request.form.get('case_id')
 
     if not case_id:

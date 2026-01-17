@@ -44,6 +44,10 @@
     .node-badge-Vehicle { background-color: #9b59b6; }
     .node-badge-Address { background-color: #1abc9c; }
     .node-badge-SocialProfile { background-color: #e67e22; }
+    .node-badge-Evidence { background-color: #34495e; }
+    .node-badge-OsintContact { background-color: #16a085; }
+    .node-badge-BankAccount { background-color: #8e44ad; }
+    .node-badge-IpAddress { background-color: #2c3e50; }
 </style>
 {% endblock %}
 
@@ -218,6 +222,18 @@ $(document).ready(function() {
                             label = `${node.properties.street || ''}, ${node.properties.city || ''}`;
                         } else if (node.label === 'SocialProfile') {
                             label = `${node.properties.platform || ''}: ${node.properties.username || ''}`;
+                        } else if (node.label === 'Evidence') {
+                            // Show filename, evidence_type or description for Evidence nodes
+                            label = node.properties.filename || node.properties.description || `Evidencia #${node.properties.evidence_id || node.id}`;
+                        } else if (node.label === 'OsintContact') {
+                            // Show name or identifier for OSINT contacts
+                            label = node.properties.name || node.properties.identifier || 'Contacto OSINT';
+                        } else if (node.label === 'BankAccount') {
+                            // Show IBAN or account number
+                            label = node.properties.iban || node.properties.account_number || 'Cuenta Bancaria';
+                        } else if (node.label === 'IpAddress') {
+                            // Show IP address
+                            label = node.properties.ip || node.properties.address || 'Dirección IP';
                         } else {
                             label = node.label;
                         }

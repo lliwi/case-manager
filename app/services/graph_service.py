@@ -329,6 +329,33 @@ class GraphService:
 
         return relationships
 
+    def update_relationship(self, relationship_id: str, properties: Dict[str, Any]) -> bool:
+        """
+        Update relationship properties.
+
+        Args:
+            relationship_id: Neo4j relationship ID
+            properties: Properties to update
+
+        Returns:
+            True if successful
+        """
+        driver = self._get_driver()
+
+        # Add updated timestamp
+        properties['updated_at'] = datetime.utcnow().isoformat()
+
+        query = """
+        MATCH ()-[r]->()
+        WHERE id(r) = $rel_id
+        SET r += $properties
+        RETURN r
+        """
+
+        with driver.session() as session:
+            result = session.run(query, rel_id=int(relationship_id), properties=properties)
+            return result.single() is not None
+
     def delete_relationship(self, relationship_id: str) -> bool:
         """
         Delete a relationship.

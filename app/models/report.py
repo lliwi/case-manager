@@ -57,6 +57,7 @@ class Report(db.Model):
     include_chain_of_custody = db.Column(db.Boolean, default=True)
     include_plugin_results = db.Column(db.Boolean, default=False)
     include_evidence_thumbnails = db.Column(db.Boolean, default=False)
+    include_osint_contacts = db.Column(db.Boolean, default=False)
 
     # File information
     file_path = db.Column(db.String(500))  # Path to generated PDF
@@ -186,6 +187,7 @@ class Report(db.Model):
             include_chain_of_custody=self.include_chain_of_custody,
             include_plugin_results=self.include_plugin_results,
             include_evidence_thumbnails=self.include_evidence_thumbnails,
+            include_osint_contacts=self.include_osint_contacts,
             version=self.version + 1,
             parent_report_id=self.id,
             status=ReportStatus.DRAFT

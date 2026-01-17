@@ -135,6 +135,16 @@
                                     </label>
                                 </div>
                             </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="include_osint_contacts"
+                                           name="include_osint_contacts" {% if report.include_osint_contacts %}checked{% endif %}>
+                                    <label class="form-check-label" for="include_osint_contacts">
+                                        <i class="bi bi-person-lines-fill"></i> Datos OSINT
+                                    </label>
+                                </div>
+                            </div>
                         </div>
 
                         <hr class="my-4">
