@@ -39,9 +39,95 @@ try:
     import matplotlib
     matplotlib.use('Agg')  # Use non-interactive backend
     import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    from matplotlib.patches import FancyBboxPatch
     NETWORKX_AVAILABLE = True
 except ImportError:
     NETWORKX_AVAILABLE = False
+
+
+def generate_timeline_chart(events, output_path):
+    """
+    Generate a visual timeline chart from events.
+
+    Args:
+        events: List of TimelineEvent objects
+        output_path: Path to save the chart image
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if not NETWORKX_AVAILABLE or not events:
+        return False
+
+    try:
+        # Extract dates and titles
+        dates = [e.event_date for e in events]
+        titles = [e.title[:30] + '...' if len(e.title) > 30 else e.title for e in events]
+
+        # Create figure
+        fig, ax = plt.subplots(figsize=(14, max(4, len(events) * 0.4)))
+
+        # Color palette for different event types
+        colors_palette = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c']
+
+        # Calculate y positions
+        y_positions = range(len(events))
+
+        # Plot timeline line
+        if len(dates) > 1:
+            ax.axhline(y=-0.5, color='#bdc3c7', linewidth=2, zorder=1)
+
+        # Plot events
+        for i, (date, title, y) in enumerate(zip(dates, titles, y_positions)):
+            color = colors_palette[i % len(colors_palette)]
+
+            # Plot point
+            ax.scatter(date, y, s=120, c=color, zorder=3, edgecolors='white', linewidths=2)
+
+            # Add event label
+            ax.annotate(
+                f'{date.strftime("%d/%m/%Y %H:%M")}\n{title}',
+                xy=(date, y),
+                xytext=(15, 0),
+                textcoords='offset points',
+                fontsize=8,
+                va='center',
+                ha='left',
+                bbox=dict(boxstyle='round,pad=0.3', facecolor=color, alpha=0.2, edgecolor=color),
+            )
+
+        # Configure axes
+        ax.set_yticks([])
+        ax.set_xlabel('Fecha', fontsize=10, fontweight='bold')
+        ax.set_title('Cronología de Eventos', fontsize=14, fontweight='bold', pad=20)
+
+        # Format x-axis dates
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
+        ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+        plt.xticks(rotation=45, ha='right')
+
+        # Remove spines
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+
+        # Add grid
+        ax.grid(axis='x', linestyle='--', alpha=0.5)
+
+        # Adjust layout
+        plt.tight_layout()
+
+        # Save figure
+        fig.savefig(output_path, dpi=150, bbox_inches='tight', facecolor='white')
+        plt.close(fig)
+
+        return True
+    except Exception as e:
+        current_app.logger.error(f"Error generating timeline chart: {e}")
+        if 'fig' in locals():
+            plt.close(fig)
+        return False
 
 
 class ReportService:
@@ -342,6 +428,7 @@ class ReportService:
 
         # Story (content)
         story = []
+        temp_files_to_cleanup = []  # Track temp files to clean up after PDF build
         styles = getSampleStyleSheet()
 
         # Custom styles
@@ -564,11 +651,58 @@ class ReportService:
             ).order_by(TimelineEvent.event_date.asc()).all()
 
             if timeline_events:
+                # Generate timeline chart
+                timeline_chart_path = None
+                try:
+                    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+                        timeline_chart_path = tmp_file.name
+
+                    if generate_timeline_chart(timeline_events[:20], timeline_chart_path):
+                        # Add chart to report
+                        story.append(Spacer(1, 0.3*cm))
+                        story.append(Paragraph('<b>Visualización gráfica:</b>', body_style))
+                        story.append(Spacer(1, 0.2*cm))
+
+                        # Calculate image size to fit page width
+                        img_width = 16*cm
+                        img_height = max(4*cm, len(timeline_events[:20]) * 0.5*cm)
+                        story.append(RLImage(timeline_chart_path, width=img_width, height=img_height))
+                        story.append(Spacer(1, 0.5*cm))
+                except Exception as e:
+                    current_app.logger.error(f"Error adding timeline chart to PDF: {e}")
+                finally:
+                    # Clean up temp file after PDF is built
+                    if timeline_chart_path and os.path.exists(timeline_chart_path):
+                        # Schedule cleanup after PDF generation
+                        temp_files_to_cleanup.append(timeline_chart_path)
+
+                # Add text list of events
+                story.append(Paragraph('<b>Listado de eventos:</b>', body_style))
+                story.append(Spacer(1, 0.2*cm))
+
+                # Create events table
+                event_table_data = [['Fecha', 'Evento', 'Descripción']]
                 for event in timeline_events[:20]:  # Limit to first 20 events
-                    event_text = f"<b>{event.event_date.strftime('%d/%m/%Y %H:%M')}</b> - {event.title}"
-                    if event.description:
-                        event_text += f": {event.description[:100]}"
-                    story.append(Paragraph(event_text, body_style))
+                    desc = event.description[:80] + '...' if event.description and len(event.description) > 80 else (event.description or '-')
+                    event_table_data.append([
+                        event.event_date.strftime('%d/%m/%Y %H:%M'),
+                        event.title[:40] + '...' if len(event.title) > 40 else event.title,
+                        desc
+                    ])
+
+                if len(event_table_data) > 1:
+                    event_table = Table(event_table_data, colWidths=[3*cm, 5*cm, 8*cm])
+                    event_table.setStyle(TableStyle([
+                        ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 9),
+                        ('FONT', (0, 1), (-1, -1), 'Helvetica', 8),
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495e')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#ecf0f1')]),
+                    ]))
+                    story.append(event_table)
             else:
                 story.append(Paragraph('No se encontraron eventos en el timeline.', body_style))
 
@@ -1065,15 +1199,18 @@ class ReportService:
         # Build PDF
         doc.build(story)
 
-        # Clean up temporary files (like graph images)
+        # Clean up temporary files (like graph images and timeline charts)
+        all_temp_files = temp_files_to_cleanup.copy()
         if hasattr(report, '_temp_files'):
-            for temp_file in report._temp_files:
-                try:
-                    if os.path.exists(temp_file):
-                        os.remove(temp_file)
-                        current_app.logger.info(f'Cleaned up temporary file: {temp_file}')
-                except Exception as e:
-                    current_app.logger.warning(f'Failed to clean up temp file {temp_file}: {e}')
+            all_temp_files.extend(report._temp_files)
+
+        for temp_file in all_temp_files:
+            try:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+                    current_app.logger.info(f'Cleaned up temporary file: {temp_file}')
+            except Exception as e:
+                current_app.logger.warning(f'Failed to clean up temp file {temp_file}: {e}')
 
         return file_path
 
