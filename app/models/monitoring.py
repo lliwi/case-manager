@@ -30,6 +30,7 @@ class SourcePlatform(Enum):
     """Supported social media platforms."""
     X_TWITTER = 'X (Twitter)'
     INSTAGRAM = 'Instagram'
+    WEB_SEARCH = 'Búsqueda Web'  # Google, DuckDuckGo, etc.
     # Future platforms can be added here
     # FACEBOOK = 'Facebook'
     # TIKTOK = 'TikTok'
@@ -233,6 +234,7 @@ class MonitoringSource(db.Model):
     # State tracking
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     last_result_id = db.Column(db.String(200))  # Track last seen post/tweet ID for incremental fetching
+    last_result_timestamp = db.Column(db.DateTime)  # Track timestamp of last result for date filtering
     last_check_at = db.Column(db.DateTime)
     error_count = db.Column(db.Integer, default=0, nullable=False)
     last_error = db.Column(db.Text)

@@ -116,7 +116,8 @@ class MonitoringSourceForm(FlaskForm):
         'Plataforma',
         choices=[
             ('X_TWITTER', 'X (Twitter)'),
-            ('INSTAGRAM', 'Instagram')
+            ('INSTAGRAM', 'Instagram'),
+            ('WEB_SEARCH', 'Búsqueda Web (Google, DuckDuckGo)')
         ],
         validators=[DataRequired(message='Selecciona una plataforma')],
         render_kw={'class': 'form-select'}
@@ -131,6 +132,19 @@ class MonitoringSourceForm(FlaskForm):
         ],
         validators=[DataRequired(message='Selecciona el tipo de consulta')],
         render_kw={'class': 'form-select'}
+    )
+
+    search_engine = SelectField(
+        'Motor de búsqueda',
+        choices=[
+            ('google', 'Google'),
+            ('duckduckgo', 'DuckDuckGo'),
+            ('bing', 'Bing')
+        ],
+        default='google',
+        validators=[Optional()],
+        render_kw={'class': 'form-select'},
+        description='Solo aplica para plataforma "Búsqueda Web"'
     )
 
     query_value = StringField(

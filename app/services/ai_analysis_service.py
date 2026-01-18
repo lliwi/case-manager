@@ -16,6 +16,7 @@ Used for:
 import base64
 import httpx
 import logging
+import time
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
@@ -38,12 +39,20 @@ class AIAnalysisService:
     # DeepSeek configuration
     DEEPSEEK_BASE_URL = "https://api.deepseek.com"
     DEEPSEEK_CHAT_ENDPOINT = "/chat/completions"
-    DEEPSEEK_MODEL = "deepseek-chat"  # DeepSeek model with vision
+    DEEPSEEK_MODEL = "deepseek-chat"  # DeepSeek text model (no vision support)
 
     # Analysis configuration
     MAX_IMAGES_PER_REQUEST = 4
     DEFAULT_MAX_TOKENS = 1000
     TIMEOUT_SECONDS = 60
+
+    # Retry configuration for rate limiting (429 errors)
+    MAX_RETRIES = 3
+    INITIAL_RETRY_DELAY = 5  # seconds
+    MAX_RETRY_DELAY = 60  # seconds
+
+    # Provider capabilities
+    VISION_CAPABLE_PROVIDERS = ['openai']  # Providers that support image analysis
 
     def __init__(self, provider: str = 'deepseek', api_key_model=None):
         """
@@ -111,11 +120,16 @@ class AIAnalysisService:
                 - error: Error message if failed
         """
         try:
-            # Build the analysis prompt
-            prompt = self._build_analysis_prompt(text, objective, context, custom_prompt)
+            # Check if images are available
+            has_images = bool(images and len(images) > 0)
 
-            # Prepare images for API
-            image_content = self._prepare_images(images) if images else []
+            # Build the analysis prompt (adapts based on vision capability)
+            prompt = self._build_analysis_prompt(text, objective, context, custom_prompt, has_images)
+
+            # Prepare images for API (only for vision-capable providers)
+            image_content = []
+            if has_images and self.supports_vision():
+                image_content = self._prepare_images(images)
 
             # Call the appropriate provider
             if self.provider == 'openai':
@@ -147,9 +161,13 @@ class AIAnalysisService:
         text: Optional[str],
         objective: str,
         context: Optional[Dict],
-        custom_prompt: Optional[str]
+        custom_prompt: Optional[str],
+        has_images: bool = False
     ) -> str:
         """Build the prompt for AI analysis."""
+        # Check if this provider can analyze images
+        can_analyze_images = self.supports_vision() and has_images
+
         if custom_prompt:
             # Use custom template with variable substitution
             prompt = custom_prompt
@@ -174,7 +192,8 @@ class AIAnalysisService:
 {text}
 """
 
-        prompt += """
+        if can_analyze_images:
+            prompt += """
 ### Imágenes adjuntas:
 Se adjuntan imágenes del post para tu análisis visual.
 
@@ -183,7 +202,20 @@ Se adjuntan imágenes del post para tu análisis visual.
 2. Determina si el contenido es relevante para la investigación.
 3. Identifica cualquier elemento que pueda ser significativo.
 4. Sé objetivo y preciso en tu análisis.
+"""
+        else:
+            prompt += """
+### Nota:
+Solo se analiza el texto del post. Las imágenes no están disponibles para análisis.
 
+## INSTRUCCIONES:
+1. Analiza el texto en relación al objetivo de monitorización.
+2. Determina si el contenido textual es relevante para la investigación.
+3. Identifica cualquier elemento que pueda ser significativo.
+4. Sé objetivo y preciso en tu análisis.
+"""
+
+        prompt += """
 ## FORMATO DE RESPUESTA:
 Responde EXACTAMENTE en el siguiente formato JSON:
 
@@ -195,7 +227,7 @@ Responde EXACTAMENTE en el siguiente formato JSON:
     "flags": ["<lista de elementos específicos detectados relevantes al objetivo>"],
     "details": {
         "text_analysis": "<análisis del texto>",
-        "image_analysis": "<análisis de las imágenes>",
+        "image_analysis": "<análisis de las imágenes o 'No disponible' si no hay imágenes>",
         "objective_match": "<explicación de cómo el contenido se relaciona con el objetivo>"
     }
 }
@@ -260,6 +292,8 @@ Responde EXACTAMENTE en el siguiente formato JSON:
         """
         Call OpenAI API with vision capabilities.
 
+        Includes retry logic with exponential backoff for rate limiting (429) errors.
+
         Args:
             prompt: Analysis prompt
             images: List of prepared image dicts
@@ -290,18 +324,20 @@ Responde EXACTAMENTE en el siguiente formato JSON:
             'temperature': 0.3  # Lower temperature for more consistent analysis
         }
 
-        with httpx.Client(timeout=self.TIMEOUT_SECONDS) as client:
-            response = client.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            return response.json()
+        return self._make_request_with_retry(url, headers, payload, 'OpenAI')
 
     def _call_deepseek(self, prompt: str, images: List[Dict]) -> Dict:
         """
-        Call DeepSeek API with vision capabilities.
+        Call DeepSeek API for text analysis.
+
+        Note: DeepSeek chat model does not support vision/images.
+        Images are ignored and only text is analyzed.
+
+        Includes retry logic with exponential backoff for rate limiting (429) errors.
 
         Args:
             prompt: Analysis prompt
-            images: List of prepared image dicts
+            images: List of prepared image dicts (ignored for DeepSeek)
 
         Returns:
             API response dict
@@ -313,26 +349,94 @@ Responde EXACTAMENTE en el siguiente formato JSON:
             'Content-Type': 'application/json'
         }
 
-        # Build message content
-        content = [{'type': 'text', 'text': prompt}]
-        content.extend(images)
+        # DeepSeek chat model only supports text - images are not supported
+        # Log warning if images were provided
+        if images:
+            logger.info(f"DeepSeek: Ignoring {len(images)} images (model does not support vision)")
 
+        # Send text-only content (DeepSeek uses simple string content, not array)
         payload = {
             'model': self.DEEPSEEK_MODEL,
             'messages': [
                 {
                     'role': 'user',
-                    'content': content
+                    'content': prompt
                 }
             ],
             'max_tokens': self.DEFAULT_MAX_TOKENS,
             'temperature': 0.3
         }
 
-        with httpx.Client(timeout=self.TIMEOUT_SECONDS) as client:
-            response = client.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            return response.json()
+        return self._make_request_with_retry(url, headers, payload, 'DeepSeek')
+
+    def _make_request_with_retry(
+        self,
+        url: str,
+        headers: Dict,
+        payload: Dict,
+        provider_name: str
+    ) -> Dict:
+        """
+        Make HTTP request with retry logic for rate limiting.
+
+        Implements exponential backoff for 429 (Too Many Requests) errors.
+
+        Args:
+            url: API endpoint URL
+            headers: Request headers
+            payload: Request body
+            provider_name: Provider name for logging
+
+        Returns:
+            API response dict
+
+        Raises:
+            httpx.HTTPStatusError: If request fails after all retries
+        """
+        last_exception = None
+        delay = self.INITIAL_RETRY_DELAY
+
+        for attempt in range(self.MAX_RETRIES + 1):
+            try:
+                with httpx.Client(timeout=self.TIMEOUT_SECONDS) as client:
+                    response = client.post(url, headers=headers, json=payload)
+                    response.raise_for_status()
+                    return response.json()
+
+            except httpx.HTTPStatusError as e:
+                last_exception = e
+
+                # Only retry on 429 (rate limit) errors
+                if e.response.status_code == 429:
+                    if attempt < self.MAX_RETRIES:
+                        # Check for Retry-After header
+                        retry_after = e.response.headers.get('Retry-After')
+                        if retry_after:
+                            try:
+                                delay = min(int(retry_after), self.MAX_RETRY_DELAY)
+                            except ValueError:
+                                pass
+
+                        logger.warning(
+                            f"{provider_name} rate limited (429). "
+                            f"Retry {attempt + 1}/{self.MAX_RETRIES} in {delay}s"
+                        )
+                        time.sleep(delay)
+
+                        # Exponential backoff for next attempt
+                        delay = min(delay * 2, self.MAX_RETRY_DELAY)
+                        continue
+                    else:
+                        logger.error(
+                            f"{provider_name} rate limited (429). "
+                            f"Max retries ({self.MAX_RETRIES}) exceeded"
+                        )
+
+                # For other errors, raise immediately
+                raise
+
+        # If we get here, we've exhausted retries
+        raise last_exception
 
     def _parse_analysis_response(self, response: Dict) -> Dict[str, Any]:
         """
@@ -408,6 +512,10 @@ Responde EXACTAMENTE en el siguiente formato JSON:
         elif self.provider == 'deepseek':
             return self.DEEPSEEK_MODEL
         return 'unknown'
+
+    def supports_vision(self) -> bool:
+        """Check if the current provider supports image/vision analysis."""
+        return self.provider in self.VISION_CAPABLE_PROVIDERS
 
     def test_connection(self) -> Dict[str, Any]:
         """

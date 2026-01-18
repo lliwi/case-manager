@@ -33,12 +33,18 @@
                         {% endif %}
                     </div>
 
-                    <div class="mb-3">
+                    <div class="mb-3" id="queryTypeContainer">
                         <label for="query_type" class="form-label">Tipo de consulta *</label>
                         {{ form.query_type(class="form-select" + (" is-invalid" if form.query_type.errors else "")) }}
                         {% if form.query_type.errors %}
                         <div class="invalid-feedback">{{ form.query_type.errors[0] }}</div>
                         {% endif %}
+                    </div>
+
+                    <div class="mb-3" id="searchEngineContainer" style="display: none;">
+                        <label for="search_engine" class="form-label">Motor de búsqueda</label>
+                        {{ form.search_engine(class="form-select") }}
+                        <div class="form-text">Selecciona el motor de búsqueda a utilizar</div>
                     </div>
 
                     <div class="mb-3">
@@ -103,6 +109,12 @@
                     Monitoriza resultados de una búsqueda por palabras clave.
                 </p>
 
+                <h6>Búsqueda Web</h6>
+                <p class="small text-muted">
+                    Monitoriza resultados de Google, DuckDuckGo o Bing.
+                    Similar a Google Alerts.
+                </p>
+
                 <hr>
 
                 <p class="small text-muted mb-0">
@@ -116,16 +128,43 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const platform = document.getElementById('platform');
     const queryType = document.getElementById('query_type');
+    const queryTypeContainer = document.getElementById('queryTypeContainer');
+    const searchEngineContainer = document.getElementById('searchEngineContainer');
     const helpUserProfile = document.getElementById('helpUserProfile');
     const helpHashtag = document.getElementById('helpHashtag');
     const helpSearch = document.getElementById('helpSearch');
     const queryValue = document.getElementById('query_value');
 
+    function updatePlatformUI() {
+        const isWebSearch = platform.value === 'WEB_SEARCH';
+
+        // Show/hide search engine selector
+        searchEngineContainer.style.display = isWebSearch ? 'block' : 'none';
+
+        // For web search, force SEARCH_QUERY and hide the query type selector
+        if (isWebSearch) {
+            queryType.value = 'SEARCH_QUERY';
+            queryTypeContainer.style.display = 'none';
+        } else {
+            queryTypeContainer.style.display = 'block';
+        }
+
+        updateHelp();
+    }
+
     function updateHelp() {
         helpUserProfile.style.display = 'none';
         helpHashtag.style.display = 'none';
         helpSearch.style.display = 'none';
+
+        // For web search, always show search help
+        if (platform.value === 'WEB_SEARCH') {
+            helpSearch.style.display = 'inline';
+            queryValue.placeholder = 'Ej: "Juan Pérez" empresa Madrid';
+            return;
+        }
 
         switch(queryType.value) {
             case 'USER_PROFILE':
@@ -143,8 +182,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    platform.addEventListener('change', updatePlatformUI);
     queryType.addEventListener('change', updateHelp);
-    updateHelp();
+
+    // Initial setup
+    updatePlatformUI();
 });
 </script>
 {% endblock %}

@@ -71,7 +71,16 @@
         {% for result in results.items %}
         <a href="{{ url_for('monitoring.result_detail', case_id=case.id, task_id=task.id, result_id=result.id) }}" class="list-group-item list-group-item-action {% if result.is_alert and not result.alert_acknowledged %}list-group-item-warning{% endif %}">
             <div class="row">
-                <div class="col-md-8">
+                <!-- Thumbnail column -->
+                {% if result.has_media and result.media_urls %}
+                <div class="col-auto">
+                    <img src="{{ result.media_urls[0] }}" alt="Miniatura"
+                         class="rounded" style="width: 80px; height: 80px; object-fit: cover;"
+                         onerror="this.style.display='none'">
+                </div>
+                {% endif %}
+
+                <div class="{% if result.has_media and result.media_urls %}col-md-7{% else %}col-md-8{% endif %}">
                     <div class="d-flex align-items-center gap-2 mb-1">
                         {% if result.is_alert %}
                         <span class="badge bg-danger">
@@ -84,6 +93,8 @@
                         <i class="bi bi-twitter-x text-muted"></i>
                         {% elif result.source.platform.value == 'Instagram' %}
                         <i class="bi bi-instagram text-muted"></i>
+                        {% elif result.source.platform.value == 'Búsqueda Web' %}
+                        <i class="bi bi-globe text-muted"></i>
                         {% endif %}
 
                         <strong>@{{ result.author_username or 'desconocido' }}</strong>
@@ -112,7 +123,7 @@
                     {% endif %}
                 </div>
 
-                <div class="col-md-4 text-end">
+                <div class="{% if result.has_media and result.media_urls %}col-md-3{% else %}col-md-4{% endif %} text-end">
                     <div class="mb-2">
                         {% if result.ai_relevance_score is not none %}
                         <span class="badge {% if result.ai_relevance_score >= 0.6 %}bg-danger{% elif result.ai_relevance_score >= 0.4 %}bg-warning{% else %}bg-secondary{% endif %} fs-6">

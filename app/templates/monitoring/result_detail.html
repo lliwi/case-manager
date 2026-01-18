@@ -31,6 +31,8 @@
                     <i class="bi bi-twitter-x"></i>
                     {% elif result.source.platform.value == 'Instagram' %}
                     <i class="bi bi-instagram"></i>
+                    {% elif result.source.platform.value == 'Búsqueda Web' %}
+                    <i class="bi bi-globe"></i>
                     {% endif %}
                     <strong>@{{ result.author_username or 'desconocido' }}</strong>
                     {% if result.author_display_name %}

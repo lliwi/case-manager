@@ -324,11 +324,17 @@ def source_add(case_id, task_id):
 
     if form.validate_on_submit():
         try:
+            # For WEB_SEARCH, prepend the search engine to the query
+            query_value = form.query_value.data
+            if form.platform.data == 'WEB_SEARCH':
+                search_engine = form.search_engine.data or 'google'
+                query_value = f"{search_engine}:{query_value}"
+
             source = MonitoringService.add_source(
                 task_id=task_id,
                 platform=form.platform.data,
                 query_type=form.query_type.data,
-                query_value=form.query_value.data,
+                query_value=query_value,
                 max_results_per_check=form.max_results_per_check.data or 20,
                 include_media=form.include_media.data
             )

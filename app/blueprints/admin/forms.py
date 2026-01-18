@@ -89,6 +89,7 @@ class ApiKeyForm(FlaskForm):
             ('apify', 'Apify (Instagram, Web Scraping)'),
             ('openai', 'OpenAI (GPT-4 Vision - Análisis de Imágenes)'),
             ('deepseek', 'DeepSeek (VL - Análisis Visual Económico)'),
+            ('serpapi', 'SerpAPI (Búsqueda Web - Google, DuckDuckGo)'),
             ('other', 'Otro servicio')
         ],
         validators=[DataRequired(message='El servicio es obligatorio')],

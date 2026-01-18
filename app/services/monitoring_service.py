@@ -338,6 +338,8 @@ class MonitoringService:
             results = MonitoringService._process_x_source(source, task)
         elif source.platform == SourcePlatform.INSTAGRAM:
             results = MonitoringService._process_instagram_source(source, task)
+        elif source.platform == SourcePlatform.WEB_SEARCH:
+            results = MonitoringService._process_web_search_source(source, task)
 
         # Update source state
         source.last_check_at = datetime.utcnow()
@@ -495,21 +497,27 @@ class MonitoringService:
                     return results
 
                 if posts_data.get('posts'):
-                    # Track if we found the last processed post
-                    found_last_post = False
                     new_posts_found = False
+                    newest_timestamp = source.last_result_timestamp
 
                     for post in posts_data['posts']:
                         post_id = post.get('id') or post.get('shortCode')
                         if not post_id:
                             continue
 
-                        # If we have a last_result_id, skip posts we've already seen
+                        # Skip if we've already processed this ID
                         if source.last_result_id and str(post_id) == str(source.last_result_id):
-                            found_last_post = True
-                            break  # Stop processing older posts
+                            break
 
-                        # Check if we already have this result in database
+                        # Parse post timestamp for date filtering
+                        post_timestamp = MonitoringService._parse_post_timestamp(post)
+
+                        # Skip posts older than our last result timestamp
+                        if source.last_result_timestamp and post_timestamp:
+                            if post_timestamp <= source.last_result_timestamp:
+                                continue
+
+                        # Check if already exists in database
                         existing = MonitoringResult.query.filter_by(
                             task_id=task.id,
                             source_id=source.id,
@@ -526,20 +534,337 @@ class MonitoringService:
                         results.append(result)
                         new_posts_found = True
 
-                    # Update last result ID only if we found new posts
+                        # Track newest timestamp
+                        if post_timestamp and (newest_timestamp is None or post_timestamp > newest_timestamp):
+                            newest_timestamp = post_timestamp
+
+                    # Update source tracking
                     if new_posts_found and posts_data['posts']:
                         first_post = posts_data['posts'][0]
                         source.last_result_id = first_post.get('id') or first_post.get('shortCode')
+                        if newest_timestamp:
+                            source.last_result_timestamp = newest_timestamp
 
             elif source.query_type == SourceQueryType.HASHTAG:
-                # Hashtag monitoring would need different Apify actor
-                logger.warning("Hashtag search not yet fully implemented for Instagram")
+                # Hashtag monitoring
+                hashtag = source.query_value.lstrip('#')
+                posts_data = service.scrape_instagram_hashtag(
+                    hashtag,
+                    max_posts=source.max_results_per_check
+                )
+
+                if not posts_data:
+                    source.record_error('No se recibió respuesta del servicio de Instagram')
+                    return results
+
+                if not posts_data.get('success'):
+                    source.record_error(posts_data.get('error', 'Error desconocido'))
+                    return results
+
+                if posts_data.get('posts'):
+                    new_posts_found = False
+                    newest_timestamp = source.last_result_timestamp
+
+                    for post in posts_data['posts']:
+                        post_id = post.get('id') or post.get('shortcode')
+                        if not post_id:
+                            continue
+
+                        # Skip if we've already processed this ID
+                        if source.last_result_id and str(post_id) == str(source.last_result_id):
+                            break
+
+                        # Parse post timestamp for date filtering
+                        post_timestamp = MonitoringService._parse_post_timestamp(post)
+
+                        # Skip posts older than our last result timestamp
+                        if source.last_result_timestamp and post_timestamp:
+                            if post_timestamp <= source.last_result_timestamp:
+                                continue
+
+                        # Check if already exists in database
+                        existing = MonitoringResult.query.filter_by(
+                            task_id=task.id,
+                            source_id=source.id,
+                            external_id=str(post_id)
+                        ).first()
+
+                        if existing:
+                            continue
+
+                        result = MonitoringService._create_result_from_instagram_hashtag_post(
+                            post, source, task
+                        )
+                        if result:
+                            results.append(result)
+                            new_posts_found = True
+
+                            # Track newest timestamp
+                            if post_timestamp and (newest_timestamp is None or post_timestamp > newest_timestamp):
+                                newest_timestamp = post_timestamp
+
+                    # Update source tracking
+                    if new_posts_found and posts_data['posts']:
+                        first_post = posts_data['posts'][0]
+                        source.last_result_id = first_post.get('id') or first_post.get('shortcode')
+                        if newest_timestamp:
+                            source.last_result_timestamp = newest_timestamp
+
+            elif source.query_type == SourceQueryType.SEARCH_QUERY:
+                # Search query
+                posts_data = service.scrape_instagram_search(
+                    source.query_value,
+                    max_posts=source.max_results_per_check
+                )
+
+                if not posts_data:
+                    source.record_error('No se recibió respuesta del servicio de Instagram')
+                    return results
+
+                if not posts_data.get('success'):
+                    source.record_error(posts_data.get('error', 'Error desconocido'))
+                    return results
+
+                if posts_data.get('posts'):
+                    new_posts_found = False
+                    newest_timestamp = source.last_result_timestamp
+
+                    for post in posts_data['posts']:
+                        post_id = post.get('id') or post.get('shortcode')
+                        if not post_id:
+                            continue
+
+                        # Skip if we've already processed this ID
+                        if source.last_result_id and str(post_id) == str(source.last_result_id):
+                            break
+
+                        # Parse post timestamp for date filtering
+                        post_timestamp = MonitoringService._parse_post_timestamp(post)
+
+                        # Skip posts older than our last result timestamp
+                        if source.last_result_timestamp and post_timestamp:
+                            if post_timestamp <= source.last_result_timestamp:
+                                continue
+
+                        # Check if already exists in database
+                        existing = MonitoringResult.query.filter_by(
+                            task_id=task.id,
+                            source_id=source.id,
+                            external_id=str(post_id)
+                        ).first()
+
+                        if existing:
+                            continue
+
+                        result = MonitoringService._create_result_from_instagram_hashtag_post(
+                            post, source, task
+                        )
+                        if result:
+                            results.append(result)
+                            new_posts_found = True
+
+                            # Track newest timestamp
+                            if post_timestamp and (newest_timestamp is None or post_timestamp > newest_timestamp):
+                                newest_timestamp = post_timestamp
+
+                    # Update source tracking
+                    if new_posts_found and posts_data['posts']:
+                        first_post = posts_data['posts'][0]
+                        source.last_result_id = first_post.get('id') or first_post.get('shortcode')
+                        if newest_timestamp:
+                            source.last_result_timestamp = newest_timestamp
 
         except Exception as e:
             source.record_error(str(e))
             logger.error(f"Error processing Instagram source {source.id}: {e}")
 
         return results
+
+    @staticmethod
+    def _parse_post_timestamp(post: Dict) -> Optional[datetime]:
+        """Parse timestamp from post data, trying multiple field names and formats."""
+        from dateutil import parser as date_parser
+
+        timestamp_value = post.get('timestamp') or post.get('taken_at_timestamp') or post.get('created_time')
+
+        if not timestamp_value:
+            return None
+
+        try:
+            if isinstance(timestamp_value, (int, float)):
+                # Unix timestamp
+                return datetime.utcfromtimestamp(timestamp_value)
+            else:
+                return date_parser.parse(str(timestamp_value))
+        except Exception:
+            return None
+
+    @staticmethod
+    def _process_web_search_source(source: MonitoringSource, task: MonitoringTask) -> List[MonitoringResult]:
+        """Process Web Search source using SerpAPI."""
+        from app.services.web_search_service import WebSearchService
+        import hashlib
+
+        results = []
+
+        # Get API key
+        api_key = ApiKey.get_active_key('serpapi')
+        if not api_key:
+            source.record_error("No hay API Key activa para SerpAPI")
+            return results
+
+        service = WebSearchService(api_key)
+
+        try:
+            # Determine which search engine to use based on query_type or query_value
+            # query_value format: "engine:query" or just "query" (defaults to google)
+            query_parts = source.query_value.split(':', 1)
+            if len(query_parts) == 2 and query_parts[0].lower() in ['google', 'duckduckgo', 'bing']:
+                engine = query_parts[0].lower()
+                query = query_parts[1]
+            else:
+                engine = 'google'
+                query = source.query_value
+
+            # Execute search
+            search_data = service.search(
+                query=query,
+                engine=engine,
+                num_results=source.max_results_per_check
+            )
+
+            if not search_data:
+                source.record_error('No se recibió respuesta del servicio de búsqueda')
+                return results
+
+            if not search_data.get('success'):
+                source.record_error(search_data.get('error', 'Error desconocido'))
+                return results
+
+            if search_data.get('results'):
+                for search_result in search_data['results']:
+                    link = search_result.get('link', '')
+                    if not link:
+                        continue
+
+                    # Use URL hash as unique identifier
+                    url_hash = hashlib.sha256(link.encode('utf-8')).hexdigest()[:32]
+
+                    # Check if we already have this result by URL hash
+                    existing = MonitoringResult.query.filter_by(
+                        task_id=task.id,
+                        source_id=source.id,
+                        external_id=url_hash
+                    ).first()
+
+                    if existing:
+                        continue
+
+                    # Create result
+                    result = MonitoringService._create_result_from_web_search(
+                        search_result, source, task, engine, query
+                    )
+                    results.append(result)
+
+                # Update last_result_id with the first result's URL hash
+                if results and search_data['results']:
+                    first_link = search_data['results'][0].get('link', '')
+                    if first_link:
+                        source.last_result_id = hashlib.sha256(
+                            first_link.encode('utf-8')
+                        ).hexdigest()[:32]
+
+        except Exception as e:
+            source.record_error(str(e))
+            logger.error(f"Error processing web search source {source.id}: {e}")
+
+        return results
+
+    @staticmethod
+    def _create_result_from_web_search(
+        search_result: Dict,
+        source: MonitoringSource,
+        task: MonitoringTask,
+        engine: str,
+        query: str
+    ) -> MonitoringResult:
+        """Create a MonitoringResult from web search result data."""
+        from dateutil import parser as date_parser
+        import hashlib
+
+        link = search_result.get('link', '')
+        url_hash = hashlib.sha256(link.encode('utf-8')).hexdigest()[:32]
+
+        # Parse date if available
+        source_timestamp = None
+        if search_result.get('date'):
+            try:
+                source_timestamp = date_parser.parse(search_result['date'])
+            except Exception:
+                pass
+
+        # Build content text from title and snippet
+        title = search_result.get('title', '')
+        snippet = search_result.get('snippet', '')
+        content_text = f"{title}\n\n{snippet}" if snippet else title
+
+        # Calculate content hash
+        content_hash = MonitoringResult.calculate_content_hash(
+            content_text,
+            url_hash,
+            source_timestamp
+        )
+
+        # Extract thumbnail if available
+        media_urls = []
+        if search_result.get('thumbnail'):
+            media_urls.append(search_result['thumbnail'])
+
+        # Extract domain as "author"
+        displayed_link = search_result.get('displayed_link', '')
+        if not displayed_link and link:
+            try:
+                from urllib.parse import urlparse
+                parsed = urlparse(link)
+                displayed_link = parsed.netloc
+            except Exception:
+                pass
+
+        result = MonitoringResult(
+            task_id=task.id,
+            source_id=source.id,
+            external_id=url_hash,
+            external_url=link,
+            content_text=content_text,
+            content_metadata={
+                'search_engine': engine,
+                'query': query,
+                'position': search_result.get('position'),
+                'title': title,
+                'snippet': snippet,
+                'displayed_link': displayed_link,
+                'cached_page_link': search_result.get('cached_page_link'),
+                'rich_snippet': search_result.get('rich_snippet'),
+                'is_news': search_result.get('is_news', False)
+            },
+            author_username=displayed_link,  # Use domain as "author"
+            author_display_name=displayed_link,
+            author_profile_url=link,
+            has_media=len(media_urls) > 0,
+            media_count=len(media_urls),
+            media_urls=media_urls if media_urls else None,
+            source_timestamp=source_timestamp,
+            content_hash=content_hash
+        )
+
+        db.session.add(result)
+        db.session.flush()
+
+        # Download thumbnail if enabled
+        if source.include_media and media_urls:
+            MonitoringService._download_result_media(result, media_urls)
+
+        return result
 
     @staticmethod
     def _create_result_from_tweet(
@@ -727,6 +1052,184 @@ class MonitoringService:
             content_metadata=post,
             author_username=username,
             author_display_name=profile_data.get('fullName') or '',
+            author_profile_url=f"https://www.instagram.com/{username}/" if username else None,
+            has_media=len(media_urls) > 0,
+            media_count=len(media_urls),
+            media_urls=media_urls if media_urls else None,
+            source_timestamp=source_timestamp,
+            content_hash=content_hash
+        )
+
+        db.session.add(result)
+        db.session.flush()
+
+        # Download media if enabled
+        if source.include_media and media_urls:
+            MonitoringService._download_result_media(result, media_urls)
+
+        return result
+
+    @staticmethod
+    def _create_result_from_instagram_hashtag_post(
+        post: Dict,
+        source: MonitoringSource,
+        task: MonitoringTask
+    ) -> MonitoringResult:
+        """Create a MonitoringResult from Instagram hashtag/search post data."""
+        from dateutil import parser as date_parser
+
+        # Get post ID (formatted data should have 'id' set to shortcode if no id)
+        post_id = post.get('id') or post.get('shortcode') or ''
+
+        if not post_id:
+            logger.warning(f"Instagram hashtag post has no ID, skipping. Raw keys: {list(post.keys())}")
+            return None
+
+        # Extract media URLs - try multiple field names
+        media_urls = []
+
+        # Get display URL from multiple possible fields
+        display_url = (
+            post.get('display_url') or
+            post.get('displayUrl') or
+            post.get('imageUrl') or
+            post.get('image_url') or
+            post.get('thumbnailUrl') or
+            post.get('thumbnail_url') or
+            post.get('previewUrl') or
+            post.get('mediaUrl') or
+            post.get('src') or
+            post.get('image') or
+            post.get('thumbnail_src') or
+            ''
+        )
+        if display_url:
+            media_urls.append(display_url)
+
+        # Get images from multiple possible fields
+        images = (
+            post.get('images') or
+            post.get('displayResources') or
+            post.get('display_resources') or
+            post.get('sidecarImages') or
+            []
+        )
+
+        # Handle display_resources structure (list of dicts with 'src')
+        if images and isinstance(images, list) and len(images) > 0:
+            if isinstance(images[0], dict):
+                images = [img.get('src') or img.get('url') for img in images if img]
+                images = [img for img in images if img and isinstance(img, str)]
+
+        # Add images not already in media_urls
+        for img in images:
+            if img and img not in media_urls:
+                media_urls.append(img)
+
+        # Get videos from multiple possible fields
+        videos = post.get('videos') or []
+        video_url = (
+            post.get('videoUrl') or
+            post.get('video_url') or
+            post.get('videoSrc') or
+            post.get('video_src') or
+            post.get('video')
+        )
+        if video_url:
+            if isinstance(video_url, list):
+                videos = video_url + videos
+            elif video_url not in videos:
+                videos = [video_url] + videos
+
+        for vid in videos:
+            if vid and vid not in media_urls:
+                media_urls.append(vid)
+
+        # Also check raw data for media if nothing found
+        if not media_urls and post.get('raw'):
+            raw = post.get('raw', {})
+            raw_display = (
+                raw.get('displayUrl') or
+                raw.get('display_url') or
+                raw.get('imageUrl') or
+                raw.get('thumbnailUrl') or
+                ''
+            )
+            if raw_display:
+                media_urls.append(raw_display)
+
+        if not media_urls:
+            logger.debug(f"Instagram hashtag post {post_id} has no media. Keys: {list(post.keys())}")
+
+        # Parse timestamp
+        source_timestamp = None
+        timestamp_value = post.get('timestamp')
+        if timestamp_value:
+            try:
+                if isinstance(timestamp_value, (int, float)):
+                    # Unix timestamp
+                    from datetime import datetime
+                    source_timestamp = datetime.utcfromtimestamp(timestamp_value)
+                else:
+                    source_timestamp = date_parser.parse(str(timestamp_value))
+            except Exception:
+                pass
+
+        # Build external URL
+        shortcode = post.get('shortcode', '')
+        external_url = post.get('url') or (f"https://www.instagram.com/p/{shortcode}/" if shortcode else None)
+
+        # Get caption - try multiple field names
+        caption = (
+            post.get('caption') or
+            post.get('text') or
+            post.get('description') or
+            post.get('alt') or
+            ''
+        )
+        # Handle nested caption structure (edge_media_to_caption)
+        if not caption and post.get('edge_media_to_caption'):
+            edges = post.get('edge_media_to_caption', {}).get('edges', [])
+            if edges and edges[0].get('node', {}).get('text'):
+                caption = edges[0]['node']['text']
+
+        # Also check raw data if available
+        if not caption and post.get('raw'):
+            raw = post.get('raw', {})
+            caption = (
+                raw.get('caption') or
+                raw.get('text') or
+                raw.get('description') or
+                ''
+            )
+            if not caption and raw.get('edge_media_to_caption'):
+                edges = raw.get('edge_media_to_caption', {}).get('edges', [])
+                if edges and edges[0].get('node', {}).get('text'):
+                    caption = edges[0]['node']['text']
+
+        if not caption:
+            logger.debug(f"Instagram hashtag post {post_id} has no caption. Keys: {list(post.keys())}")
+
+        # Get owner info from post (formatted data has 'owner' dict)
+        owner = post.get('owner', {})
+        username = owner.get('username', '') or ''
+
+        # Calculate content hash
+        content_hash = MonitoringResult.calculate_content_hash(
+            caption,
+            str(post_id),
+            source_timestamp
+        )
+
+        result = MonitoringResult(
+            task_id=task.id,
+            source_id=source.id,
+            external_id=str(post_id),
+            external_url=external_url,
+            content_text=caption,
+            content_metadata=post,
+            author_username=username,
+            author_display_name='',
             author_profile_url=f"https://www.instagram.com/{username}/" if username else None,
             has_media=len(media_urls) > 0,
             media_count=len(media_urls),
