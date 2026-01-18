@@ -32,6 +32,7 @@ class XAPIService:
     USERS_BY_ID = "users"
     TWEETS_ENDPOINT = "tweets"
     USER_TWEETS_ENDPOINT = "users/{}/tweets"
+    SEARCH_TWEETS_ENDPOINT = "tweets/search/recent"
 
     def __init__(self, api_key_model):
         """
@@ -202,7 +203,8 @@ class XAPIService:
             raise
 
     def get_user_tweets(self, username: str = None, user_id: str = None,
-                       max_results: int = 10, include_metrics: bool = True) -> Dict[str, Any]:
+                       max_results: int = 10, include_metrics: bool = True,
+                       since_id: str = None) -> Dict[str, Any]:
         """
         Get recent tweets from a user.
 
@@ -211,6 +213,7 @@ class XAPIService:
             user_id: Twitter user ID (one of username or user_id required)
             max_results: Number of tweets to retrieve (5-100, default 10)
             include_metrics: Include tweet metrics (likes, retweets, etc.)
+            since_id: Only return tweets newer than this ID (optional)
 
         Returns:
             dict: Tweets and user information containing:
@@ -250,6 +253,10 @@ class XAPIService:
             'expansions': 'attachments.media_keys',
             'media.fields': 'url,preview_image_url,type,alt_text,width,height'
         }
+
+        # Add since_id to only get newer tweets
+        if since_id:
+            params['since_id'] = since_id
 
         if not include_metrics:
             params['tweet.fields'] = 'id,text,created_at,author_id,referenced_tweets,entities,lang,attachments'
@@ -294,6 +301,94 @@ class XAPIService:
 
         except Exception as e:
             logger.error(f"Error getting tweets for user {username or user_id}: {str(e)}")
+            raise
+
+    def search_tweets(self, query: str, max_results: int = 10,
+                      since_id: str = None) -> Dict[str, Any]:
+        """
+        Search for tweets matching a query (hashtag, keyword, etc.).
+
+        Args:
+            query: Search query (e.g., "#hashtag", "keyword", etc.)
+            max_results: Number of tweets to retrieve (10-100, default 10)
+            since_id: Only return tweets newer than this ID (optional)
+
+        Returns:
+            dict: Search results containing:
+                - tweets: List of matching tweets
+                - meta: Pagination metadata
+                - tweet_count: Number of tweets returned
+
+        Raises:
+            Exception: If search fails
+        """
+        # Validate max_results (API allows 10-100)
+        max_results = max(10, min(100, max_results))
+
+        # Build parameters
+        params = {
+            'query': query,
+            'max_results': max_results,
+            'tweet.fields': 'id,text,created_at,author_id,public_metrics,referenced_tweets,entities,lang,attachments',
+            'expansions': 'author_id,attachments.media_keys',
+            'user.fields': 'id,name,username,profile_image_url',
+            'media.fields': 'url,preview_image_url,type,alt_text,width,height'
+        }
+
+        # Add since_id to only get newer tweets
+        if since_id:
+            params['since_id'] = since_id
+
+        try:
+            result = self._make_request(self.SEARCH_TWEETS_ENDPOINT, params)
+
+            # Track usage
+            self.api_key_model.increment_usage()
+
+            tweets = result.get('data', [])
+            meta = result.get('meta', {})
+            includes = result.get('includes', {})
+
+            # Create user lookup dictionary
+            users_dict = {}
+            if 'users' in includes:
+                for user in includes['users']:
+                    users_dict[user['id']] = user
+
+            # Create media lookup dictionary
+            media_dict = {}
+            if 'media' in includes:
+                for media in includes['media']:
+                    media_dict[media['media_key']] = media
+
+            # Enrich tweets with user info and media
+            for tweet in tweets:
+                # Add author info
+                author_id = tweet.get('author_id')
+                if author_id and author_id in users_dict:
+                    tweet['author'] = users_dict[author_id]
+
+                # Add interpretation
+                tweet['interpretation'] = self._interpret_tweet(tweet)
+
+                # Attach media if present
+                tweet['media'] = []
+                if 'attachments' in tweet and 'media_keys' in tweet['attachments']:
+                    for media_key in tweet['attachments']['media_keys']:
+                        if media_key in media_dict:
+                            tweet['media'].append(media_dict[media_key])
+
+            return {
+                'success': True,
+                'query': query,
+                'query_type': 'search',
+                'tweets': tweets,
+                'meta': meta,
+                'tweet_count': len(tweets)
+            }
+
+        except Exception as e:
+            logger.error(f"Error searching tweets for query '{query}': {str(e)}")
             raise
 
     def _get_user_by_id(self, user_id: str) -> Dict[str, Any]:

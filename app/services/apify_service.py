@@ -182,8 +182,8 @@ class ApifyService:
         }
 
         try:
-            # Run the actor
-            run_data = self.run_actor(self.INSTAGRAM_ACTOR_ID, run_input)
+            # Run the actor with extended timeout for Instagram
+            run_data = self.run_actor(self.INSTAGRAM_ACTOR_ID, run_input, timeout=300)
 
             # Get results from dataset
             dataset_id = run_data['defaultDatasetId']

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}{% if is_edit %}Editar{% else %}Nueva{% endif %} Tarea de Monitorización{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">{% if is_edit %}Editar{% else %}Nueva{% endif %} Tarea de Monitorización</h1>
+        <small class="text-muted">Caso {{ case.numero_orden }}</small>
+    </div>
+    <div>
+        {% if is_edit %}
+        <a href="{{ url_for('monitoring.task_detail', case_id=case.id, task_id=task.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+        {% else %}
+        <a href="{{ url_for('monitoring.task_list', case_id=case.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Cancelar
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <form method="POST" class="needs-validation" novalidate>
+            {{ form.hidden_tag() }}
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Información Básica</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Nombre de la tarea *</label>
+                        {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                        {% if form.name.errors %}
+                        <div class="invalid-feedback">{{ form.name.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Descripción</label>
+                        {{ form.description(class="form-control") }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="monitoring_objective" class="form-label">Objetivo de monitorización *</label>
+                        {{ form.monitoring_objective(class="form-control" + (" is-invalid" if form.monitoring_objective.errors else "")) }}
+                        <div class="form-text">{{ form.monitoring_objective.description }}</div>
+                        {% if form.monitoring_objective.errors %}
+                        <div class="invalid-feedback">{{ form.monitoring_objective.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Configuración de IA</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="ai_provider" class="form-label">Proveedor de IA</label>
+                        {{ form.ai_provider(class="form-select") }}
+                        <div class="form-text">DeepSeek es más económico. OpenAI ofrece mayor precisión.</div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        {{ form.ai_analysis_enabled(class="form-check-input") }}
+                        <label class="form-check-label" for="ai_analysis_enabled">
+                            {{ form.ai_analysis_enabled.label.text }}
+                        </label>
+                        <div class="form-text">{{ form.ai_analysis_enabled.description }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="ai_prompt_template" class="form-label">Plantilla de prompt (opcional)</label>
+                        {{ form.ai_prompt_template(class="form-control") }}
+                        <div class="form-text">{{ form.ai_prompt_template.description }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Programación</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="start_date" class="form-label">Fecha de inicio *</label>
+                            {{ form.start_date(class="form-control" + (" is-invalid" if form.start_date.errors else "")) }}
+                            {% if form.start_date.errors %}
+                            <div class="invalid-feedback">{{ form.start_date.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="end_date" class="form-label">Fecha de fin (opcional)</label>
+                            {{ form.end_date(class="form-control" + (" is-invalid" if form.end_date.errors else "")) }}
+                            <div class="form-text">{{ form.end_date.description }}</div>
+                            {% if form.end_date.errors %}
+                            <div class="invalid-feedback">{{ form.end_date.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="check_interval_minutes" class="form-label">Intervalo de comprobación</label>
+                        {{ form.check_interval_minutes(class="form-select") }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i> {% if is_edit %}Guardar cambios{% else %}Crear tarea{% endif %}
+                </button>
+                {% if is_edit %}
+                <a href="{{ url_for('monitoring.task_detail', case_id=case.id, task_id=task.id) }}" class="btn btn-outline-secondary">
+                    Cancelar
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Consejos</h6>
+            </div>
+            <div class="card-body">
+                <h6>Objetivo de monitorización</h6>
+                <p class="small text-muted">
+                    Describe claramente qué quieres detectar. Cuanto más específico, mejores resultados obtendrá la IA.
+                </p>
+                <p class="small"><strong>Ejemplos:</strong></p>
+                <ul class="small">
+                    <li>"Detectar actividades físicas incompatibles con una baja laboral por problemas de espalda"</li>
+                    <li>"Identificar publicaciones que muestren viajes o actividades de ocio durante periodo de incapacidad"</li>
+                    <li>"Detectar comportamientos violentos o agresivos en eventos públicos"</li>
+                </ul>
+
+                <hr>
+
+                <h6>Intervalo de comprobación</h6>
+                <p class="small text-muted">
+                    Un intervalo más corto detectará contenido más rápido pero consumirá más recursos de API.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

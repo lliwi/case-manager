@@ -122,6 +122,7 @@ services:
       - neo4j
     networks:
       - backend
+      - frontend
     restart: unless-stopped
 
   celery_beat:

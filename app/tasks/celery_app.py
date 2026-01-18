@@ -23,6 +23,7 @@ def make_celery():
             'app.tasks.evidence_tasks',
             'app.tasks.forensic_tasks',
             'app.tasks.osint_tasks',
+            'app.tasks.monitoring_tasks',
         ]
     )
 
@@ -45,6 +46,10 @@ def make_celery():
             'cleanup-old-results': {
                 'task': 'app.tasks.maintenance.cleanup_old_results',
                 'schedule': crontab(hour=2, minute=0),  # Daily at 2 AM
+            },
+            'monitoring-check-active-tasks': {
+                'task': 'app.tasks.monitoring.check_all_active',
+                'schedule': crontab(minute='*'),  # Every minute
             },
         }
     )

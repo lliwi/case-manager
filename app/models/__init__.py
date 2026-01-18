@@ -18,6 +18,10 @@ from app.models.report import Report, ReportType, ReportStatus
 from app.models.api_key import ApiKey
 from app.models.osint_validation import OSINTValidation
 from app.models.osint_contact import OSINTContact
+from app.models.monitoring import (
+    MonitoringTask, MonitoringSource, MonitoringResult, MonitoringCheckLog,
+    MonitoringStatus, SourcePlatform, SourceQueryType, AIProvider
+)
 
 __all__ = [
     'User', 'Role', 'AuditLog',
@@ -29,5 +33,7 @@ __all__ = [
     'TimelineEvent', 'EventType',
     'Report', 'ReportType', 'ReportStatus',
     'ApiKey',
-    'OSINTValidation', 'OSINTContact'
+    'OSINTValidation', 'OSINTContact',
+    'MonitoringTask', 'MonitoringSource', 'MonitoringResult', 'MonitoringCheckLog',
+    'MonitoringStatus', 'SourcePlatform', 'SourceQueryType', 'AIProvider'
 ]

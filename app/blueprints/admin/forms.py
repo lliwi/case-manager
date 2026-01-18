@@ -87,6 +87,8 @@ class ApiKeyForm(FlaskForm):
             ('ipqualityscore', 'IPQualityScore (Email/Phone Validation)'),
             ('x_api', 'X API (Twitter)'),
             ('apify', 'Apify (Instagram, Web Scraping)'),
+            ('openai', 'OpenAI (GPT-4 Vision - Análisis de Imágenes)'),
+            ('deepseek', 'DeepSeek (VL - Análisis Visual Económico)'),
             ('other', 'Otro servicio')
         ],
         validators=[DataRequired(message='El servicio es obligatorio')],

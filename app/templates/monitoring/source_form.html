@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Añadir Fuente - {{ task.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">Añadir Fuente de Datos</h1>
+        <small class="text-muted">{{ task.name }} - Caso {{ case.numero_orden }}</small>
+    </div>
+    <div>
+        <a href="{{ url_for('monitoring.task_detail', case_id=case.id, task_id=task.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Cancelar
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <form method="POST" class="needs-validation" novalidate>
+            {{ form.hidden_tag() }}
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Configuración de la Fuente</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="platform" class="form-label">Plataforma *</label>
+                        {{ form.platform(class="form-select" + (" is-invalid" if form.platform.errors else "")) }}
+                        {% if form.platform.errors %}
+                        <div class="invalid-feedback">{{ form.platform.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="query_type" class="form-label">Tipo de consulta *</label>
+                        {{ form.query_type(class="form-select" + (" is-invalid" if form.query_type.errors else "")) }}
+                        {% if form.query_type.errors %}
+                        <div class="invalid-feedback">{{ form.query_type.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="query_value" class="form-label">Valor de búsqueda *</label>
+                        {{ form.query_value(class="form-control" + (" is-invalid" if form.query_value.errors else "")) }}
+                        <div class="form-text" id="queryHelp">
+                            <span id="helpUserProfile">Introduce el nombre de usuario (con o sin @)</span>
+                            <span id="helpHashtag" style="display:none;">Introduce el hashtag (con o sin #)</span>
+                            <span id="helpSearch" style="display:none;">Introduce el término de búsqueda</span>
+                        </div>
+                        {% if form.query_value.errors %}
+                        <div class="invalid-feedback">{{ form.query_value.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="max_results_per_check" class="form-label">Máx. resultados por comprobación</label>
+                            {{ form.max_results_per_check(class="form-control") }}
+                            <div class="form-text">Número máximo de posts a obtener cada vez (1-100)</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        {{ form.include_media(class="form-check-input") }}
+                        <label class="form-check-label" for="include_media">
+                            {{ form.include_media.label.text }}
+                        </label>
+                        <div class="form-text">{{ form.include_media.description }}</div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-lg"></i> Añadir fuente
+                    </button>
+                    <a href="{{ url_for('monitoring.task_detail', case_id=case.id, task_id=task.id) }}" class="btn btn-outline-secondary">
+                        Cancelar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Información</h6>
+            </div>
+            <div class="card-body">
+                <h6>Perfil de Usuario</h6>
+                <p class="small text-muted">
+                    Monitoriza las publicaciones de un usuario específico.
+                </p>
+
+                <h6>Hashtag</h6>
+                <p class="small text-muted">
+                    Monitoriza publicaciones con un hashtag específico.
+                </p>
+
+                <h6>Búsqueda</h6>
+                <p class="small text-muted">
+                    Monitoriza resultados de una búsqueda por palabras clave.
+                </p>
+
+                <hr>
+
+                <p class="small text-muted mb-0">
+                    <i class="bi bi-exclamation-triangle text-warning"></i>
+                    Asegúrate de tener configurada la API Key correspondiente en el panel de administración.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const queryType = document.getElementById('query_type');
+    const helpUserProfile = document.getElementById('helpUserProfile');
+    const helpHashtag = document.getElementById('helpHashtag');
+    const helpSearch = document.getElementById('helpSearch');
+    const queryValue = document.getElementById('query_value');
+
+    function updateHelp() {
+        helpUserProfile.style.display = 'none';
+        helpHashtag.style.display = 'none';
+        helpSearch.style.display = 'none';
+
+        switch(queryType.value) {
+            case 'USER_PROFILE':
+                helpUserProfile.style.display = 'inline';
+                queryValue.placeholder = '@usuario';
+                break;
+            case 'HASHTAG':
+                helpHashtag.style.display = 'inline';
+                queryValue.placeholder = '#hashtag';
+                break;
+            case 'SEARCH_QUERY':
+                helpSearch.style.display = 'inline';
+                queryValue.placeholder = 'término de búsqueda';
+                break;
+        }
+    }
+
+    queryType.addEventListener('change', updateHelp);
+    updateHelp();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}Resultado #{{ result.id }} - Monitorización{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">
+            Resultado de Monitorización
+            {% if result.is_alert %}
+            <span class="badge bg-danger">Alerta</span>
+            {% endif %}
+        </h1>
+        <small class="text-muted">{{ task.name }} - Caso {{ case.numero_orden }}</small>
+    </div>
+    <div>
+        <a href="{{ url_for('monitoring.results_list', case_id=case.id, task_id=task.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a resultados
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-md-8">
+        <!-- Content Card -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    {% if result.source.platform.value == 'X (Twitter)' %}
+                    <i class="bi bi-twitter-x"></i>
+                    {% elif result.source.platform.value == 'Instagram' %}
+                    <i class="bi bi-instagram"></i>
+                    {% endif %}
+                    <strong>@{{ result.author_username or 'desconocido' }}</strong>
+                    {% if result.author_display_name %}
+                    <span class="text-muted">({{ result.author_display_name }})</span>
+                    {% endif %}
+                </div>
+                {% if result.external_url %}
+                <a href="{{ result.external_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-box-arrow-up-right"></i> Ver original
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if result.content_text %}
+                <p class="mb-3" style="white-space: pre-wrap;">{{ result.content_text }}</p>
+                {% else %}
+                <p class="text-muted mb-3">Sin texto</p>
+                {% endif %}
+
+                <!-- Media Gallery -->
+                {% if result.has_media and result.media_urls %}
+                <div class="row g-2 mb-3">
+                    {% for url in result.media_urls[:4] %}
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url }}" target="_blank">
+                            <img src="{{ url }}" class="img-fluid rounded" alt="Media {{ loop.index }}" style="max-height: 150px; object-fit: cover; width: 100%;">
+                        </a>
+                    </div>
+                    {% endfor %}
+                    {% if result.media_urls|length > 4 %}
+                    <div class="col-12">
+                        <small class="text-muted">+{{ result.media_urls|length - 4 }} más</small>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <div class="d-flex gap-3 text-muted small">
+                    {% if result.source_timestamp %}
+                    <span><i class="bi bi-calendar"></i> Publicado: {{ result.source_timestamp.strftime('%d/%m/%Y %H:%M') }}</span>
+                    {% endif %}
+                    <span><i class="bi bi-download"></i> Capturado: {{ result.captured_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Analysis Card -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-robot"></i> Análisis de IA</h5>
+                {% if result.ai_relevance_score is not none %}
+                <span class="badge fs-5 {% if result.ai_relevance_score >= 0.6 %}bg-danger{% elif result.ai_relevance_score >= 0.4 %}bg-warning{% else %}bg-success{% endif %}">
+                    {{ (result.ai_relevance_score * 100)|round|int }}% relevancia
+                </span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if result.ai_analyzed %}
+                    {% if result.ai_error %}
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> Error en análisis: {{ result.ai_error }}
+                    </div>
+                    {% else %}
+                        <!-- Summary -->
+                        {% if result.ai_summary %}
+                        <div class="mb-4">
+                            <h6>Resumen</h6>
+                            <p>{{ result.ai_summary }}</p>
+                        </div>
+                        {% endif %}
+
+                        <!-- Flags -->
+                        {% if result.ai_flags %}
+                        <div class="mb-4">
+                            <h6>Elementos detectados</h6>
+                            <ul class="mb-0">
+                                {% for flag in result.ai_flags %}
+                                <li>{{ flag }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <!-- Details -->
+                        {% if result.ai_analysis_result and result.ai_analysis_result.details %}
+                        <div class="mb-3">
+                            <h6>Detalles del análisis</h6>
+                            <div class="bg-light p-3 rounded">
+                                {% if result.ai_analysis_result.details.text_analysis %}
+                                <p class="mb-2"><strong>Texto:</strong> {{ result.ai_analysis_result.details.text_analysis }}</p>
+                                {% endif %}
+                                {% if result.ai_analysis_result.details.image_analysis %}
+                                <p class="mb-2"><strong>Imágenes:</strong> {{ result.ai_analysis_result.details.image_analysis }}</p>
+                                {% endif %}
+                                {% if result.ai_analysis_result.details.objective_match %}
+                                <p class="mb-0"><strong>Coincidencia con objetivo:</strong> {{ result.ai_analysis_result.details.objective_match }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <small class="text-muted">
+                            Analizado con {{ result.ai_provider_used or 'IA' }}
+                            {% if result.ai_model_used %}({{ result.ai_model_used }}){% endif %}
+                            el {{ result.ai_analysis_timestamp.strftime('%d/%m/%Y %H:%M') if result.ai_analysis_timestamp else '' }}
+                        </small>
+                    {% endif %}
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-hourglass display-4 text-muted"></i>
+                    <p class="text-muted mt-2">Análisis de IA pendiente</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Monitoring Objective Reference -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-bullseye"></i> Objetivo de Monitorización</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-0 text-muted">{{ task.monitoring_objective }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-md-4">
+        <!-- Alert Status -->
+        {% if result.is_alert %}
+        <div class="card shadow-sm mb-4 {% if not result.alert_acknowledged %}border-danger{% else %}border-success{% endif %}">
+            <div class="card-header {% if not result.alert_acknowledged %}bg-danger text-white{% else %}bg-success text-white{% endif %}">
+                <h6 class="mb-0">
+                    <i class="bi bi-exclamation-triangle"></i> Estado de Alerta
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if result.alert_acknowledged %}
+                <p class="mb-2">
+                    <i class="bi bi-check-circle text-success"></i> Reconocida
+                </p>
+                <small class="text-muted d-block">
+                    Por: {{ result.acknowledged_by.nombre if result.acknowledged_by else 'Usuario' }}<br>
+                    Fecha: {{ result.alert_acknowledged_at.strftime('%d/%m/%Y %H:%M') if result.alert_acknowledged_at else '-' }}
+                </small>
+                {% if result.alert_notes %}
+                <hr>
+                <p class="mb-0 small"><strong>Notas:</strong> {{ result.alert_notes }}</p>
+                {% endif %}
+                {% else %}
+                <p class="mb-3">Esta alerta requiere atención.</p>
+                <form action="{{ url_for('monitoring.result_acknowledge', case_id=case.id, task_id=task.id, result_id=result.id) }}" method="post">
+                    {{ acknowledge_form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ acknowledge_form.alert_notes(class="form-control", rows="2") }}
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-check-lg"></i> Reconocer alerta
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Save as Evidence -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-shield-check"></i> Guardar como Evidencia</h6>
+            </div>
+            <div class="card-body">
+                {% if result.saved_as_evidence %}
+                <div class="text-center">
+                    <i class="bi bi-check-circle-fill text-success display-4"></i>
+                    <p class="mt-2 mb-0">Guardado como evidencia</p>
+                    {% if result.evidence_id %}
+                    <a href="{{ url_for('evidence.evidence_detail', evidence_id=result.evidence_id) }}" class="btn btn-sm btn-outline-primary mt-2">
+                        Ver evidencia #{{ result.evidence_id }}
+                    </a>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="small text-muted">Convierte este resultado en evidencia del caso para incluirlo en informes y mantener la cadena de custodia.</p>
+                <form action="{{ url_for('monitoring.result_save_evidence', case_id=case.id, task_id=task.id, result_id=result.id) }}" method="post">
+                    {{ evidence_form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ evidence_form.description(class="form-control", rows="2") }}
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-shield-plus"></i> Guardar como evidencia
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Metadata -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Metadatos</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-5">ID externo:</dt>
+                    <dd class="col-sm-7"><code>{{ result.external_id }}</code></dd>
+
+                    <dt class="col-sm-5">Plataforma:</dt>
+                    <dd class="col-sm-7">{{ result.source.platform.value if result.source else '-' }}</dd>
+
+                    <dt class="col-sm-5">Tipo consulta:</dt>
+                    <dd class="col-sm-7">{{ result.source.query_type.value if result.source else '-' }}</dd>
+
+                    <dt class="col-sm-5">Medios:</dt>
+                    <dd class="col-sm-7">{{ result.media_count }} archivo(s)</dd>
+
+                    {% if result.media_downloaded %}
+                    <dt class="col-sm-5">Descargado:</dt>
+                    <dd class="col-sm-7"><i class="bi bi-check text-success"></i> Sí</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-5">Hash contenido:</dt>
+                    <dd class="col-sm-7"><code class="small">{{ result.content_hash[:16] }}...</code></dd>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="d-grid gap-2">
+            <a href="{{ url_for('monitoring.results_list', case_id=case.id, task_id=task.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-list"></i> Ver todos los resultados
+            </a>
+            <a href="{{ url_for('monitoring.task_detail', case_id=case.id, task_id=task.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-gear"></i> Configuración de tarea
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

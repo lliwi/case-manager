@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}{{ task.name }} - Monitorización{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">
+            {{ task.name }}
+            {% if task.unread_alerts_count > 0 %}
+            <span class="badge bg-danger">{{ task.unread_alerts_count }} alertas</span>
+            {% endif %}
+        </h1>
+        <small class="text-muted">Caso {{ case.numero_orden }}</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('monitoring.task_list', case_id=case.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+        <a href="{{ url_for('monitoring.task_edit', case_id=case.id, task_id=task.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil"></i> Editar
+        </a>
+        {% if task.status.value in ['Borrador', 'Pausado'] %}
+        <form action="{{ url_for('monitoring.task_toggle_status', case_id=case.id, task_id=task.id) }}" method="post" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-play-fill"></i> Activar
+            </button>
+        </form>
+        {% elif task.status.value == 'Activo' %}
+        <form action="{{ url_for('monitoring.task_toggle_status', case_id=case.id, task_id=task.id) }}" method="post" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-warning">
+                <i class="bi bi-pause-fill"></i> Pausar
+            </button>
+        </form>
+        {% endif %}
+        <form action="{{ url_for('monitoring.task_run_now', case_id=case.id, task_id=task.id) }}" method="post" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-info" {% if sources|length == 0 %}disabled{% endif %}>
+                <i class="bi bi-lightning-fill"></i> Ejecutar ahora
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Status and Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center py-3">
+                {% if task.status.value == 'Activo' %}
+                <span class="badge bg-success fs-6">{{ task.status.value }}</span>
+                {% elif task.status.value == 'Pausado' %}
+                <span class="badge bg-warning fs-6">{{ task.status.value }}</span>
+                {% elif task.status.value == 'Borrador' %}
+                <span class="badge bg-secondary fs-6">{{ task.status.value }}</span>
+                {% else %}
+                <span class="badge bg-dark fs-6">{{ task.status.value }}</span>
+                {% endif %}
+                <div class="small text-muted mt-1">Estado</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center py-3">
+                <div class="h4 mb-0">{{ stats.total_results }}</div>
+                <div class="small text-muted">Resultados capturados</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center py-3">
+                <div class="h4 mb-0 {% if stats.alerts_pending > 0 %}text-danger{% endif %}">{{ stats.alerts_pending }}</div>
+                <div class="small text-muted">Alertas pendientes</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center py-3">
+                <div class="h4 mb-0">{{ task.total_checks }}</div>
+                <div class="small text-muted">Comprobaciones</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column -->
+    <div class="col-md-8">
+        <!-- Objective -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bullseye"></i> Objetivo de Monitorización</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ task.monitoring_objective }}</p>
+            </div>
+        </div>
+
+        <!-- Sources -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-collection"></i> Fuentes de Datos ({{ sources|length }})</h5>
+                <a href="{{ url_for('monitoring.source_add', case_id=case.id, task_id=task.id) }}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-plus-lg"></i> Añadir
+                </a>
+            </div>
+            <div class="card-body">
+                {% if sources %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Plataforma</th>
+                                <th>Tipo</th>
+                                <th>Valor</th>
+                                <th>Estado</th>
+                                <th>Última comprobación</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for source in sources %}
+                            <tr>
+                                <td>
+                                    {% if source.platform.value == 'X (Twitter)' %}
+                                    <i class="bi bi-twitter-x"></i>
+                                    {% elif source.platform.value == 'Instagram' %}
+                                    <i class="bi bi-instagram"></i>
+                                    {% endif %}
+                                    {{ source.platform.value }}
+                                </td>
+                                <td>{{ source.query_type.value }}</td>
+                                <td><code>{{ source.query_value }}</code></td>
+                                <td>
+                                    {% if source.error_count > 0 %}
+                                    <span class="badge bg-danger" title="{{ source.last_error }}">Error ({{ source.error_count }})</span>
+                                    {% elif source.is_active %}
+                                    <span class="badge bg-success">Activa</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inactiva</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if source.last_check_at %}
+                                    {{ source.last_check_at.strftime('%d/%m %H:%M') }}
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form action="{{ url_for('monitoring.source_delete', case_id=case.id, task_id=task.id, source_id=source.id) }}" method="post" class="d-inline" onsubmit="return confirm('¿Eliminar esta fuente?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-inbox display-4 text-muted"></i>
+                    <p class="text-muted mt-2">No hay fuentes configuradas</p>
+                    <a href="{{ url_for('monitoring.source_add', case_id=case.id, task_id=task.id) }}" class="btn btn-primary">
+                        <i class="bi bi-plus-lg"></i> Añadir primera fuente
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Results -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Resultados Recientes</h5>
+                <a href="{{ url_for('monitoring.results_list', case_id=case.id, task_id=task.id) }}" class="btn btn-sm btn-outline-primary">
+                    Ver todos
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_results %}
+                <div class="list-group list-group-flush">
+                    {% for result in recent_results %}
+                    <a href="{{ url_for('monitoring.result_detail', case_id=case.id, task_id=task.id, result_id=result.id) }}" class="list-group-item list-group-item-action {% if result.is_alert and not result.alert_acknowledged %}list-group-item-warning{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="d-flex align-items-center gap-2">
+                                    {% if result.is_alert %}
+                                    <span class="badge bg-danger">Alerta</span>
+                                    {% endif %}
+                                    <strong>@{{ result.author_username or 'desconocido' }}</strong>
+                                    {% if result.has_media %}
+                                    <i class="bi bi-image text-muted"></i>
+                                    {% endif %}
+                                </div>
+                                <p class="mb-1 small text-truncate" style="max-width: 500px;">{{ result.content_text or 'Sin texto' }}</p>
+                                {% if result.ai_analyzed and result.ai_summary %}
+                                <small class="text-muted"><i class="bi bi-robot"></i> {{ result.ai_summary|truncate(80) }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">{{ result.captured_at.strftime('%d/%m %H:%M') }}</small>
+                                {% if result.ai_relevance_score %}
+                                <br>
+                                <span class="badge {% if result.ai_relevance_score >= 0.6 %}bg-danger{% elif result.ai_relevance_score >= 0.4 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ (result.ai_relevance_score * 100)|round|int }}%
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-inbox display-4 text-muted"></i>
+                    <p class="text-muted mt-2">Aún no hay resultados</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="col-md-4">
+        <!-- Configuration Info -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-gear"></i> Configuración</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">IA:</dt>
+                    <dd class="col-sm-7">
+                        {{ task.ai_provider.value if task.ai_provider else 'deepseek' }}
+                        {% if task.ai_analysis_enabled %}
+                        <span class="badge bg-success">Activa</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Desactivada</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-5">Intervalo:</dt>
+                    <dd class="col-sm-7">{{ task.check_interval_minutes }} min</dd>
+
+                    <dt class="col-sm-5">Inicio:</dt>
+                    <dd class="col-sm-7">{{ task.start_date.strftime('%d/%m/%Y %H:%M') }}</dd>
+
+                    {% if task.end_date %}
+                    <dt class="col-sm-5">Fin:</dt>
+                    <dd class="col-sm-7">{{ task.end_date.strftime('%d/%m/%Y %H:%M') }}</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-5">Próxima:</dt>
+                    <dd class="col-sm-7">
+                        {% if task.next_check_at %}
+                        {{ task.next_check_at.strftime('%d/%m/%Y %H:%M') }}
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Recent Logs -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-journal-text"></i> Últimas ejecuciones</h6>
+                <a href="{{ url_for('monitoring.check_logs', case_id=case.id, task_id=task.id) }}" class="btn btn-sm btn-link p-0">Ver todas</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_logs %}
+                <ul class="list-group list-group-flush">
+                    {% for log in recent_logs[:5] %}
+                    <li class="list-group-item py-2">
+                        <div class="d-flex justify-content-between">
+                            <small>
+                                {% if log.success %}
+                                <i class="bi bi-check-circle text-success"></i>
+                                {% else %}
+                                <i class="bi bi-x-circle text-danger"></i>
+                                {% endif %}
+                                {{ log.check_started_at.strftime('%d/%m %H:%M') }}
+                            </small>
+                            <small class="text-muted">
+                                {{ log.new_results_count }} nuevo{% if log.new_results_count != 1 %}s{% endif %}
+                                {% if log.alerts_generated > 0 %}
+                                <span class="text-danger">({{ log.alerts_generated }} alerta{% if log.alerts_generated != 1 %}s{% endif %})</span>
+                                {% endif %}
+                            </small>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="text-center py-3">
+                    <small class="text-muted">Sin ejecuciones aún</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h6 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Zona de peligro</h6>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('monitoring.task_delete', case_id=case.id, task_id=task.id) }}" method="post" onsubmit="return confirm('¿Estás seguro de eliminar esta tarea? Esta acción no se puede deshacer.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-danger w-100">
+                        <i class="bi bi-trash"></i> Eliminar tarea
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
