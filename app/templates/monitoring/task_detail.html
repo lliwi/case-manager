@@ -125,7 +125,7 @@
                         </thead>
                         <tbody>
                             {% for source in sources %}
-                            <tr>
+                            <tr class="{% if not source.is_active %}table-secondary{% endif %}">
                                 <td>
                                     {% if source.platform.value == 'X (Twitter)' %}
                                     <i class="bi bi-twitter-x"></i>
@@ -155,12 +155,20 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <form action="{{ url_for('monitoring.source_delete', case_id=case.id, task_id=task.id, source_id=source.id) }}" method="post" class="d-inline" onsubmit="return confirm('¿Eliminar esta fuente?');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <form action="{{ url_for('monitoring.source_toggle', case_id=case.id, task_id=task.id, source_id=source.id) }}" method="post" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-outline-{% if source.is_active %}warning{% else %}success{% endif %}" title="{% if source.is_active %}Desactivar{% else %}Activar{% endif %}">
+                                                <i class="bi bi-{% if source.is_active %}pause{% else %}play{% endif %}-circle"></i>
+                                            </button>
+                                        </form>
+                                        <form action="{{ url_for('monitoring.source_delete', case_id=case.id, task_id=task.id, source_id=source.id) }}" method="post" class="d-inline" onsubmit="return confirm('¿Eliminar esta fuente? Se perderán todos los resultados asociados.');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-outline-danger" title="Eliminar">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}

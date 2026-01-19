@@ -682,7 +682,10 @@ class MonitoringService:
 
     @staticmethod
     def _parse_post_timestamp(post: Dict) -> Optional[datetime]:
-        """Parse timestamp from post data, trying multiple field names and formats."""
+        """Parse timestamp from post data, trying multiple field names and formats.
+
+        Always returns a timezone-naive UTC datetime for consistent comparisons.
+        """
         from dateutil import parser as date_parser
 
         timestamp_value = post.get('timestamp') or post.get('taken_at_timestamp') or post.get('created_time')
@@ -692,10 +695,16 @@ class MonitoringService:
 
         try:
             if isinstance(timestamp_value, (int, float)):
-                # Unix timestamp
+                # Unix timestamp - always UTC
                 return datetime.utcfromtimestamp(timestamp_value)
             else:
-                return date_parser.parse(str(timestamp_value))
+                parsed = date_parser.parse(str(timestamp_value))
+                # Convert to naive UTC if timezone-aware
+                if parsed.tzinfo is not None:
+                    # Convert to UTC and remove timezone info
+                    from datetime import timezone
+                    parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+                return parsed
         except Exception:
             return None
 
@@ -876,10 +885,10 @@ class MonitoringService:
         """Create a MonitoringResult from X tweet data."""
         from dateutil import parser as date_parser
 
-        # Extract media URLs
+        # Extract media URLs (X API service attaches media directly to tweet['media'])
         media_urls = []
-        if tweet.get('attachments', {}).get('media'):
-            for media in tweet['attachments']['media']:
+        if tweet.get('media'):
+            for media in tweet['media']:
                 if media.get('url'):
                     media_urls.append(media['url'])
                 elif media.get('preview_image_url'):

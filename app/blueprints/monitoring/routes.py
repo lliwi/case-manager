@@ -402,6 +402,44 @@ def source_delete(case_id, task_id, source_id):
     return redirect(url_for('monitoring.task_detail', case_id=case_id, task_id=task_id))
 
 
+@monitoring_bp.route('/case/<int:case_id>/<int:task_id>/sources/<int:source_id>/toggle', methods=['POST'])
+@login_required
+def source_toggle(case_id, task_id, source_id):
+    """Toggle a monitoring source active/inactive status."""
+    task = get_task_or_404(task_id, case_id)
+
+    source = MonitoringSource.query.filter_by(
+        id=source_id,
+        task_id=task_id
+    ).first()
+
+    if not source:
+        abort(404)
+
+    try:
+        source.is_active = not source.is_active
+        db.session.commit()
+
+        status = 'activada' if source.is_active else 'desactivada'
+
+        AuditLog.log(
+            action='MONITORING_SOURCE_TOGGLED',
+            resource_type='monitoring_source',
+            resource_id=source_id,
+            user=current_user,
+            description=f'Source {status}',
+            extra_data={'task_id': task_id, 'is_active': source.is_active}
+        )
+
+        flash(f'Fuente {status} correctamente.', 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al cambiar estado: {str(e)}', 'danger')
+
+    return redirect(url_for('monitoring.task_detail', case_id=case_id, task_id=task_id))
+
+
 # ============================================================================
 # Results Routes
 # ============================================================================

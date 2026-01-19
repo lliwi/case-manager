@@ -63,7 +63,9 @@
                     <div class="mb-3">
                         <label for="ai_provider" class="form-label">Proveedor de IA</label>
                         {{ form.ai_provider(class="form-select") }}
-                        <div class="form-text">DeepSeek es más económico. OpenAI ofrece mayor precisión.</div>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle"></i> {{ form.ai_provider.description }}
+                        </div>
                     </div>
 
                     <div class="mb-3 form-check">

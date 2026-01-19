@@ -48,11 +48,12 @@ class MonitoringTaskForm(FlaskForm):
     ai_provider = SelectField(
         'Proveedor de IA',
         choices=[
-            ('deepseek', 'DeepSeek (Económico - Recomendado)'),
-            ('openai', 'OpenAI GPT-4 Vision (Premium)')
+            ('deepseek', 'DeepSeek - Solo texto (Económico)'),
+            ('openai', 'OpenAI GPT-4o - Texto + Imágenes (Premium)')
         ],
         default='deepseek',
-        render_kw={'class': 'form-select'}
+        render_kw={'class': 'form-select'},
+        description='DeepSeek analiza solo el texto. OpenAI puede analizar texto e imágenes.'
     )
 
     ai_analysis_enabled = BooleanField(
