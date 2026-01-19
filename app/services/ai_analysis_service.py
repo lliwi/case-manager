@@ -260,6 +260,9 @@ Responde EXACTAMENTE en el siguiente formato JSON:
         """
         Prepare images for API request.
 
+        Downloads external URLs and converts to base64 since OpenAI
+        cannot access many external image sources directly.
+
         Args:
             images: List of image URLs or base64-encoded images
 
@@ -275,11 +278,15 @@ Responde EXACTAMENTE en el siguiente formato JSON:
                     'image_url': {'url': img}
                 })
             elif img.startswith('http://') or img.startswith('https://'):
-                # URL - use directly
-                prepared.append({
-                    'type': 'image_url',
-                    'image_url': {'url': img}
-                })
+                # Download and convert to base64 (OpenAI can't access most external URLs)
+                base64_url = self._download_and_encode_image(img)
+                if base64_url:
+                    prepared.append({
+                        'type': 'image_url',
+                        'image_url': {'url': base64_url}
+                    })
+                else:
+                    logger.warning(f"Could not download image {i+1}: {img[:100]}...")
             else:
                 # Assume it's a base64 string without prefix
                 prepared.append({
@@ -287,6 +294,39 @@ Responde EXACTAMENTE en el siguiente formato JSON:
                     'image_url': {'url': f'data:image/jpeg;base64,{img}'}
                 })
         return prepared
+
+    def _download_and_encode_image(self, url: str) -> Optional[str]:
+        """
+        Download an image from URL and encode it as base64.
+
+        Args:
+            url: Image URL to download
+
+        Returns:
+            Base64 data URI string, or None if download failed
+        """
+        try:
+            with httpx.Client(timeout=30, follow_redirects=True) as client:
+                response = client.get(url)
+                response.raise_for_status()
+
+                # Detect content type
+                content_type = response.headers.get('content-type', 'image/jpeg')
+                if ';' in content_type:
+                    content_type = content_type.split(';')[0].strip()
+
+                # Only process image types
+                if not content_type.startswith('image/'):
+                    logger.warning(f"URL is not an image: {content_type}")
+                    return None
+
+                # Encode to base64
+                img_base64 = base64.b64encode(response.content).decode('utf-8')
+                return f'data:{content_type};base64,{img_base64}'
+
+        except Exception as e:
+            logger.error(f"Error downloading image from {url[:100]}: {e}")
+            return None
 
     def _call_openai(self, prompt: str, images: List[Dict]) -> Dict:
         """
