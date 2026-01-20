@@ -18,7 +18,7 @@
 
     <!-- Worker Statistics -->
     <div class="row mb-4">
-        <div class="col-md-3">
+        <div class="col">
             <div class="card border-primary">
                 <div class="card-body text-center">
                     <i class="bi bi-server text-primary" style="font-size: 2rem;"></i>
@@ -27,7 +27,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col">
             <div class="card border-success">
                 <div class="card-body text-center">
                     <i class="bi bi-play-circle text-success" style="font-size: 2rem;"></i>
@@ -36,21 +36,30 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-warning">
+        <div class="col">
+            <div class="card" style="border-color: #6f42c1;">
                 <div class="card-body text-center">
-                    <i class="bi bi-clock text-warning" style="font-size: 2rem;"></i>
-                    <div class="h3 mt-2" id="scheduled-tasks">-</div>
-                    <div class="text-muted">Tareas Programadas</div>
+                    <i class="bi bi-binoculars" style="font-size: 2rem; color: #6f42c1;"></i>
+                    <div class="h3 mt-2" id="monitoring-tasks-count">-</div>
+                    <div class="text-muted">Monitorización</div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <i class="bi bi-calendar-check text-warning" style="font-size: 2rem;"></i>
+                    <div class="h3 mt-2" id="beat-tasks">-</div>
+                    <div class="text-muted">Tareas Beat</div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
             <div class="card border-info">
                 <div class="card-body text-center">
                     <i class="bi bi-hourglass-split text-info" style="font-size: 2rem;"></i>
                     <div class="h3 mt-2" id="reserved-tasks">-</div>
-                    <div class="text-muted">Tareas Reservadas</div>
+                    <div class="text-muted">En Cola</div>
                 </div>
             </div>
         </div>
@@ -120,6 +129,69 @@
         </div>
     </div>
 
+    <!-- User Monitoring Tasks -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-purple text-white" style="background-color: #6f42c1;">
+                    <i class="bi bi-binoculars"></i> Tareas de Monitorización Activas
+                </div>
+                <div class="card-body">
+                    <div id="monitoring-tasks-list" class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Tarea</th>
+                                    <th>Caso</th>
+                                    <th>Fuentes</th>
+                                    <th>Intervalo</th>
+                                    <th>Última</th>
+                                    <th>Próxima</th>
+                                    <th>Resultados</th>
+                                    <th>Alertas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="monitoring-tasks-tbody">
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Beat Scheduled Tasks -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <i class="bi bi-calendar-check"></i> Tareas Programadas (Celery Beat)
+                </div>
+                <div class="card-body">
+                    <div id="beat-schedule-list" class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Tarea</th>
+                                    <th>Programación</th>
+                                </tr>
+                            </thead>
+                            <tbody id="beat-schedule-tbody">
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Flower Integration -->
     <div class="row">
         <div class="col-12">
@@ -165,7 +237,7 @@
 
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
 let refreshInterval = null;
 
@@ -216,11 +288,9 @@ function updateTasksTable(tasks) {
 
     // Update counts
     const activeTasks = tasks.filter(t => t.state === 'ACTIVE').length;
-    const scheduledTasks = tasks.filter(t => t.state === 'SCHEDULED').length;
-    const reservedTasks = tasks.filter(t => t.state === 'RESERVED').length;
+    const reservedTasks = tasks.filter(t => t.state === 'RESERVED' || t.state === 'SCHEDULED').length;
 
     document.getElementById('active-tasks').textContent = activeTasks;
-    document.getElementById('scheduled-tasks').textContent = scheduledTasks;
     document.getElementById('reserved-tasks').textContent = reservedTasks;
 }
 
@@ -269,6 +339,94 @@ function updateWorkersTable(workers) {
             <td><span class="badge bg-success">${worker.active_tasks}</span></td>
         </tr>
     `).join('');
+}
+
+// Refresh beat schedule
+function refreshBeatSchedule() {
+    fetch('{{ url_for("tasks.api_beat_schedule") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('beat-tasks').textContent = data.total;
+                updateBeatScheduleTable(data.scheduled_tasks);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading beat schedule:', error);
+        });
+}
+
+// Update beat schedule table
+function updateBeatScheduleTable(tasks) {
+    const tbody = document.getElementById('beat-schedule-tbody');
+
+    if (tasks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No hay tareas programadas</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = tasks.map(task => `
+        <tr>
+            <td><strong>${task.name}</strong></td>
+            <td><code>${task.task}</code></td>
+            <td><span class="badge bg-warning text-dark">${task.schedule}</span></td>
+        </tr>
+    `).join('');
+}
+
+// Refresh monitoring tasks
+function refreshMonitoringTasks() {
+    fetch('{{ url_for("tasks.api_monitoring_tasks") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('monitoring-tasks-count').textContent = data.total;
+                updateMonitoringTasksTable(data.monitoring_tasks);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading monitoring tasks:', error);
+        });
+}
+
+// Update monitoring tasks table
+function updateMonitoringTasksTable(tasks) {
+    const tbody = document.getElementById('monitoring-tasks-tbody');
+
+    if (tasks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No hay tareas de monitorización activas</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = tasks.map(task => {
+        const alertBadge = task.unread_alerts > 0
+            ? `<span class="badge bg-danger">${task.unread_alerts} nueva(s)</span>`
+            : `<span class="badge bg-secondary">${task.alerts_count}</span>`;
+
+        const intervalText = task.check_interval < 60
+            ? `${task.check_interval} min`
+            : `${Math.floor(task.check_interval / 60)}h`;
+
+        return `
+            <tr>
+                <td>
+                    <a href="/monitoring/case/${task.case_id}/${task.id}" class="text-decoration-none">
+                        <strong>${task.name}</strong>
+                    </a>
+                </td>
+                <td><small>${task.case_name}</small></td>
+                <td><span class="badge bg-info">${task.sources_count}</span></td>
+                <td><span class="badge bg-secondary">${intervalText}</span></td>
+                <td><small>${task.last_check}</small></td>
+                <td>
+                    <small>${task.next_check}</small>
+                    ${task.time_until_next ? `<br><span class="badge bg-primary">${task.time_until_next}</span>` : ''}
+                </td>
+                <td><span class="badge bg-success">${task.total_results}</span></td>
+                <td>${alertBadge}</td>
+            </tr>
+        `;
+    }).join('');
 }
 
 // View task detail
@@ -353,10 +511,13 @@ function revokeTask(taskId) {
 document.addEventListener('DOMContentLoaded', function() {
     refreshTasks();
     refreshStats();
+    refreshBeatSchedule();
+    refreshMonitoringTasks();
 
     refreshInterval = setInterval(() => {
         refreshTasks();
         refreshStats();
+        refreshMonitoringTasks();
     }, 5000);
 });
 

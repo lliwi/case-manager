@@ -219,6 +219,114 @@ def api_stats():
         }), 500
 
 
+@tasks_bp.route('/api/beat-schedule')
+@login_required
+@require_role('admin')
+def api_beat_schedule():
+    """Get Celery Beat scheduled tasks."""
+    try:
+        from celery.schedules import crontab
+
+        beat_schedule = celery.conf.beat_schedule or {}
+
+        scheduled_tasks = []
+        for name, config in beat_schedule.items():
+            schedule = config.get('schedule')
+
+            # Format schedule for display
+            if isinstance(schedule, crontab):
+                schedule_str = f"cron({schedule._orig_minute}, {schedule._orig_hour}, {schedule._orig_day_of_week}, {schedule._orig_day_of_month}, {schedule._orig_month_of_year})"
+                # Simplify common patterns
+                if str(schedule._orig_minute) == '*':
+                    schedule_str = 'Cada minuto'
+                elif str(schedule._orig_hour) != '*' and str(schedule._orig_minute) != '*':
+                    schedule_str = f"Diario a las {schedule._orig_hour}:{schedule._orig_minute:02d}" if isinstance(schedule._orig_minute, int) else f"Diario a las {schedule._orig_hour}:{schedule._orig_minute}"
+            elif hasattr(schedule, 'seconds'):
+                schedule_str = f"Cada {schedule.seconds} segundos"
+            else:
+                schedule_str = str(schedule)
+
+            scheduled_tasks.append({
+                'name': name,
+                'task': config.get('task', 'unknown'),
+                'schedule': schedule_str,
+                'args': config.get('args', []),
+                'kwargs': config.get('kwargs', {})
+            })
+
+        return jsonify({
+            'success': True,
+            'scheduled_tasks': scheduled_tasks,
+            'total': len(scheduled_tasks)
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@tasks_bp.route('/api/monitoring-tasks')
+@login_required
+@require_role('admin')
+def api_monitoring_tasks():
+    """Get active monitoring tasks from database."""
+    try:
+        from app.models.monitoring import MonitoringTask, MonitoringStatus
+        from datetime import datetime
+
+        # Get active tasks (ACTIVE is the status for running periodic checks)
+        tasks = MonitoringTask.query.filter(
+            MonitoringTask.status == MonitoringStatus.ACTIVE,
+            MonitoringTask.is_deleted == False
+        ).order_by(MonitoringTask.next_check_at.asc()).all()
+
+        monitoring_tasks = []
+        for task in tasks:
+            # Calculate time until next check
+            time_until_next = None
+            if task.next_check_at:
+                delta = task.next_check_at - datetime.utcnow()
+                if delta.total_seconds() > 0:
+                    minutes = int(delta.total_seconds() / 60)
+                    if minutes < 60:
+                        time_until_next = f"{minutes} min"
+                    else:
+                        hours = minutes // 60
+                        time_until_next = f"{hours}h {minutes % 60}m"
+                else:
+                    time_until_next = "Pendiente"
+
+            monitoring_tasks.append({
+                'id': task.id,
+                'name': task.name,
+                'case_id': task.case_id,
+                'case_name': task.case.numero_orden if task.case else 'N/A',
+                'status': task.status.value,
+                'sources_count': task.sources.count() if task.sources else 0,
+                'check_interval': task.check_interval_minutes,
+                'last_check': task.last_check_at.strftime('%H:%M:%S') if task.last_check_at else 'Nunca',
+                'next_check': task.next_check_at.strftime('%H:%M:%S') if task.next_check_at else 'N/A',
+                'time_until_next': time_until_next,
+                'total_results': task.total_results,
+                'alerts_count': task.alerts_count,
+                'unread_alerts': task.unread_alerts_count
+            })
+
+        return jsonify({
+            'success': True,
+            'monitoring_tasks': monitoring_tasks,
+            'total': len(monitoring_tasks)
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @tasks_bp.route('/detail/<task_id>')
 @login_required
 @require_role('admin')
