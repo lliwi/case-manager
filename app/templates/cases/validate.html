@@ -50,9 +50,16 @@
                 <p class="bg-light p-3 rounded">{{ case.legitimacy_description }}</p>
 
                 {% if legitimacy_reqs %}
-                    <div class="alert alert-info mt-3">
+                    <div class="alert alert-info alert-permanent mt-3">
                         <h6 class="alert-heading">Requisitos para {{ case.legitimacy_type.value }}:</h6>
-                        <p class="mb-0 small">{{ legitimacy_reqs }}</p>
+                        <p class="mb-2 small">{{ legitimacy_reqs.description }}</p>
+                        <p class="mb-2 small"><strong>Base legal:</strong> {{ legitimacy_reqs.legal_basis }}</p>
+                        <p class="mb-1 small"><strong>Documentación requerida:</strong></p>
+                        <ul class="mb-0 small">
+                            {% for doc in legitimacy_reqs.required_docs %}
+                                <li>{{ doc }}</li>
+                            {% endfor %}
+                        </ul>
                     </div>
                 {% endif %}
 

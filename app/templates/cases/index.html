@@ -157,11 +157,18 @@
     </div>
 </div>
 
-<!-- Legal Notice -->
-<div class="alert alert-info mt-4">
-    <small>
-        <i class="bi bi-info-circle"></i>
-        Todos los casos están sujetos a validación de legitimidad conforme al Art. 48 del Reglamento de Seguridad Privada.
-    </small>
+{% endblock %}
+
+{% block footer_extra %}
+<!-- Legal Notice - Above footer -->
+<div class="alert alert-info alert-permanent mb-0 rounded-0 border-start-0 border-end-0">
+    <div class="container-fluid">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-info-circle fs-5 me-3 text-info"></i>
+            <small>
+                Todos los casos están sujetos a validación de legitimidad conforme al <strong>Art. 48 del Reglamento de Seguridad Privada</strong>.
+            </small>
+        </div>
+    </div>
 </div>
 {% endblock %}
