@@ -88,6 +88,117 @@
                         </div>
                     </div>
 
+                <!-- Monitoring Evidence Preview -->
+                {% elif mime == 'application/json' and evidence.extracted_metadata and evidence.extracted_metadata.get('source') == 'monitoring' %}
+                    {% set meta = evidence.extracted_metadata %}
+                    {% set content = monitoring_content or {} %}
+                    {% set content_text = content.get('content_text') or meta.get('content_text') or '' %}
+                    {% set media_urls = content.get('media_urls') or meta.get('media_urls') or [] %}
+                    <div class="monitoring-preview">
+                        <!-- Author and Platform Header -->
+                        <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+                            {% if meta.platform == 'X_TWITTER' or meta.platform == 'X (Twitter)' %}
+                                <i class="bi bi-twitter-x fs-3 me-2"></i>
+                            {% elif meta.platform == 'INSTAGRAM' or meta.platform == 'Instagram' %}
+                                <i class="bi bi-instagram fs-3 me-2 text-danger"></i>
+                            {% elif meta.platform == 'WEB_SEARCH' or 'Web' in (meta.platform or '') %}
+                                <i class="bi bi-google fs-3 me-2 text-primary"></i>
+                            {% else %}
+                                <i class="bi bi-globe fs-3 me-2"></i>
+                            {% endif %}
+                            <div>
+                                <strong class="fs-5">@{{ meta.author_username or 'desconocido' }}</strong>
+                                <div class="text-muted small">{{ meta.platform or 'Red social' }}</div>
+                            </div>
+                            {% if meta.external_url %}
+                                <a href="{{ meta.external_url }}" target="_blank" class="btn btn-outline-primary ms-auto">
+                                    <i class="bi bi-box-arrow-up-right"></i> Ver original
+                                </a>
+                            {% endif %}
+                        </div>
+
+                        <!-- PRIMARY: Content Text (the actual post/tweet/news) -->
+                        {% if content_text %}
+                            <div class="card mb-3 border-dark">
+                                <div class="card-body">
+                                    <p class="mb-0 fs-5" style="white-space: pre-wrap;">{{ content_text }}</p>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-light mb-3">
+                                <i class="bi bi-info-circle"></i> Sin texto de contenido
+                            </div>
+                        {% endif %}
+
+                        <!-- PRIMARY: Media Images (the actual photos/videos) -->
+                        {% if media_urls and media_urls|length > 0 %}
+                            <div class="row g-2 mb-3">
+                                {% for url in media_urls %}
+                                    <div class="col-md-{% if media_urls|length == 1 %}12{% elif media_urls|length == 2 %}6{% else %}4{% endif %}">
+                                        <a href="{{ url }}" target="_blank" class="d-block">
+                                            <img src="{{ url }}" class="img-fluid rounded shadow-sm" style="max-height: 400px; object-fit: contain; width: 100%;" alt="Media" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'alert alert-warning p-2 text-center\'><i class=\'bi bi-image\'></i> Imagen no disponible externamente<br><small><a href=\'{{ url }}\' target=\'_blank\'>Abrir enlace</a></small></div>';">
+                                        </a>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <!-- Timestamps -->
+                        <div class="text-muted small mb-3">
+                            {% if meta.source_timestamp %}
+                                <i class="bi bi-calendar3"></i> Publicado: {{ meta.source_timestamp }}
+                            {% endif %}
+                            {% if content.get('captured_at') %}
+                                <span class="ms-3"><i class="bi bi-clock"></i> Capturado: {{ content.get('captured_at') }}</span>
+                            {% endif %}
+                        </div>
+
+                        <hr>
+
+                        <!-- SECONDARY: AI Analysis (complementary) -->
+                        {% if meta.ai_analysis %}
+                            <div class="card border-info mb-3">
+                                <div class="card-header bg-info bg-opacity-10">
+                                    <i class="bi bi-robot text-info"></i> <strong>Análisis de IA</strong> <small class="text-muted">(complementario)</small>
+                                    {% if meta.ai_analysis.relevance_score %}
+                                        <span class="badge bg-{% if meta.ai_analysis.relevance_score >= 0.7 %}danger{% elif meta.ai_analysis.relevance_score >= 0.4 %}warning{% else %}secondary{% endif %} float-end">
+                                            {{ (meta.ai_analysis.relevance_score * 100)|int }}% relevancia
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <div class="card-body">
+                                    {% if meta.ai_analysis.summary %}
+                                        <p class="mb-2">{{ meta.ai_analysis.summary }}</p>
+                                    {% endif %}
+                                    {% if meta.ai_analysis.flags %}
+                                        <div class="mt-2">
+                                            {% for flag in meta.ai_analysis.flags %}
+                                                <span class="badge bg-warning text-dark me-1">{{ flag }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Collapsible Raw JSON -->
+                        <div class="mt-3">
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#rawJsonData" aria-expanded="false">
+                                <i class="bi bi-code-square"></i> Ver datos JSON completos
+                            </button>
+                            <div class="collapse mt-2" id="rawJsonData">
+                                <div style="height: 300px; overflow-y: auto;">
+                                    <iframe src="{{ preview_url }}"
+                                            width="100%"
+                                            height="100%"
+                                            style="border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa;">
+                                    </iframe>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 <!-- Text/Code Preview -->
                 {% elif mime.startswith('text/') or mime == 'application/json' or mime == 'application/xml' %}
                     <div style="height: 400px; overflow-y: auto;">

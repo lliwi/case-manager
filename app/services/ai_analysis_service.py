@@ -128,8 +128,9 @@ class AIAnalysisService:
 
             # Prepare images for API (only for vision-capable providers)
             image_content = []
+            images_base64 = []
             if has_images and self.supports_vision():
-                image_content = self._prepare_images(images)
+                image_content, images_base64 = self._prepare_images(images, return_base64=True)
 
             # Call the appropriate provider
             if self.provider == 'openai':
@@ -145,8 +146,11 @@ class AIAnalysisService:
             # Increment usage
             self._increment_usage()
 
-            # Parse the response
-            return self._parse_analysis_response(response)
+            # Parse the response and include base64 images
+            result = self._parse_analysis_response(response)
+            if images_base64:
+                result['images_base64'] = images_base64
+            return result
 
         except Exception as e:
             logger.error(f"Error in AI analysis: {e}", exc_info=True)
@@ -256,7 +260,7 @@ Responde EXACTAMENTE en el siguiente formato JSON:
 
         return prompt
 
-    def _prepare_images(self, images: List[str]) -> List[Dict]:
+    def _prepare_images(self, images: List[str], return_base64: bool = False):
         """
         Prepare images for API request.
 
@@ -265,11 +269,15 @@ Responde EXACTAMENTE en el siguiente formato JSON:
 
         Args:
             images: List of image URLs or base64-encoded images
+            return_base64: If True, also return raw base64 strings for storage
 
         Returns:
-            List of image content dicts for API
+            If return_base64 is False: List of image content dicts for API
+            If return_base64 is True: Tuple of (list of dicts, list of base64 strings)
         """
         prepared = []
+        base64_list = []
+
         for i, img in enumerate(images[:self.MAX_IMAGES_PER_REQUEST]):
             if img.startswith('data:image'):
                 # Already base64 encoded with data URI
@@ -277,6 +285,7 @@ Responde EXACTAMENTE en el siguiente formato JSON:
                     'type': 'image_url',
                     'image_url': {'url': img}
                 })
+                base64_list.append(img)
             elif img.startswith('http://') or img.startswith('https://'):
                 # Download and convert to base64 (OpenAI can't access most external URLs)
                 base64_url = self._download_and_encode_image(img)
@@ -285,14 +294,20 @@ Responde EXACTAMENTE en el siguiente formato JSON:
                         'type': 'image_url',
                         'image_url': {'url': base64_url}
                     })
+                    base64_list.append(base64_url)
                 else:
                     logger.warning(f"Could not download image {i+1}: {img[:100]}...")
             else:
                 # Assume it's a base64 string without prefix
+                full_base64 = f'data:image/jpeg;base64,{img}'
                 prepared.append({
                     'type': 'image_url',
-                    'image_url': {'url': f'data:image/jpeg;base64,{img}'}
+                    'image_url': {'url': full_base64}
                 })
+                base64_list.append(full_base64)
+
+        if return_base64:
+            return prepared, base64_list
         return prepared
 
     def _download_and_encode_image(self, url: str) -> Optional[str]:

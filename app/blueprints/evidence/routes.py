@@ -174,6 +174,66 @@ def evidence_detail(evidence_id):
     from app.models.evidence_analysis import EvidenceAnalysis
     previous_analyses = EvidenceAnalysis.get_all_for_evidence(evidence_id)
 
+    # Load monitoring content data if this is monitoring evidence
+    monitoring_content = None
+    if (evidence.extracted_metadata and
+        evidence.extracted_metadata.get('source') == 'monitoring' and
+        evidence.mime_type == 'application/json'):
+        try:
+            import json
+            decrypted_path = evidence.get_decrypted_path()
+            if os.path.exists(decrypted_path):
+                with open(decrypted_path, 'r', encoding='utf-8') as f:
+                    monitoring_content = json.load(f)
+
+                # If media_urls is missing, try to extract from monitoring result
+                if not monitoring_content.get('media_urls'):
+                    result_id = evidence.extracted_metadata.get('monitoring_result_id')
+                    if result_id:
+                        from app.models.monitoring import MonitoringResult
+                        result = MonitoringResult.query.get(result_id)
+                        if result:
+                            # First priority: locally downloaded media files
+                            if result.media_downloaded and result.media_local_paths:
+                                local_urls = []
+                                for i, _ in enumerate(result.media_local_paths):
+                                    local_urls.append(
+                                        url_for('monitoring.serve_result_media',
+                                                result_id=result.id, media_index=i)
+                                    )
+                                monitoring_content['media_urls'] = local_urls
+                            # Second priority: base64 images from AI analysis
+                            elif result.ai_analysis_result and result.ai_analysis_result.get('images_base64'):
+                                monitoring_content['media_urls'] = result.ai_analysis_result['images_base64']
+                            # Third priority: content_metadata display_url
+                            elif result.content_metadata:
+                                content_meta = result.content_metadata
+                                extracted_urls = []
+
+                                # Try different possible field names for media URLs
+                                display_url = (
+                                    content_meta.get('display_url') or
+                                    content_meta.get('displayUrl') or
+                                    content_meta.get('imageUrl') or
+                                    content_meta.get('thumbnailUrl')
+                                )
+                                if display_url:
+                                    extracted_urls.append(display_url)
+
+                                # Also check raw data
+                                if content_meta.get('raw'):
+                                    raw = content_meta['raw']
+                                    raw_display = raw.get('displayUrl') or raw.get('display_url')
+                                    if raw_display and raw_display not in extracted_urls:
+                                        extracted_urls.append(raw_display)
+
+                                if extracted_urls:
+                                    monitoring_content['media_urls'] = extracted_urls
+        except Exception as e:
+            # Log error but don't fail the page
+            import logging
+            logging.getLogger(__name__).warning(f"Error loading monitoring content: {e}")
+
     return render_template(
         'evidence/detail.html',
         evidence=evidence,
@@ -181,7 +241,8 @@ def evidence_detail(evidence_id):
         custody_entries=custody_entries,
         EvidenceType=EvidenceType,
         applicable_plugins=applicable_plugins,
-        previous_analyses=previous_analyses
+        previous_analyses=previous_analyses,
+        monitoring_content=monitoring_content
     )
 
 

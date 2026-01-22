@@ -173,7 +173,7 @@
                 <h5 class="modal-title">Restablecer Contraseña</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ url_for('admin.reset_password', user_id=user.id) }}">
+            <form method="POST" action="{{ url_for('admin.reset_user_password', user_id=user.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="modal-body">
                     <p>¿Está seguro de que desea restablecer la contraseña de <strong>{{ user.email }}</strong>?</p>

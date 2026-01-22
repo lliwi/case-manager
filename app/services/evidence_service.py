@@ -245,6 +245,131 @@ class EvidenceService:
                 os.remove(temp_path)
 
     @staticmethod
+    def create_evidence_from_content(case_id, content, original_filename, evidence_type,
+                                      description, user_id, acquisition_method=None,
+                                      source_device=None, source_location=None,
+                                      extracted_metadata=None):
+        """
+        Create evidence from bytes content (for monitoring results, etc.).
+
+        Args:
+            case_id: Case ID
+            content: Bytes content
+            original_filename: Original filename
+            evidence_type: EvidenceType enum value
+            description: Evidence description
+            user_id: User ID creating the evidence
+            acquisition_method: How it was acquired
+            source_device: Source device
+            source_location: Source location
+            extracted_metadata: Metadata dict
+
+        Returns:
+            Evidence instance
+        """
+        from app.models.case import Case
+        from app.models.user import User
+        import tempfile
+
+        case = Case.query.get(case_id)
+        user = User.query.get(user_id)
+
+        if not case or not user:
+            raise ValueError("Case or user not found")
+
+        # Secure filename
+        safe_filename = secure_filename(original_filename)
+
+        # Get MIME type
+        mime_type = mimetypes.guess_type(original_filename)[0] or 'application/json'
+
+        # Create unique filename
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        unique_filename = f"{case.numero_orden}_{timestamp}_{safe_filename}"
+
+        # Create temporary file
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        os.makedirs(upload_folder, exist_ok=True)
+        temp_path = os.path.join(upload_folder, unique_filename)
+
+        # Write content to temp file
+        with open(temp_path, 'wb') as f:
+            f.write(content)
+
+        try:
+            # Calculate hashes BEFORE encryption
+            hashes = calculate_file_hashes(temp_path)
+
+            # Encrypt file
+            evidence_folder = current_app.config['EVIDENCE_FOLDER']
+            os.makedirs(evidence_folder, exist_ok=True)
+            encrypted_filename = f"{unique_filename}.enc"
+            encrypted_path = os.path.join(evidence_folder, encrypted_filename)
+
+            encryption_key = current_app.config['EVIDENCE_ENCRYPTION_KEY']
+            if not encryption_key:
+                raise ValueError("EVIDENCE_ENCRYPTION_KEY not configured")
+
+            encryption_metadata = encrypt_file(temp_path, encrypted_path, encryption_key)
+
+            # Create Evidence record
+            evidence = Evidence(
+                case_id=case_id,
+                filename=unique_filename,
+                original_filename=original_filename,
+                file_path=encrypted_path,
+                file_size=len(content),
+                mime_type=mime_type,
+                evidence_type=evidence_type,
+                sha256_hash=hashes['sha256'],
+                sha512_hash=hashes['sha512'],
+                timestamp=datetime.utcnow(),
+                is_encrypted=True,
+                encryption_algorithm=encryption_metadata['algorithm'],
+                encryption_nonce=encryption_metadata['nonce'],
+                acquisition_date=datetime.utcnow(),
+                acquisition_method=acquisition_method or 'Monitoring automático',
+                source_device=source_device,
+                source_location=source_location,
+                extracted_metadata=extracted_metadata,
+                description=description,
+                uploaded_by_id=user_id,
+                uploaded_at=datetime.utcnow(),
+                integrity_verified=True,
+                last_verification_date=datetime.utcnow()
+            )
+
+            db.session.add(evidence)
+            db.session.flush()
+
+            # Log to chain of custody
+            ChainOfCustody.log(
+                action='UPLOADED',
+                evidence=evidence,
+                user=user,
+                notes=f'Evidence created from monitoring: {original_filename}',
+                extra_data={
+                    'file_size': len(content),
+                    'mime_type': mime_type,
+                    'evidence_type': evidence_type.value,
+                    'source': 'monitoring'
+                },
+                hash_verified=True,
+                hash_match=True,
+                sha256=hashes['sha256'],
+                sha512=hashes['sha512']
+            )
+
+            db.session.commit()
+
+            return evidence
+
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
+    @staticmethod
     def verify_evidence_integrity(evidence, user):
         """
         Verify evidence integrity and log to chain of custody.

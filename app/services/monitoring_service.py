@@ -1310,6 +1310,23 @@ class MonitoringService:
             elif result.media_urls:
                 # Use URLs directly if not downloaded
                 images = result.media_urls[:4]  # Limit to 4 images
+            elif result.content_metadata:
+                # Try to extract image URL from content_metadata (Instagram format)
+                content_meta = result.content_metadata
+                display_url = (
+                    content_meta.get('display_url') or
+                    content_meta.get('displayUrl') or
+                    content_meta.get('imageUrl') or
+                    content_meta.get('thumbnailUrl')
+                )
+                if display_url:
+                    images = [display_url]
+                # Also check raw data
+                elif content_meta.get('raw'):
+                    raw = content_meta['raw']
+                    raw_display = raw.get('displayUrl') or raw.get('display_url')
+                    if raw_display:
+                        images = [raw_display]
 
             # Build context
             context = {
@@ -1401,6 +1418,8 @@ class MonitoringService:
                 'external_url': result.external_url,
                 'author_username': result.author_username,
                 'source_timestamp': result.source_timestamp.isoformat() if result.source_timestamp else None,
+                'content_text': result.content_text,
+                'media_urls': result.media_urls,
                 'ai_analysis': {
                     'relevance_score': result.ai_relevance_score,
                     'summary': result.ai_summary,
@@ -1410,9 +1429,9 @@ class MonitoringService:
 
             # Determine evidence type
             if result.has_media:
-                evidence_type = EvidenceType.IMAGEN_DIGITAL
+                evidence_type = EvidenceType.DATOS_DIGITALES
             else:
-                evidence_type = EvidenceType.OTRO
+                evidence_type = EvidenceType.OTROS
 
             # Build description
             if not description:
@@ -1423,23 +1442,40 @@ class MonitoringService:
                 if result.ai_summary:
                     description += f"\n\nAnálisis IA: {result.ai_summary}"
 
-            # For now, create a text evidence with the content
-            # In a full implementation, we would create proper evidence files
+            # Create JSON content with all monitoring data
+            content_data = {
+                'metadata': metadata,
+                'content_text': result.content_text,
+                'content_hash': result.content_hash,
+                'external_id': result.external_id,
+                'external_url': result.external_url,
+                'captured_at': result.captured_at.isoformat() if result.captured_at else None,
+                'media_urls': result.media_urls
+            }
+            json_content = json.dumps(content_data, ensure_ascii=False, indent=2)
+            content_bytes = json_content.encode('utf-8')
 
-            evidence = Evidence(
+            # Calculate hashes
+            import hashlib
+            sha256 = hashlib.sha256(content_bytes).hexdigest()
+            sha512 = hashlib.sha512(content_bytes).hexdigest()
+
+            # Create evidence using EvidenceService for proper file handling
+            original_filename = f"monitoring_{result.external_id}.json"
+
+            # Use EvidenceService to save the file properly
+            evidence = EvidenceService.create_evidence_from_content(
                 case_id=task.case_id,
+                content=content_bytes,
+                original_filename=original_filename,
                 evidence_type=evidence_type,
-                original_filename=f"monitoring_{result.external_id}.json",
                 description=description,
-                notes=json.dumps(metadata, ensure_ascii=False, indent=2),
-                created_by_id=user_id,
+                user_id=user_id,
                 acquisition_method='monitoring_automatico',
                 source_device=result.source.platform.value if result.source else None,
-                source_location=result.external_url
+                source_location=result.external_url,
+                extracted_metadata=metadata
             )
-
-            db.session.add(evidence)
-            db.session.flush()
 
             # Mark result as saved
             result.saved_as_evidence = True

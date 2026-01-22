@@ -680,3 +680,53 @@ def api_new_results_count(task_id):
         'latest_id': latest_id,
         'total': task.results.count()
     })
+
+
+@monitoring_bp.route('/api/result/<int:result_id>/media/<int:media_index>')
+@login_required
+def serve_result_media(result_id, media_index):
+    """
+    Serve a downloaded media file for a monitoring result.
+
+    Args:
+        result_id: Monitoring result ID
+        media_index: Index of the media file (0-based)
+
+    Returns:
+        The media file or 404
+    """
+    import os
+    from flask import send_file
+
+    result = MonitoringResult.query.get_or_404(result_id)
+
+    # Check user has access to the case
+    if result.task and result.task.case:
+        case = result.task.case
+        if not current_user.is_admin() and case.detective_id != current_user.id:
+            abort(403)
+
+    # Check if media is downloaded
+    if not result.media_downloaded or not result.media_local_paths:
+        abort(404)
+
+    # Check media_index is valid
+    if media_index < 0 or media_index >= len(result.media_local_paths):
+        abort(404)
+
+    media_path = result.media_local_paths[media_index]
+
+    # Security check: ensure path is within expected directory
+    if not media_path.startswith('/app/data/evidence/monitoring/'):
+        abort(403)
+
+    if not os.path.exists(media_path):
+        abort(404)
+
+    # Determine mimetype
+    import mimetypes
+    mimetype, _ = mimetypes.guess_type(media_path)
+    if not mimetype:
+        mimetype = 'application/octet-stream'
+
+    return send_file(media_path, mimetype=mimetype)

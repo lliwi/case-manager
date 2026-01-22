@@ -77,6 +77,77 @@
     </div>
 </div>
 
+<!-- Monitoring Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <a href="{{ url_for('cases.index') }}" class="text-decoration-none" title="Ver casos con monitorización activa">
+            <div class="card bg-secondary text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-uppercase small mb-1">Monit. Activas</div>
+                            <div class="h4 mb-0">{{ stats.active_monitoring_tasks }}</div>
+                        </div>
+                        <div>
+                            <i class="bi bi-broadcast" style="font-size: 2rem; opacity: 0.5;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-3">
+        <a href="{{ url_for('cases.index') }}" class="text-decoration-none" title="Ver alertas de monitorización">
+            <div class="card {{ 'bg-danger' if stats.monitoring_alerts > 0 else 'bg-secondary' }} text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-uppercase small mb-1">Alertas Monit.</div>
+                            <div class="h4 mb-0">{{ stats.monitoring_alerts }}</div>
+                        </div>
+                        <div>
+                            <i class="bi bi-bell-fill" style="font-size: 2rem; opacity: 0.5;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card bg-light shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase small mb-1 text-muted">Total Casos</div>
+                        <div class="h4 mb-0 text-dark">{{ stats.total_cases }}</div>
+                    </div>
+                    <div>
+                        <i class="bi bi-archive-fill text-muted" style="font-size: 2rem; opacity: 0.5;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card bg-light shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase small mb-1 text-muted">Acciones Audit.</div>
+                        <div class="h4 mb-0 text-dark">{{ stats.total_actions }}</div>
+                    </div>
+                    <div>
+                        <i class="bi bi-journal-text text-muted" style="font-size: 2rem; opacity: 0.5;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <!-- Quick Actions -->
     <div class="col-md-4 mb-4">
@@ -189,20 +260,22 @@
     </div>
 </div>
 
-<!-- Legal Compliance Notice -->
-<div class="row">
-    <div class="col-12">
-        <div class="alert alert-info">
-            <h6 class="alert-heading">
-                <i class="bi bi-info-circle"></i>
-                Cumplimiento Legal
-            </h6>
-            <p class="mb-0 small">
-                Este sistema cumple con la <strong>Ley 5/2014 de Seguridad Privada (Art. 25)</strong>
-                y el estándar de análisis forense <strong>UNE 71506</strong>.
-                Todas las acciones son registradas en un log de auditoría inmutable para garantizar la
-                integridad de la cadena de custodia.
-            </p>
+{% endblock %}
+
+{% block footer_extra %}
+<!-- Legal Compliance Notice - Fixed -->
+<div class="alert alert-info mb-0 rounded-0 border-start-0 border-end-0 border-bottom-0">
+    <div class="container-fluid">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-shield-check fs-4 me-3 text-info"></i>
+            <div>
+                <strong>Cumplimiento Legal:</strong>
+                <span class="small">
+                    Este sistema cumple con la <strong>Ley 5/2014 de Seguridad Privada (Art. 25)</strong>
+                    y el estándar de análisis forense <strong>UNE 71506</strong>.
+                    Todas las acciones son registradas en un log de auditoría inmutable.
+                </span>
+            </div>
         </div>
     </div>
 </div>
