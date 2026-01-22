@@ -4,7 +4,7 @@ Authentication routes.
 from flask import render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, current_user, login_required
 from app.blueprints.auth import auth_bp
-from app.blueprints.auth.forms import LoginForm, MFAVerificationForm, SetupMFAForm
+from app.blueprints.auth.forms import LoginForm, MFAVerificationForm, SetupMFAForm, ProfileForm, ChangePasswordForm
 from app.models.user import User
 from app.models.audit import AuditLog
 from app.extensions import db, limiter
@@ -181,6 +181,67 @@ def setup_mfa():
             flash('Código de verificación incorrecto. Inténtelo de nuevo.', 'danger')
 
     return render_template('auth/setup_mfa.html', form=form, qr_code=qr_code_base64, secret=current_user.mfa_secret)
+
+
+@auth_bp.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    """User profile page."""
+    form = ProfileForm(obj=current_user)
+    password_form = ChangePasswordForm()
+
+    if form.validate_on_submit() and 'profile_submit' in request.form:
+        current_user.nombre = form.nombre.data
+        current_user.apellidos = form.apellidos.data
+        current_user.despacho = form.despacho.data
+        current_user.telefono = form.telefono.data
+        db.session.commit()
+
+        AuditLog.log(
+            action='PROFILE_UPDATED',
+            resource_type='user',
+            user=current_user._get_current_object(),
+            description='User profile updated',
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+
+        flash('Perfil actualizado correctamente.', 'success')
+        return redirect(url_for('auth.profile'))
+
+    return render_template('auth/profile.html', form=form, password_form=password_form)
+
+
+@auth_bp.route('/change-password', methods=['POST'])
+@login_required
+def change_password():
+    """Change user password."""
+    form = ChangePasswordForm()
+
+    if form.validate_on_submit():
+        if not current_user.check_password(form.current_password.data):
+            flash('La contraseña actual es incorrecta.', 'danger')
+            return redirect(url_for('auth.profile'))
+
+        current_user.set_password(form.new_password.data)
+        db.session.commit()
+
+        AuditLog.log(
+            action='PASSWORD_CHANGED',
+            resource_type='user',
+            user=current_user._get_current_object(),
+            description='User password changed',
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+
+        flash('Contraseña cambiada correctamente.', 'success')
+    else:
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f'{error}', 'danger')
+
+    return redirect(url_for('auth.profile'))
 
 
 @auth_bp.route('/logout')

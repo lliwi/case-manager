@@ -70,7 +70,7 @@
                         {% endif %}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#">
+                        <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">
                             <i class="bi bi-person"></i> Perfil
                         </a></li>
                         {% if not current_user.mfa_enabled %}

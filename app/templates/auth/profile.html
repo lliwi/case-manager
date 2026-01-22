@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Mi Perfil - Case Manager{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-person"></i> Mi Perfil</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('auth.profile') }}">
+                        {{ form.hidden_tag() }}
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.nombre.label(class="form-label") }}
+                                {{ form.nombre(class="form-control" + (" is-invalid" if form.nombre.errors else "")) }}
+                                {% if form.nombre.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.nombre.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.apellidos.label(class="form-label") }}
+                                {{ form.apellidos(class="form-control" + (" is-invalid" if form.apellidos.errors else "")) }}
+                                {% if form.apellidos.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.apellidos.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" value="{{ current_user.email }}" disabled>
+                                <small class="text-muted">El email no se puede modificar</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Número TIP</label>
+                                <input type="text" class="form-control" value="{{ current_user.tip_number }}" disabled>
+                                <small class="text-muted">El TIP no se puede modificar</small>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.despacho.label(class="form-label") }}
+                                {{ form.despacho(class="form-control" + (" is-invalid" if form.despacho.errors else "")) }}
+                                {% if form.despacho.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.despacho.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.telefono.label(class="form-label") }}
+                                {{ form.telefono(class="form-control" + (" is-invalid" if form.telefono.errors else "")) }}
+                                {% if form.telefono.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.telefono.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <button type="submit" name="profile_submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> Guardar Cambios
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Change Password Card -->
+            <div class="card shadow mt-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-key"></i> Cambiar Contraseña</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('auth.change_password') }}">
+                        {{ password_form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ password_form.current_password.label(class="form-label") }}
+                            {{ password_form.current_password(class="form-control") }}
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ password_form.new_password.label(class="form-label") }}
+                                {{ password_form.new_password(class="form-control") }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ password_form.confirm_password.label(class="form-label") }}
+                                {{ password_form.confirm_password(class="form-control") }}
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-secondary">
+                            <i class="bi bi-key"></i> Cambiar Contraseña
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar with account info -->
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> Información de Cuenta</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <strong>Estado MFA:</strong>
+                            {% if current_user.mfa_enabled %}
+                                <span class="badge bg-success"><i class="bi bi-shield-check"></i> Activado</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark"><i class="bi bi-shield-exclamation"></i> Desactivado</span>
+                                <br>
+                                <a href="{{ url_for('auth.setup_mfa') }}" class="btn btn-sm btn-outline-success mt-2">
+                                    <i class="bi bi-shield-plus"></i> Activar MFA
+                                </a>
+                            {% endif %}
+                        </li>
+                        <li class="mb-2">
+                            <strong>Cuenta creada:</strong><br>
+                            {{ current_user.created_at.strftime('%d/%m/%Y %H:%M') if current_user.created_at else 'N/A' }}
+                        </li>
+                        <li class="mb-2">
+                            <strong>Último acceso:</strong><br>
+                            {{ current_user.last_login.strftime('%d/%m/%Y %H:%M') if current_user.last_login else 'N/A' }}
+                        </li>
+                        <li class="mb-2">
+                            <strong>Roles:</strong><br>
+                            {% for role in current_user.roles %}
+                                <span class="badge bg-info">{{ role.name }}</span>
+                            {% else %}
+                                <span class="text-muted">Sin roles asignados</span>
+                            {% endfor %}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

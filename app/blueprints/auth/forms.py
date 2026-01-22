@@ -60,3 +60,26 @@ class RegistrationForm(FlaskForm):
         user = User.query.filter_by(tip_number=tip_number.data).first()
         if user:
             raise ValidationError('Este número TIP ya está registrado.')
+
+
+class ProfileForm(FlaskForm):
+    """User profile edit form."""
+    nombre = StringField('Nombre', validators=[DataRequired(), Length(min=2, max=200)])
+    apellidos = StringField('Apellidos', validators=[Length(max=200)])
+    despacho = StringField('Despacho', validators=[Length(max=200)])
+    telefono = StringField('Teléfono', validators=[Length(max=20)])
+    submit = SubmitField('Guardar Cambios')
+
+
+class ChangePasswordForm(FlaskForm):
+    """Change password form."""
+    current_password = PasswordField('Contraseña Actual', validators=[DataRequired()])
+    new_password = PasswordField('Nueva Contraseña', validators=[
+        DataRequired(),
+        Length(min=8, message='La contraseña debe tener al menos 8 caracteres')
+    ])
+    confirm_password = PasswordField('Confirmar Nueva Contraseña', validators=[
+        DataRequired(),
+        EqualTo('new_password', message='Las contraseñas deben coincidir')
+    ])
+    submit = SubmitField('Cambiar Contraseña')

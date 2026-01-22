@@ -195,6 +195,27 @@ def reset_user_password(user_id):
     return redirect(url_for('admin.user_detail', user_id=user_id))
 
 
+@admin_bp.route('/users/<int:user_id>/disable-mfa', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_USER_DISABLE_MFA', 'admin')
+def disable_user_mfa(user_id):
+    """Disable MFA for a user so they can set it up again."""
+    user = User.query.get_or_404(user_id)
+
+    if not user.mfa_enabled:
+        flash(f'El usuario {user.email} no tiene MFA activado', 'warning')
+        return redirect(url_for('admin.user_detail', user_id=user_id))
+
+    # Disable MFA and clear secret
+    user.mfa_enabled = False
+    user.mfa_secret = None
+    db.session.commit()
+
+    flash(f'MFA desactivado para {user.email}. El usuario puede configurarlo de nuevo.', 'success')
+    return redirect(url_for('admin.user_detail', user_id=user_id))
+
+
 # ============================================================================
 # AUDIT LOG VIEWER
 # ============================================================================

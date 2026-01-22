@@ -39,6 +39,15 @@
                                     {% endif %}
                                 </dd>
 
+                                <dt>MFA</dt>
+                                <dd>
+                                    {% if user.mfa_enabled %}
+                                        <span class="badge bg-success"><i class="bi bi-shield-check"></i> Activado</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-shield-x"></i> Desactivado</span>
+                                    {% endif %}
+                                </dd>
+
                                 <dt>Roles</dt>
                                 <dd>
                                     {% for role in user.roles %}
@@ -73,6 +82,11 @@
                             <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#resetPasswordModal">
                                 <i class="bi bi-key"></i> Restablecer Contraseña
                             </button>
+                            {% if user.mfa_enabled %}
+                            <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#disableMfaModal">
+                                <i class="bi bi-shield-x"></i> Desactivar MFA
+                            </button>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -190,6 +204,35 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-danger">Restablecer Contraseña</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Disable MFA Modal -->
+<div class="modal fade" id="disableMfaModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="bi bi-shield-exclamation"></i> Desactivar MFA</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin.disable_user_mfa', user_id=user.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Atención:</strong> Esta acción desactivará la autenticación de dos factores para este usuario.
+                    </div>
+                    <p>¿Está seguro de que desea desactivar MFA para <strong>{{ user.email }}</strong>?</p>
+                    <p class="text-muted small">
+                        El usuario podrá iniciar sesión solo con su contraseña y tendrá la opción de configurar MFA nuevamente desde su perfil.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">Desactivar MFA</button>
                 </div>
             </form>
         </div>
