@@ -731,6 +731,7 @@
                                 {% else %}
                                 <form method="POST" action="{{ url_for('osint.archive_no_case', contact_id=contact.id) }}">
                                 {% endif %}
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-warning w-100">
                                         <i class="bi bi-{% if contact.status == 'active' %}archive{% else %}arrow-clockwise{% endif %}"></i>
                                         {% if contact.status == 'active' %}Archivar{% else %}Activar{% endif %}
@@ -746,6 +747,7 @@
                                       action="{{ url_for('osint.delete_no_case', contact_id=contact.id) }}"
                                       onsubmit="return confirm('¿Está seguro de eliminar este contacto? Esta acción no se puede deshacer.');">
                                 {% endif %}
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-danger w-100">
                                         <i class="bi bi-trash"></i> Eliminar
                                     </button>

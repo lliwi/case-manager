@@ -19,14 +19,14 @@
 
         <!-- Integrity Status -->
         {% if evidence.integrity_verified %}
-            <div class="alert alert-success">
+            <div class="alert alert-success alert-permanent">
                 <h6 class="alert-heading"><i class="bi bi-shield-check"></i> Integridad Verificada</h6>
                 <p class="mb-0 small">
                     Última verificación: {{ evidence.last_verification_date.strftime('%d/%m/%Y %H:%M') if evidence.last_verification_date else 'Nunca' }}
                 </p>
             </div>
         {% else %}
-            <div class="alert alert-warning">
+            <div class="alert alert-warning alert-permanent">
                 <h6 class="alert-heading"><i class="bi bi-shield-exclamation"></i> Integridad No Verificada</h6>
                 <p class="mb-1 small">Esta evidencia no ha sido verificada recientemente.</p>
                 <form method="POST" action="{{ url_for('evidence.verify_integrity', evidence_id=evidence.id) }}" class="d-inline">

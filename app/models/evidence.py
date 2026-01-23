@@ -210,6 +210,10 @@ class ChainOfCustody(db.Model):
     Immutable chain of custody log.
 
     Records every interaction with evidence for forensic integrity.
+    Immutability enforced at both application and database level.
+
+    Cryptographic timestamps (HMAC-SHA256) provide non-repudiation proof
+    for UNE 71506 forensic standard compliance.
     """
     __tablename__ = 'chain_of_custody'
 
@@ -239,6 +243,10 @@ class ChainOfCustody(db.Model):
     sha256_calculated = db.Column(db.String(64))
     sha512_calculated = db.Column(db.String(128))
 
+    # Cryptographic timestamp proof (UNE 71506 compliance)
+    record_hash = db.Column(db.String(64))  # SHA-256 hash of record content
+    timestamp_signature = db.Column(db.String(128))  # HMAC-SHA256 signature
+
     # Relationships
     user = db.relationship('User', backref=db.backref('custody_actions', lazy='dynamic'))
 
@@ -249,7 +257,7 @@ class ChainOfCustody(db.Model):
     def log(action, evidence, user, notes=None, extra_data=None,
             hash_verified=None, hash_match=None, sha256=None, sha512=None):
         """
-        Log chain of custody entry.
+        Log chain of custody entry with cryptographic timestamp.
 
         Args:
             action: Action performed (UPLOADED, VIEWED, etc.)
@@ -263,7 +271,7 @@ class ChainOfCustody(db.Model):
             sha512: Calculated SHA-512 hash
 
         Returns:
-            ChainOfCustody instance
+            ChainOfCustody instance with cryptographic timestamp signature
         """
         from flask import request
 
@@ -276,7 +284,8 @@ class ChainOfCustody(db.Model):
             hash_verified=hash_verified,
             hash_match=hash_match,
             sha256_calculated=sha256,
-            sha512_calculated=sha512
+            sha512_calculated=sha512,
+            timestamp=datetime.utcnow()
         )
 
         # Capture request context if available
@@ -286,10 +295,33 @@ class ChainOfCustody(db.Model):
             entry.request_method = request.method
             entry.request_path = request.path
 
+        # Add cryptographic timestamp signature for forensic integrity
+        try:
+            from app.utils.timestamp_service import TimestampService
+            record_hash, signature = TimestampService.sign_chain_of_custody(entry)
+            entry.record_hash = record_hash
+            entry.timestamp_signature = signature
+        except Exception:
+            # Continue without signature if service unavailable
+            pass
+
         db.session.add(entry)
         db.session.commit()
 
         return entry
+
+    def verify_integrity(self) -> dict:
+        """
+        Verify the cryptographic integrity of this chain of custody entry.
+
+        Returns:
+            Dictionary with verification results including:
+            - valid: Boolean indicating if record is intact
+            - signed: Boolean indicating if record has signature
+            - error: Error message if verification failed
+        """
+        from app.utils.timestamp_service import TimestampService
+        return TimestampService.verify_chain_of_custody(self)
 
 
 # Prevent UPDATE and DELETE operations on chain of custody

@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:15-alpine
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
     container_name: casemanager_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-case_manager}
@@ -9,6 +11,14 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: >
+      postgres
+      -c ssl=on
+      -c ssl_cert_file=/var/lib/postgresql/ssl/server.crt
+      -c ssl_key_file=/var/lib/postgresql/ssl/server.key
+      -c ssl_ca_file=/var/lib/postgresql/ssl/ca.crt
+      -c ssl_min_protocol_version=TLSv1.2
+      -c log_connections=on
     networks:
       - backend
     healthcheck:
@@ -71,6 +81,9 @@ services:
       FLASK_ENV: ${FLASK_ENV:-production}
       SECRET_KEY: ${SECRET_KEY}
       DATABASE_URL: ${DATABASE_URL}
+      # Database SSL/TLS configuration
+      DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-require}
+      DATABASE_SSL_CA: /app/ssl/ca.crt
       NEO4J_URI: ${NEO4J_URI}
       NEO4J_USER: ${NEO4J_USER:-neo4j}
       NEO4J_PASSWORD: ${NEO4J_PASSWORD}
@@ -80,10 +93,13 @@ services:
       EVIDENCE_ENCRYPTION_KEY: ${EVIDENCE_ENCRYPTION_KEY}
     volumes:
       - ../app:/app/app
+      - ../migrations:/app/migrations
       - evidence_data:/app/data/evidence
       - upload_data:/app/data/uploads
       - export_data:/app/data/exports
       - report_data:/app/data/reports
+      # Mount CA certificate for SSL verification
+      - ./postgres/ssl/ca.crt:/app/ssl/ca.crt:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -105,6 +121,9 @@ services:
     environment:
       FLASK_APP: wsgi.py
       DATABASE_URL: ${DATABASE_URL}
+      # Database SSL/TLS configuration
+      DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-require}
+      DATABASE_SSL_CA: /app/ssl/ca.crt
       NEO4J_URI: ${NEO4J_URI}
       NEO4J_USER: ${NEO4J_USER:-neo4j}
       NEO4J_PASSWORD: ${NEO4J_PASSWORD}
@@ -116,6 +135,8 @@ services:
       - ../app:/app/app
       - evidence_data:/app/data/evidence
       - upload_data:/app/data/uploads
+      # Mount CA certificate for SSL verification
+      - ./postgres/ssl/ca.crt:/app/ssl/ca.crt:ro
     depends_on:
       - redis
       - postgres

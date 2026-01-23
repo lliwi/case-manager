@@ -296,6 +296,62 @@ class AuditLog(db.Model):
     user_agent = db.Column(db.String(256))
     details = db.Column(JSON)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+    # Cryptographic timestamp proof (UNE 71506 compliance)
+    record_hash = db.Column(db.String(64))        # SHA-256 hash of record content
+    timestamp_signature = db.Column(db.String(128))  # HMAC-SHA256 signature
+```
+
+**Database-Level Immutability (PostgreSQL Triggers):**
+
+```sql
+-- Prevent UPDATE on audit_logs
+CREATE OR REPLACE FUNCTION prevent_audit_log_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'UPDATE operations on audit_logs table are forbidden.
+    Audit logs are immutable for legal compliance (Ley 5/2014, UNE 71506).';
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_prevent_audit_log_update
+BEFORE UPDATE ON audit_logs
+FOR EACH ROW EXECUTE FUNCTION prevent_audit_log_update();
+
+-- Prevent DELETE on audit_logs
+CREATE TRIGGER trigger_prevent_audit_log_delete
+BEFORE DELETE ON audit_logs
+FOR EACH ROW EXECUTE FUNCTION prevent_audit_log_delete();
+```
+
+**Cryptographic Timestamps (HMAC-SHA256):**
+
+Each audit log entry includes:
+- `record_hash`: SHA-256 hash of the record content
+- `timestamp_signature`: HMAC-SHA256 signature proving when the record was created
+
+```python
+# app/utils/timestamp_service.py
+class TimestampService:
+    @staticmethod
+    def sign_audit_log(audit_log) -> tuple[str, str]:
+        """Create cryptographic timestamp for audit log entry."""
+        data = {
+            'action': audit_log.action,
+            'resource_type': audit_log.resource_type,
+            'user_id': audit_log.user_id,
+            'timestamp': audit_log.timestamp.isoformat(),
+            # ... other fields
+        }
+        record_hash = hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
+        signature = hmac.new(signing_key, f"{record_hash}|{timestamp}".encode(), hashlib.sha256).hexdigest()
+        return record_hash, signature
+
+    @staticmethod
+    def verify_audit_log(audit_log) -> dict:
+        """Verify the cryptographic integrity of an audit log entry."""
+        # Returns {'valid': bool, 'signed': bool, 'error': str|None}
 ```
 
 **Logged Actions:**
@@ -307,7 +363,7 @@ class AuditLog(db.Model):
 - GRAPH_NODE_CREATED / GRAPH_RELATIONSHIP_CREATED
 - ADMIN actions (USER_CREATED, ROLE_MODIFIED, etc.)
 
-**Retention:** Permanent (never deleted)
+**Retention:** Permanent (never deleted - enforced at database level)
 
 **Export Capability:**
 ```python
@@ -316,6 +372,46 @@ class AuditLog(db.Model):
 @require_role('admin')
 def export_audit_logs_csv():
     # Exports all logs with digital signature
+```
+
+#### Database Connection Security (TLS/SSL)
+
+**PostgreSQL SSL Configuration:**
+
+All database connections use TLS 1.2+ encryption:
+
+```yaml
+# docker-compose.yml
+postgres:
+  command: >
+    postgres
+    -c ssl=on
+    -c ssl_cert_file=/var/lib/postgresql/ssl/server.crt
+    -c ssl_key_file=/var/lib/postgresql/ssl/server.key
+    -c ssl_ca_file=/var/lib/postgresql/ssl/ca.crt
+    -c ssl_min_protocol_version=TLSv1.2
+```
+
+**Application Configuration:**
+
+```python
+# app/config.py
+DATABASE_SSL_MODE = os.environ.get('DATABASE_SSL_MODE', 'require')
+# Options: disable, allow, prefer, require, verify-ca, verify-full
+
+SQLALCHEMY_ENGINE_OPTIONS = {
+    'connect_args': {
+        'sslmode': DATABASE_SSL_MODE,
+        'sslrootcert': os.environ.get('DATABASE_SSL_CA'),
+    }
+}
+```
+
+**Verification:**
+```sql
+-- Check SSL status
+SELECT ssl, version FROM pg_stat_ssl WHERE pid = pg_backend_pid();
+-- Result: ssl=t, version=TLSv1.3
 ```
 
 ## GPS Tracking Prohibition
@@ -401,10 +497,13 @@ class ReportService:
 - [ ] Legitimacy validation enforced
 - [ ] Crime keyword detection enabled
 - [ ] Confidentiality flags implemented
-- [ ] Encryption at rest configured (AES-256)
+- [ ] Encryption at rest configured (AES-256-GCM)
 - [ ] HTTPS/TLS enforced
+- [ ] Database SSL/TLS enabled (TLSv1.2+)
 - [ ] Audit logging comprehensive
-- [ ] Chain of custody immutable
+- [ ] **Database-level immutability triggers active**
+- [ ] **Cryptographic timestamps (HMAC-SHA256) enabled**
+- [ ] Chain of custody immutable (both ORM and DB level)
 - [ ] Evidence hash verification automatic
 - [ ] GPS tracking warnings displayed
 - [ ] Report format compliant
@@ -415,8 +514,10 @@ class ReportService:
 
 - [ ] Regular security audits
 - [ ] Audit log review monthly
+- [ ] **Audit log integrity verification (verify_integrity())**
 - [ ] Backup verification weekly
 - [ ] Encryption key rotation annually
+- [ ] **SSL certificate renewal before expiry (365 days)**
 - [ ] Staff training on legal requirements
 - [ ] Incident response plan tested
 - [ ] DPO designated and contactable

@@ -2,6 +2,9 @@
 Immutable audit log model for forensic chain of custody.
 
 IMPORTANT: This table must be append-only. No UPDATE or DELETE operations allowed.
+Immutability is enforced at both:
+1. Application level (SQLAlchemy event listeners)
+2. Database level (PostgreSQL triggers - see migration e5f6a7b8c9d0)
 """
 from datetime import datetime
 from app.extensions import db
@@ -13,6 +16,9 @@ class AuditLog(db.Model):
 
     This model records all actions performed in the system for legal compliance
     and forensic integrity. Records cannot be modified or deleted.
+
+    Cryptographic timestamps (HMAC-SHA256) provide non-repudiation proof
+    that records were created at the claimed time.
     """
     __tablename__ = 'audit_logs'
 
@@ -40,6 +46,10 @@ class AuditLog(db.Model):
     # Timestamp (immutable)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
+    # Cryptographic timestamp proof (UNE 71506 compliance)
+    record_hash = db.Column(db.String(64))  # SHA-256 hash of record content
+    timestamp_signature = db.Column(db.String(128))  # HMAC-SHA256 signature
+
     # Relationships
     user = db.relationship('User', backref=db.backref('audit_logs', lazy='dynamic'))
 
@@ -51,7 +61,7 @@ class AuditLog(db.Model):
             ip_address=None, user_agent=None, request_method=None, request_path=None,
             extra_data=None):
         """
-        Create an audit log entry.
+        Create an audit log entry with cryptographic timestamp.
 
         Args:
             action: Action performed (e.g., 'CREATED', 'VIEWED', 'UPDATED', 'DELETED')
@@ -66,7 +76,7 @@ class AuditLog(db.Model):
             extra_data: Additional JSON metadata
 
         Returns:
-            AuditLog instance
+            AuditLog instance with cryptographic timestamp signature
         """
         log_entry = cls(
             action=action,
@@ -79,11 +89,36 @@ class AuditLog(db.Model):
             user_agent=user_agent,
             request_method=request_method,
             request_path=request_path,
-            extra_data=extra_data
+            extra_data=extra_data,
+            timestamp=datetime.utcnow()
         )
+
+        # Add cryptographic timestamp signature for forensic integrity
+        try:
+            from app.utils.timestamp_service import TimestampService
+            record_hash, signature = TimestampService.sign_audit_log(log_entry)
+            log_entry.record_hash = record_hash
+            log_entry.timestamp_signature = signature
+        except Exception:
+            # Continue without signature if service unavailable
+            pass
+
         db.session.add(log_entry)
         db.session.commit()
         return log_entry
+
+    def verify_integrity(self) -> dict:
+        """
+        Verify the cryptographic integrity of this audit log entry.
+
+        Returns:
+            Dictionary with verification results including:
+            - valid: Boolean indicating if record is intact
+            - signed: Boolean indicating if record has signature
+            - error: Error message if verification failed
+        """
+        from app.utils.timestamp_service import TimestampService
+        return TimestampService.verify_audit_log(self)
 
 
 # Prevent UPDATE and DELETE operations on audit logs

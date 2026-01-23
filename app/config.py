@@ -14,12 +14,33 @@ class Config:
     # Database
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql://postgres:postgres@localhost:5432/case_manager'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
+
+    # Database connection pool settings
+    _base_engine_options = {
         'pool_pre_ping': True,
         'pool_recycle': 300,
         'pool_size': 10,
         'max_overflow': 20,
     }
+
+    # Add SSL/TLS options if enabled
+    DATABASE_SSL_MODE = os.environ.get('DATABASE_SSL_MODE', 'prefer')  # disable, allow, prefer, require, verify-ca, verify-full
+    if DATABASE_SSL_MODE and DATABASE_SSL_MODE != 'disable':
+        _base_engine_options['connect_args'] = {
+            'sslmode': DATABASE_SSL_MODE,
+        }
+        # Optional: specify certificate paths for verify-ca/verify-full modes
+        ssl_ca = os.environ.get('DATABASE_SSL_CA')
+        ssl_cert = os.environ.get('DATABASE_SSL_CERT')
+        ssl_key = os.environ.get('DATABASE_SSL_KEY')
+        if ssl_ca:
+            _base_engine_options['connect_args']['sslrootcert'] = ssl_ca
+        if ssl_cert:
+            _base_engine_options['connect_args']['sslcert'] = ssl_cert
+        if ssl_key:
+            _base_engine_options['connect_args']['sslkey'] = ssl_key
+
+    SQLALCHEMY_ENGINE_OPTIONS = _base_engine_options
 
     # Neo4j
     NEO4J_URI = os.environ.get('NEO4J_URI', 'bolt://localhost:7687')

@@ -35,26 +35,26 @@
                 <div class="row">
                     <div class="col-md-6">
                         <dl class="row mb-0">
-                            <dt class="col-sm-5">Archivo:</dt>
-                            <dd class="col-sm-7">{{ evidence.original_filename }}</dd>
+                            <dt class="col-2">Archivo:</dt>
+                            <dd class="col-10">{{ evidence.original_filename }}</dd>
 
-                            <dt class="col-sm-5">Tipo:</dt>
-                            <dd class="col-sm-7"><span class="badge bg-info">{{ evidence.evidence_type.value }}</span></dd>
+                            <dt class="col-2">Tipo:</dt>
+                            <dd class="col-10"><span class="badge bg-info">{{ evidence.evidence_type.value }}</span></dd>
 
-                            <dt class="col-sm-5">Tamaño:</dt>
-                            <dd class="col-sm-7">{{ "%.2f"|format(evidence.file_size / 1024 / 1024) }} MB</dd>
+                            <dt class="col-2">Tamaño:</dt>
+                            <dd class="col-10">{{ "%.2f"|format(evidence.file_size / 1024 / 1024) }} MB</dd>
                         </dl>
                     </div>
                     <div class="col-md-6">
                         <dl class="row mb-0">
-                            <dt class="col-sm-5">SHA-256:</dt>
-                            <dd class="col-sm-7"><code class="small">{{ evidence.sha256_hash[:32] }}...</code></dd>
+                            <dt class="col-2">SHA-256:</dt>
+                            <dd class="col-10"><code class="small" style="word-break: break-all;">{{ evidence.sha256_hash }}</code></dd>
 
-                            <dt class="col-sm-5">Subida:</dt>
-                            <dd class="col-sm-7">{{ evidence.uploaded_at.strftime('%d/%m/%Y %H:%M') }}</dd>
+                            <dt class="col-2">Subida:</dt>
+                            <dd class="col-10">{{ evidence.uploaded_at.strftime('%d/%m/%Y %H:%M') }}</dd>
 
-                            <dt class="col-sm-5">Por:</dt>
-                            <dd class="col-sm-7">{{ evidence.uploaded_by.nombre }}</dd>
+                            <dt class="col-2">Por:</dt>
+                            <dd class="col-10">{{ evidence.uploaded_by.nombre }}</dd>
                         </dl>
                     </div>
                 </div>
