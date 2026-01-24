@@ -683,3 +683,395 @@ class BackupService:
             'size': os.path.getsize(filepath),
             'manifest': None
         }
+
+    def _restore_database(self, sql_path: str) -> Dict[str, Any]:
+        """
+        Restore PostgreSQL database from SQL dump.
+
+        Args:
+            sql_path: Path to the SQL dump file.
+
+        Returns:
+            Dict with restore info and status.
+        """
+        result = {
+            'success': False,
+            'file': sql_path,
+            'error': None
+        }
+
+        try:
+            # Get database connection info from environment
+            db_url = os.environ.get('DATABASE_URL', '')
+
+            if not db_url:
+                result['error'] = 'DATABASE_URL not configured'
+                return result
+
+            # Parse DATABASE_URL
+            import urllib.parse
+            parsed = urllib.parse.urlparse(db_url)
+
+            db_host = parsed.hostname or 'localhost'
+            db_port = str(parsed.port or 5432)
+            db_name = parsed.path.lstrip('/')
+            db_user = parsed.username or 'postgres'
+            db_password = parsed.password or ''
+
+            # Set password in environment for psql
+            env = os.environ.copy()
+            env['PGPASSWORD'] = db_password
+
+            # Run psql to restore
+            cmd = [
+                'psql',
+                '-h', db_host,
+                '-p', db_port,
+                '-U', db_user,
+                '-d', db_name,
+                '-f', sql_path
+            ]
+
+            process = subprocess.run(
+                cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=600  # 10 minute timeout
+            )
+
+            if process.returncode != 0:
+                # psql may return warnings that are not errors
+                if 'ERROR' in process.stderr:
+                    result['error'] = process.stderr
+                    return result
+
+            result['success'] = True
+
+        except subprocess.TimeoutExpired:
+            result['error'] = 'Database restore timed out (10 minutes)'
+        except FileNotFoundError:
+            result['error'] = 'psql not found. Is PostgreSQL client installed?'
+        except Exception as e:
+            result['error'] = str(e)
+
+        return result
+
+    def _restore_folder(
+        self,
+        source: str,
+        dest: str,
+        clear_existing: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Restore a folder from backup.
+
+        Args:
+            source: Source folder path (from extracted backup).
+            dest: Destination folder path.
+            clear_existing: Whether to clear existing files before restore.
+
+        Returns:
+            Dict with restore info and status.
+        """
+        result = {
+            'success': False,
+            'source': source,
+            'dest': dest,
+            'files_restored': 0,
+            'total_size': 0,
+            'errors': []
+        }
+
+        if not os.path.exists(source):
+            result['success'] = True  # Nothing to restore is not an error
+            return result
+
+        try:
+            # Clear existing if requested
+            if clear_existing and os.path.exists(dest):
+                shutil.rmtree(dest)
+
+            os.makedirs(dest, exist_ok=True)
+
+            for root, dirs, files in os.walk(source):
+                rel_path = os.path.relpath(root, source)
+                dest_dir = os.path.join(dest, rel_path)
+                os.makedirs(dest_dir, exist_ok=True)
+
+                for filename in files:
+                    src_file = os.path.join(root, filename)
+                    dst_file = os.path.join(dest_dir, filename)
+
+                    try:
+                        shutil.copy2(src_file, dst_file)
+                        result['files_restored'] += 1
+                        result['total_size'] += os.path.getsize(src_file)
+                    except Exception as e:
+                        result['errors'].append(f"{src_file}: {str(e)}")
+
+            result['success'] = len(result['errors']) == 0
+
+        except Exception as e:
+            result['errors'].append(str(e))
+
+        return result
+
+    def _restore_api_keys(self, json_path: str) -> Dict[str, Any]:
+        """
+        Restore API keys from JSON file.
+
+        Args:
+            json_path: Path to the API keys JSON file.
+
+        Returns:
+            Dict with restore info and status.
+        """
+        result = {
+            'success': False,
+            'file': json_path,
+            'count': 0,
+            'error': None
+        }
+
+        try:
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+
+            keys_data = data.get('keys', [])
+
+            for key_data in keys_data:
+                # Check if key already exists
+                existing = ApiKey.query.filter_by(
+                    service_name=key_data['service_name'],
+                    key_name=key_data['key_name'],
+                    is_deleted=False
+                ).first()
+
+                if existing:
+                    # Update existing key
+                    existing.set_api_key(key_data['api_key'])
+                    existing.description = key_data.get('description')
+                    existing.is_active = key_data.get('is_active', True)
+                else:
+                    # Create new key
+                    new_key = ApiKey(
+                        service_name=key_data['service_name'],
+                        key_name=key_data['key_name'],
+                        api_key=key_data['api_key'],
+                        description=key_data.get('description'),
+                    )
+                    new_key.is_active = key_data.get('is_active', True)
+                    db.session.add(new_key)
+
+                result['count'] += 1
+
+            db.session.commit()
+            result['success'] = True
+
+        except Exception as e:
+            db.session.rollback()
+            result['error'] = str(e)
+
+        return result
+
+    def restore_backup(
+        self,
+        filename: str,
+        restore_database: bool = True,
+        restore_evidence: bool = True,
+        restore_uploads: bool = True,
+        restore_exports: bool = True,
+        restore_reports: bool = True,
+        restore_api_keys: bool = True,
+        restore_env: bool = False,
+        clear_existing: bool = False,
+        restored_by: Optional[User] = None,
+        progress_callback: Optional[callable] = None
+    ) -> Dict[str, Any]:
+        """
+        Restore a system backup.
+
+        Args:
+            filename: Name of the backup file to restore.
+            restore_database: Restore PostgreSQL database.
+            restore_evidence: Restore evidence files.
+            restore_uploads: Restore uploaded files.
+            restore_exports: Restore export files.
+            restore_reports: Restore report files.
+            restore_api_keys: Restore API keys.
+            restore_env: Restore .env file (dangerous!).
+            clear_existing: Clear existing files before restore.
+            restored_by: User performing the restore.
+            progress_callback: Optional callback for progress updates.
+
+        Returns:
+            Dict with restore info and status.
+        """
+        result = {
+            'success': False,
+            'filename': filename,
+            'restored_at': datetime.utcnow().isoformat(),
+            'restored_by': restored_by.email if restored_by else 'system',
+            'components': {},
+            'errors': []
+        }
+
+        filepath = os.path.join(self.backup_folder, filename)
+
+        if not os.path.exists(filepath):
+            result['errors'].append('Backup file not found')
+            return result
+
+        # Create temporary directory for extraction
+        temp_dir = tempfile.mkdtemp(prefix='restore_')
+
+        try:
+            # Extract backup
+            if progress_callback:
+                progress_callback('extract', 'Extrayendo backup...')
+
+            with zipfile.ZipFile(filepath, 'r') as zipf:
+                zipf.extractall(temp_dir)
+
+            # Find the backup directory (should be backup_YYYYMMDD_HHMMSS)
+            backup_dirs = [d for d in os.listdir(temp_dir) if d.startswith('backup_')]
+            if not backup_dirs:
+                result['errors'].append('Invalid backup structure')
+                return result
+
+            backup_dir = os.path.join(temp_dir, backup_dirs[0])
+            data_folders = self._get_data_folders()
+
+            # 1. Restore database
+            if restore_database:
+                db_path = os.path.join(backup_dir, 'database.sql')
+                if os.path.exists(db_path):
+                    if progress_callback:
+                        progress_callback('database', 'Restaurando base de datos...')
+
+                    db_result = self._restore_database(db_path)
+                    result['components']['database'] = db_result
+
+                    if not db_result['success']:
+                        result['errors'].append(f"Database: {db_result['error']}")
+
+            # 2. Restore evidence
+            if restore_evidence:
+                evidence_src = os.path.join(backup_dir, 'evidence')
+                if os.path.exists(evidence_src):
+                    if progress_callback:
+                        progress_callback('evidence', 'Restaurando evidencias...')
+
+                    evidence_result = self._restore_folder(
+                        evidence_src,
+                        data_folders['evidence'],
+                        clear_existing
+                    )
+                    result['components']['evidence'] = {
+                        'success': evidence_result['success'],
+                        'files_count': evidence_result['files_restored'],
+                        'total_size': evidence_result['total_size'],
+                        'errors': evidence_result['errors']
+                    }
+
+            # 3. Restore uploads
+            if restore_uploads:
+                uploads_src = os.path.join(backup_dir, 'uploads')
+                if os.path.exists(uploads_src):
+                    if progress_callback:
+                        progress_callback('uploads', 'Restaurando uploads...')
+
+                    uploads_result = self._restore_folder(
+                        uploads_src,
+                        data_folders['uploads'],
+                        clear_existing
+                    )
+                    result['components']['uploads'] = {
+                        'success': uploads_result['success'],
+                        'files_count': uploads_result['files_restored'],
+                        'total_size': uploads_result['total_size'],
+                        'errors': uploads_result['errors']
+                    }
+
+            # 4. Restore exports
+            if restore_exports:
+                exports_src = os.path.join(backup_dir, 'exports')
+                if os.path.exists(exports_src):
+                    if progress_callback:
+                        progress_callback('exports', 'Restaurando exports...')
+
+                    exports_result = self._restore_folder(
+                        exports_src,
+                        data_folders['exports'],
+                        clear_existing
+                    )
+                    result['components']['exports'] = {
+                        'success': exports_result['success'],
+                        'files_count': exports_result['files_restored'],
+                        'total_size': exports_result['total_size'],
+                        'errors': exports_result['errors']
+                    }
+
+            # 5. Restore reports
+            if restore_reports:
+                reports_src = os.path.join(backup_dir, 'reports')
+                if os.path.exists(reports_src):
+                    if progress_callback:
+                        progress_callback('reports', 'Restaurando informes...')
+
+                    reports_result = self._restore_folder(
+                        reports_src,
+                        data_folders['reports'],
+                        clear_existing
+                    )
+                    result['components']['reports'] = {
+                        'success': reports_result['success'],
+                        'files_count': reports_result['files_restored'],
+                        'total_size': reports_result['total_size'],
+                        'errors': reports_result['errors']
+                    }
+
+            # 6. Restore API keys
+            if restore_api_keys:
+                api_keys_path = os.path.join(backup_dir, 'api_keys.json')
+                if os.path.exists(api_keys_path):
+                    if progress_callback:
+                        progress_callback('api_keys', 'Restaurando API Keys...')
+
+                    api_keys_result = self._restore_api_keys(api_keys_path)
+                    result['components']['api_keys'] = api_keys_result
+
+            # 7. Restore env (only if explicitly requested - dangerous!)
+            if restore_env:
+                env_src = os.path.join(backup_dir, 'env_backup')
+                if os.path.exists(env_src):
+                    if progress_callback:
+                        progress_callback('env', 'Restaurando configuración...')
+
+                    project_root = self._get_project_root()
+                    env_dest = os.path.join(project_root, '.env')
+
+                    try:
+                        shutil.copy2(env_src, env_dest)
+                        result['components']['env'] = {'success': True}
+                    except Exception as e:
+                        result['components']['env'] = {
+                            'success': False,
+                            'error': str(e)
+                        }
+                        result['errors'].append(f"Env: {str(e)}")
+
+            result['success'] = len(result['errors']) == 0
+
+        except Exception as e:
+            result['errors'].append(str(e))
+
+        finally:
+            # Cleanup temporary directory
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception:
+                pass
+
+        return result

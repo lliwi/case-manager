@@ -1241,3 +1241,128 @@ def delete_backup(filename):
         flash(f'Error al eliminar backup: {result["error"]}', 'danger')
 
     return redirect(url_for('admin.backups'))
+
+
+@admin_bp.route('/backups/<filename>/restore', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_BACKUP_RESTORE', 'admin')
+def restore_backup(filename):
+    """Restore a backup file."""
+    from app.services.backup_service import BackupService
+
+    # Validate filename
+    if not filename.endswith('.zip') or not filename.startswith('backup_'):
+        flash('Nombre de archivo de backup inválido', 'danger')
+        return redirect(url_for('admin.backups'))
+
+    service = BackupService()
+    backup_info = service.get_backup_info(filename)
+
+    if not backup_info:
+        flash('Archivo de backup no encontrado', 'danger')
+        return redirect(url_for('admin.backups'))
+
+    if request.method == 'GET':
+        return render_template(
+            'admin/backup_restore.html',
+            backup=backup_info,
+            filename=filename
+        )
+
+    # POST - Restore backup
+    restore_database = request.form.get('restore_database') == 'on'
+    restore_evidence = request.form.get('restore_evidence') == 'on'
+    restore_uploads = request.form.get('restore_uploads') == 'on'
+    restore_exports = request.form.get('restore_exports') == 'on'
+    restore_reports = request.form.get('restore_reports') == 'on'
+    restore_api_keys = request.form.get('restore_api_keys') == 'on'
+    restore_env = request.form.get('restore_env') == 'on'
+    clear_existing = request.form.get('clear_existing') == 'on'
+
+    try:
+        result = service.restore_backup(
+            filename=filename,
+            restore_database=restore_database,
+            restore_evidence=restore_evidence,
+            restore_uploads=restore_uploads,
+            restore_exports=restore_exports,
+            restore_reports=restore_reports,
+            restore_api_keys=restore_api_keys,
+            restore_env=restore_env,
+            clear_existing=clear_existing,
+            restored_by=current_user
+        )
+
+        if result['success']:
+            flash(f'Backup {filename} restaurado exitosamente', 'success')
+        else:
+            flash(
+                f'Backup restaurado con errores: {", ".join(result["errors"])}',
+                'warning'
+            )
+
+    except Exception as e:
+        flash(f'Error al restaurar backup: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.backups'))
+
+
+@admin_bp.route('/backups/upload', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_BACKUP_UPLOAD', 'admin')
+def upload_backup():
+    """Upload a backup file."""
+    from app.services.backup_service import BackupService
+    from werkzeug.utils import secure_filename
+
+    if request.method == 'GET':
+        return render_template('admin/backup_upload.html')
+
+    # POST - Upload backup
+    if 'backup_file' not in request.files:
+        flash('No se seleccionó ningún archivo', 'danger')
+        return redirect(url_for('admin.backups'))
+
+    file = request.files['backup_file']
+
+    if file.filename == '':
+        flash('No se seleccionó ningún archivo', 'danger')
+        return redirect(url_for('admin.backups'))
+
+    # Validate filename
+    filename = secure_filename(file.filename)
+    if not filename.endswith('.zip') or not filename.startswith('backup_'):
+        flash(
+            'Nombre de archivo inválido. El archivo debe llamarse backup_YYYYMMDD_HHMMSS.zip',
+            'danger'
+        )
+        return redirect(url_for('admin.backups'))
+
+    service = BackupService()
+    filepath = os.path.join(service.backup_folder, filename)
+
+    # Check if file already exists
+    if os.path.exists(filepath):
+        flash(f'Ya existe un backup con el nombre {filename}', 'warning')
+        return redirect(url_for('admin.backups'))
+
+    try:
+        file.save(filepath)
+
+        # Verify it's a valid zip
+        import zipfile
+        if not zipfile.is_zipfile(filepath):
+            os.remove(filepath)
+            flash('El archivo no es un ZIP válido', 'danger')
+            return redirect(url_for('admin.backups'))
+
+        # Get file size
+        size_mb = os.path.getsize(filepath) / (1024 * 1024)
+        flash(f'Backup {filename} subido exitosamente ({size_mb:.2f} MB)', 'success')
+
+    except Exception as e:
+        flash(f'Error al subir backup: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.backups'))

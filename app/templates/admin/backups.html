@@ -15,9 +15,14 @@
                         Gestiona las copias de seguridad del sistema completo
                     </p>
                 </div>
-                <a href="{{ url_for('admin.create_backup') }}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> Crear Backup
-                </a>
+                <div class="btn-group">
+                    <a href="{{ url_for('admin.upload_backup') }}" class="btn btn-outline-info">
+                        <i class="bi bi-cloud-arrow-up"></i> Subir Backup
+                    </a>
+                    <a href="{{ url_for('admin.create_backup') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Crear Backup
+                    </a>
+                </div>
             </div>
 
             <!-- Statistics -->
@@ -136,6 +141,11 @@
                                                     title="Ver detalles">
                                                 <i class="bi bi-info-circle"></i>
                                             </button>
+                                            <a href="{{ url_for('admin.restore_backup', filename=backup.filename) }}"
+                                               class="btn btn-outline-warning"
+                                               title="Restaurar">
+                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                            </a>
                                             <form method="POST"
                                                   action="{{ url_for('admin.delete_backup', filename=backup.filename) }}"
                                                   class="d-inline"
