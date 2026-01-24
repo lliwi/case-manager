@@ -16,6 +16,7 @@ from sqlalchemy import func, desc
 import csv
 import io
 import json
+import os
 
 
 @admin_bp.route('/')
@@ -1097,3 +1098,146 @@ def test_api_key(key_id):
             'success': False,
             'error': 'Servicio no soportado para testing'
         }), 400
+
+
+# ============================================================================
+# BACKUP MANAGEMENT
+# ============================================================================
+
+@admin_bp.route('/backups')
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_BACKUPS_VIEWED', 'admin')
+def backups():
+    """List all system backups."""
+    from app.services.backup_service import BackupService
+
+    service = BackupService()
+    backup_list = service.list_backups()
+
+    # Calculate total size
+    total_size = sum(b['size'] for b in backup_list)
+
+    return render_template(
+        'admin/backups.html',
+        backups=backup_list,
+        total_size=total_size,
+        backup_count=len(backup_list)
+    )
+
+
+@admin_bp.route('/backups/create', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_BACKUP_CREATE', 'admin')
+def create_backup():
+    """Create a new system backup."""
+    from app.services.backup_service import BackupService
+
+    if request.method == 'GET':
+        return render_template('admin/backup_create.html')
+
+    # POST - Create backup
+    include_database = request.form.get('include_database') == 'on'
+    include_evidence = request.form.get('include_evidence') == 'on'
+    include_uploads = request.form.get('include_uploads') == 'on'
+    include_exports = request.form.get('include_exports') == 'on'
+    include_reports = request.form.get('include_reports') == 'on'
+    include_api_keys = request.form.get('include_api_keys') == 'on'
+    include_env = request.form.get('include_env') == 'on'
+
+    service = BackupService()
+
+    try:
+        result = service.create_backup(
+            include_database=include_database,
+            include_evidence=include_evidence,
+            include_uploads=include_uploads,
+            include_exports=include_exports,
+            include_reports=include_reports,
+            include_api_keys=include_api_keys,
+            include_env=include_env,
+            created_by=current_user
+        )
+
+        if result['success']:
+            # Format size for display
+            size_mb = result['zip_size'] / (1024 * 1024)
+            flash(
+                f'Backup creado exitosamente: {os.path.basename(result["zip_file"])} '
+                f'({size_mb:.2f} MB)',
+                'success'
+            )
+        else:
+            flash(
+                f'Backup creado con errores: {", ".join(result["errors"])}',
+                'warning'
+            )
+
+    except Exception as e:
+        flash(f'Error al crear backup: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.backups'))
+
+
+@admin_bp.route('/backups/<filename>/download')
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_BACKUP_DOWNLOAD', 'admin')
+def download_backup(filename):
+    """Download a backup file."""
+    from app.services.backup_service import BackupService
+
+    # Validate filename
+    if not filename.endswith('.zip') or not filename.startswith('backup_'):
+        flash('Nombre de archivo de backup inválido', 'danger')
+        return redirect(url_for('admin.backups'))
+
+    service = BackupService()
+    filepath = os.path.join(service.backup_folder, filename)
+
+    if not os.path.exists(filepath):
+        flash('Archivo de backup no encontrado', 'danger')
+        return redirect(url_for('admin.backups'))
+
+    return send_file(
+        filepath,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@admin_bp.route('/backups/<filename>/info')
+@login_required
+@require_role('admin')
+def backup_info(filename):
+    """Get backup info as JSON."""
+    from app.services.backup_service import BackupService
+
+    service = BackupService()
+    info = service.get_backup_info(filename)
+
+    if not info:
+        return jsonify({'error': 'Backup not found'}), 404
+
+    return jsonify(info)
+
+
+@admin_bp.route('/backups/<filename>/delete', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_BACKUP_DELETE', 'admin')
+def delete_backup(filename):
+    """Delete a backup file."""
+    from app.services.backup_service import BackupService
+
+    service = BackupService()
+    result = service.delete_backup(filename)
+
+    if result['success']:
+        flash(f'Backup {filename} eliminado exitosamente', 'success')
+    else:
+        flash(f'Error al eliminar backup: {result["error"]}', 'danger')
+
+    return redirect(url_for('admin.backups'))
