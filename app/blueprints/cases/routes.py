@@ -270,21 +270,58 @@ def close(case_id):
     return render_template('cases/close.html', form=form, case=case)
 
 
-@cases_bp.route('/<int:case_id>/delete', methods=['POST'])
+@cases_bp.route('/<int:case_id>/delete', methods=['GET', 'POST'])
 @login_required
 @require_detective()
 def delete(case_id):
-    """Soft delete case."""
+    """Delete case with all related elements."""
+    from app.services.case_delete_service import CaseDeleteService
+
     case = Case.query.get_or_404(case_id)
 
-    # Only admin can delete
-    if not current_user.is_admin():
-        flash('Solo los administradores pueden eliminar casos.', 'danger')
+    # Check permissions
+    can_delete, reason = CaseDeleteService.can_delete_case(
+        case, current_user._get_current_object()
+    )
+    if not can_delete:
+        flash(reason, 'danger')
         return redirect(url_for('cases.index'))
 
-    case.soft_delete(current_user._get_current_object())
+    if request.method == 'GET':
+        # Show confirmation page with statistics
+        stats = CaseDeleteService.get_case_statistics(case)
+        return render_template(
+            'cases/delete_confirm.html',
+            case=case,
+            stats=stats
+        )
 
-    flash(f'Caso {case.numero_orden} eliminado (soft delete).', 'success')
+    # POST - Perform deletion
+    delete_files = request.form.get('delete_files') == 'on'
+    delete_graph = request.form.get('delete_graph', 'on') == 'on'
+
+    result = CaseDeleteService.delete_case_completely(
+        case=case,
+        user=current_user._get_current_object(),
+        delete_files=delete_files,
+        delete_graph=delete_graph
+    )
+
+    if result['success']:
+        flash(
+            f'Caso {case.numero_orden} eliminado correctamente. '
+            f'Evidencias: {result["deleted_counts"]["evidences"]}, '
+            f'Eventos: {result["deleted_counts"]["timeline_events"]}, '
+            f'Informes: {result["deleted_counts"]["reports"]}, '
+            f'Nodos grafo: {result["deleted_counts"]["graph_nodes"]}.',
+            'success'
+        )
+    else:
+        flash(
+            f'Error al eliminar el caso: {", ".join(result["errors"])}',
+            'danger'
+        )
+
     return redirect(url_for('cases.index'))
 
 

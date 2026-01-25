@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Eliminar Caso {{ case.numero_orden }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.index') }}">Casos</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('cases.detail', case_id=case.id) }}">{{ case.numero_orden }}</a></li>
+            <li class="breadcrumb-item active">Eliminar</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Warning Card -->
+            <div class="card border-danger mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> Eliminar Caso {{ case.numero_orden }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <h5><i class="bi bi-exclamation-octagon"></i> Advertencia</h5>
+                        <p class="mb-0">
+                            Esta accion eliminara el caso y <strong>todos sus elementos relacionados</strong>.
+                            Esta operacion no se puede deshacer facilmente.
+                        </p>
+                    </div>
+
+                    <!-- Case Info -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <i class="bi bi-info-circle"></i> Informacion del Caso
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr>
+                                    <th style="width: 40%;">Numero de Orden:</th>
+                                    <td><strong>{{ case.numero_orden }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th>Cliente:</th>
+                                    <td>{{ case.cliente_nombre }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Fecha de Inicio:</th>
+                                    <td>{{ case.fecha_inicio.strftime('%d/%m/%Y') }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Estado:</th>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ case.status.value }}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Elements to be deleted -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <i class="bi bi-list-check"></i> Elementos a Eliminar
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Elemento</th>
+                                        <th class="text-end">Cantidad</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><i class="bi bi-file-earmark-text"></i> Evidencias</td>
+                                        <td class="text-end">
+                                            <span class="badge {% if stats.evidences > 0 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                                {{ stats.evidences }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-clock-history"></i> Eventos de Timeline</td>
+                                        <td class="text-end">
+                                            <span class="badge {% if stats.timeline_events > 0 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                                {{ stats.timeline_events }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-file-pdf"></i> Informes</td>
+                                        <td class="text-end">
+                                            <span class="badge {% if stats.reports > 0 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                                {{ stats.reports }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-eye"></i> Tareas de Monitoreo</td>
+                                        <td class="text-end">
+                                            <span class="badge {% if stats.monitoring_tasks > 0 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                                {{ stats.monitoring_tasks }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-collection"></i> Resultados de Monitoreo</td>
+                                        <td class="text-end">
+                                            <span class="badge {% if stats.monitoring_results > 0 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                                {{ stats.monitoring_results }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-person-lines-fill"></i> Contactos OSINT</td>
+                                        <td class="text-end">
+                                            <span class="badge {% if stats.osint_contacts > 0 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                                {{ stats.osint_contacts }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-diagram-3"></i> Nodos del Grafo</td>
+                                        <td class="text-end">
+                                            <span class="badge {% if stats.graph_nodes > 0 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                                {{ stats.graph_nodes }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-arrow-left-right"></i> Relaciones del Grafo</td>
+                                        <td class="text-end">
+                                            <span class="badge {% if stats.graph_relationships > 0 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                                {{ stats.graph_relationships }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Legal Notice -->
+                    <div class="alert alert-info">
+                        <h6><i class="bi bi-shield-check"></i> Nota Legal (Ley 5/2014 y UNE 71506)</h6>
+                        <p class="mb-0">
+                            Los <strong>registros de auditoria</strong> y la <strong>cadena de custodia</strong>
+                            de las evidencias son inmutables y <u>no seran eliminados</u>, manteniendose como
+                            registro legal permanente.
+                        </p>
+                    </div>
+
+                    <!-- Delete Form -->
+                    <form method="POST" action="{{ url_for('cases.delete', case_id=case.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <!-- Options -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="bi bi-gear"></i> Opciones de Eliminacion
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" name="delete_graph"
+                                           id="delete_graph" checked>
+                                    <label class="form-check-label" for="delete_graph">
+                                        <strong>Eliminar grafo Neo4j</strong>
+                                        <small class="text-muted d-block">
+                                            Elimina los nodos y relaciones del grafo de investigacion
+                                        </small>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="delete_files"
+                                           id="delete_files">
+                                    <label class="form-check-label" for="delete_files">
+                                        <strong>Eliminar archivos fisicos</strong>
+                                        <small class="text-muted d-block">
+                                            Elimina los archivos de evidencias, informes y media del disco.
+                                            <span class="text-danger">Esta opcion es irreversible.</span>
+                                        </small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Confirmation -->
+                        <div class="mb-4">
+                            <label for="confirm_text" class="form-label">
+                                Para confirmar, escriba el numero de orden del caso: <strong>{{ case.numero_orden }}</strong>
+                            </label>
+                            <input type="text" class="form-control" id="confirm_text"
+                                   placeholder="{{ case.numero_orden }}" required
+                                   pattern="{{ case.numero_orden }}"
+                                   title="Debe coincidir con el numero de orden del caso">
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('cases.detail', case_id=case.id) }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-danger" id="delete_btn" disabled>
+                                <i class="bi bi-trash"></i> Eliminar Caso Permanentemente
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmInput = document.getElementById('confirm_text');
+    const deleteBtn = document.getElementById('delete_btn');
+    const expectedValue = '{{ case.numero_orden }}';
+
+    confirmInput.addEventListener('input', function() {
+        deleteBtn.disabled = (this.value !== expectedValue);
+    });
+});
+</script>
+{% endblock %}

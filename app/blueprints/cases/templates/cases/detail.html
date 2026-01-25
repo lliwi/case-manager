@@ -39,6 +39,11 @@
                     <i class="bi bi-x-circle"></i> Cerrar
                 </a>
             {% endif %}
+            {% if current_user.is_admin() %}
+                <a href="{{ url_for('cases.delete', case_id=case.id) }}" class="btn btn-danger">
+                    <i class="bi bi-trash"></i> Eliminar
+                </a>
+            {% endif %}
         </div>
     </div>
 
