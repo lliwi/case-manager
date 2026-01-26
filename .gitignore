@@ -70,38 +70,21 @@ docker/postgres/ssl/*.pem
 # ===========================================
 # Data directories (user data, not code)
 # ===========================================
-data/
-!data/.gitkeep
-
-# Evidence files
+# Ignore contents but keep directory structure via .gitkeep
 data/evidence/*
-!data/evidence/.gitkeep
-
-# Uploaded files
 data/uploads/*
-!data/uploads/.gitkeep
-
-# Exported files
 data/exports/*
-!data/exports/.gitkeep
-
-# Generated reports
 data/reports/*
-!data/reports/.gitkeep
-
-# Backup files (sensitive!)
 data/backups/*
-!data/backups/.gitkeep
-
-# Monitoring downloads (OSINT media)
 data/monitoring/*
-!data/monitoring/.gitkeep
+!data/**/.gitkeep
 
 # ===========================================
 # Logs
 # ===========================================
 *.log
-logs/
+logs/*
+!logs/.gitkeep
 celery*.log
 gunicorn*.log
 flask*.log
