@@ -150,6 +150,46 @@ Final investigative reports must be legally admissible and follow this structure
 
 Reports export as PDF with integrity metadata for judicial ratification. Language must be comprehensible to non-technical judges.
 
+## Backup System
+
+The system uses Docker volume-based backups for reliability and simplicity. Backups are managed via shell scripts executed from the host server.
+
+### Backup Contents
+
+- **PostgreSQL**: Full database dump (pg_dump format)
+- **Neo4j**: Graph database data directory
+- **Evidence**: Encrypted evidence files
+- **Uploads/Exports/Reports**: User-generated files
+- **Checksum**: SHA-256 verification file
+
+### Backup Commands
+
+```bash
+# Navigate to project root
+cd /path/to/case-manager
+
+# Create a full backup
+./backup/backup.sh
+
+# List available backups
+./backup/list.sh
+
+# Restore a backup (stops containers during restore)
+./backup/restore.sh backup_YYYYMMDD_HHMMSS.tar.gz
+```
+
+### Backup Location
+
+Backups are stored in `data/backups/` with the format:
+- `backup_YYYYMMDD_HHMMSS.tar.gz` - Compressed backup archive
+- `backup_YYYYMMDD_HHMMSS.sha256` - SHA-256 checksum file
+
+### Important Notes
+
+- **Restore requires downtime**: The restore script stops web/celery containers during restoration
+- **Atomic backups**: PostgreSQL is dumped while running; file volumes are archived
+- **No web interface**: Backup operations are CLI-only for security and reliability
+
 ## Development Principles
 
 1. **Evidence Integrity First**: Never modify original files; maintain cryptographic hashes

@@ -1,313 +1,278 @@
 """
-Task monitoring routes for Celery task management.
+Task monitoring routes.
 """
 from flask import render_template, jsonify, request
 from flask_login import login_required, current_user
 from app.blueprints.tasks import tasks_bp
-from app.tasks.celery_app import celery
-from app.utils.decorators import require_role, audit_action
+from app.utils.decorators import require_role
+from app.extensions import limiter
 from celery.result import AsyncResult
-import json
+from datetime import datetime, timedelta
+
+
+# Exempt task API endpoints from default rate limiting (they poll frequently)
+@tasks_bp.before_request
+def exempt_tasks_api():
+    """Exempt /tasks/api/* from rate limiting for monitor polling."""
+    pass  # The exemption is applied via decorator below
 
 
 @tasks_bp.route('/monitor')
 @login_required
 @require_role('admin')
-@audit_action('TASKS_MONITOR_VIEWED', 'task')
 def monitor():
     """Task monitoring dashboard."""
     return render_template('tasks/monitor.html')
 
 
+@tasks_bp.route('/status/<task_id>')
+@login_required
+@require_role('admin')
+def task_status(task_id):
+    """Get status of a specific task."""
+    task = AsyncResult(task_id)
+
+    response = {
+        'task_id': task_id,
+        'state': task.state,
+        'ready': task.ready(),
+        'successful': task.successful() if task.ready() else None,
+        'info': None,
+        'result': None
+    }
+
+    if task.state == 'PENDING':
+        response['info'] = {'status': 'Pendiente...', 'progress': 0}
+    elif task.state == 'PROGRESS':
+        response['info'] = task.info
+    elif task.state == 'SUCCESS':
+        response['result'] = task.result
+        response['info'] = {'status': 'Completado', 'progress': 100}
+    elif task.state == 'FAILURE':
+        response['info'] = {'status': 'Error', 'error': str(task.result)}
+
+    return jsonify(response)
+
+
+@tasks_bp.route('/api/task/<task_id>')
+@limiter.exempt
+@login_required
+@require_role('admin')
+def api_task_status(task_id):
+    """API endpoint to get task status for the monitor UI."""
+    task = AsyncResult(task_id)
+
+    response = {
+        'task_id': task_id,
+        'state': task.state,
+        'ready': task.ready(),
+        'successful': task.successful() if task.ready() else None,
+        'progress': None,
+        'result': None,
+        'error': None
+    }
+
+    if task.state == 'PENDING':
+        response['progress'] = 0
+    elif task.state == 'PROGRESS':
+        if task.info and isinstance(task.info, dict):
+            response['progress'] = task.info.get('progress', 0)
+    elif task.state == 'SUCCESS':
+        response['result'] = task.result
+        response['progress'] = 100
+    elif task.state == 'FAILURE':
+        response['error'] = str(task.result)
+
+    return jsonify(response)
+
+
+@tasks_bp.route('/api/revoke/<task_id>', methods=['POST'])
+@limiter.exempt
+@login_required
+@require_role('admin')
+def api_revoke_task(task_id):
+    """API endpoint to revoke/cancel a task."""
+    from app.tasks.celery_app import celery
+
+    try:
+        data = request.get_json() or {}
+        terminate = data.get('terminate', False)
+
+        celery.control.revoke(task_id, terminate=terminate)
+
+        return jsonify({'success': True, 'message': f'Tarea {task_id} cancelada'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @tasks_bp.route('/api/list')
+@limiter.exempt
 @login_required
 @require_role('admin')
 def api_list_tasks():
-    """List all active and recent tasks via API."""
+    """API endpoint to list all active/scheduled/reserved tasks."""
+    from app.tasks.celery_app import celery
+
     try:
-        # Get active tasks from Celery
         inspector = celery.control.inspect()
+        tasks = []
 
-        active_tasks = inspector.active() or {}
-        scheduled_tasks = inspector.scheduled() or {}
-        reserved_tasks = inspector.reserved() or {}
-
-        # Combine all tasks
-        all_tasks = []
-
-        # Process active tasks
-        for worker, tasks in active_tasks.items():
-            for task in tasks:
-                all_tasks.append({
-                    'id': task['id'],
-                    'name': task['name'],
-                    'worker': worker,
+        # Get active tasks
+        active = inspector.active() or {}
+        for worker, worker_tasks in active.items():
+            for task in worker_tasks:
+                tasks.append({
+                    'id': task.get('id'),
+                    'name': task.get('name', 'Unknown'),
+                    'worker': worker.split('@')[-1] if '@' in worker else worker,
                     'state': 'ACTIVE',
                     'args': task.get('args', []),
                     'kwargs': task.get('kwargs', {})
                 })
 
-        # Process scheduled tasks
-        for worker, tasks in scheduled_tasks.items():
-            for task in tasks:
-                all_tasks.append({
-                    'id': task['request']['id'],
-                    'name': task['request']['name'],
-                    'worker': worker,
-                    'state': 'SCHEDULED',
-                    'eta': task.get('eta'),
-                    'args': task['request'].get('args', []),
-                    'kwargs': task['request'].get('kwargs', {})
-                })
-
-        # Process reserved tasks
-        for worker, tasks in reserved_tasks.items():
-            for task in tasks:
-                all_tasks.append({
-                    'id': task['id'],
-                    'name': task['name'],
-                    'worker': worker,
+        # Get reserved tasks
+        reserved = inspector.reserved() or {}
+        for worker, worker_tasks in reserved.items():
+            for task in worker_tasks:
+                tasks.append({
+                    'id': task.get('id'),
+                    'name': task.get('name', 'Unknown'),
+                    'worker': worker.split('@')[-1] if '@' in worker else worker,
                     'state': 'RESERVED',
                     'args': task.get('args', []),
                     'kwargs': task.get('kwargs', {})
                 })
 
-        return jsonify({
-            'success': True,
-            'tasks': all_tasks
-        })
+        # Get scheduled tasks
+        scheduled = inspector.scheduled() or {}
+        for worker, worker_tasks in scheduled.items():
+            for task in worker_tasks:
+                request_info = task.get('request', {})
+                tasks.append({
+                    'id': request_info.get('id') or task.get('id'),
+                    'name': request_info.get('name') or task.get('name', 'Unknown'),
+                    'worker': worker.split('@')[-1] if '@' in worker else worker,
+                    'state': 'SCHEDULED',
+                    'eta': task.get('eta')
+                })
 
+        return jsonify({'success': True, 'tasks': tasks})
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
-@tasks_bp.route('/api/status/<task_id>')
-@login_required
-@require_role('admin')
-def api_task_status(task_id):
-    """Get status of a specific task."""
-    try:
-        result = AsyncResult(task_id, app=celery)
-
-        response = {
-            'task_id': task_id,
-            'state': result.state,
-            'ready': result.ready(),
-            'successful': result.successful() if result.ready() else None,
-            'failed': result.failed() if result.ready() else None,
-        }
-
-        # Add result if task is complete
-        if result.ready():
-            if result.successful():
-                response['result'] = result.result
-            elif result.failed():
-                response['error'] = str(result.info)
-
-        # Add progress info if available
-        if hasattr(result, 'info') and isinstance(result.info, dict):
-            response['progress'] = result.info.get('progress', 0)
-            response['current'] = result.info.get('current', 0)
-            response['total'] = result.info.get('total', 100)
-            response['status_message'] = result.info.get('status', '')
-
-        return jsonify(response)
-
-    except Exception as e:
-        return jsonify({
-            'error': str(e)
-        }), 500
-
-
-@tasks_bp.route('/api/result/<task_id>')
-@login_required
-@require_role('admin')
-def api_task_result(task_id):
-    """Get full result of a completed task."""
-    try:
-        result = AsyncResult(task_id, app=celery)
-
-        if not result.ready():
-            return jsonify({
-                'success': False,
-                'error': 'Task not yet completed',
-                'state': result.state
-            }), 400
-
-        if result.successful():
-            return jsonify({
-                'success': True,
-                'state': result.state,
-                'result': result.result
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'state': result.state,
-                'error': str(result.info)
-            }), 500
-
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
-@tasks_bp.route('/api/revoke/<task_id>', methods=['POST'])
-@login_required
-@require_role('admin')
-@audit_action('TASK_REVOKED', 'task')
-def api_revoke_task(task_id):
-    """Revoke (cancel) a running or pending task."""
-    try:
-        terminate = request.json.get('terminate', False)
-
-        celery.control.revoke(task_id, terminate=terminate)
-
-        return jsonify({
-            'success': True,
-            'message': f'Task {task_id} revoked',
-            'terminated': terminate
-        })
-
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'tasks': [], 'error': str(e)})
 
 
 @tasks_bp.route('/api/stats')
+@limiter.exempt
 @login_required
 @require_role('admin')
 def api_stats():
-    """Get Celery worker statistics."""
+    """API endpoint to get worker statistics."""
+    from app.tasks.celery_app import celery
+
     try:
         inspector = celery.control.inspect()
-
         stats = inspector.stats() or {}
         active = inspector.active() or {}
 
-        # Calculate totals
-        total_workers = len(stats)
-        total_active_tasks = sum(len(tasks) for tasks in active.values())
-
-        worker_info = []
+        workers = []
         for worker_name, worker_stats in stats.items():
-            worker_info.append({
-                'name': worker_name,
-                'pool': worker_stats.get('pool', {}).get('implementation', 'unknown'),
-                'max_concurrency': worker_stats.get('pool', {}).get('max-concurrency', 0),
-                'active_tasks': len(active.get(worker_name, []))
+            pool_info = worker_stats.get('pool', {})
+            active_tasks = active.get(worker_name, [])
+
+            workers.append({
+                'name': worker_name.split('@')[-1] if '@' in worker_name else worker_name,
+                'pool': pool_info.get('implementation', 'unknown').split('.')[-1],
+                'max_concurrency': pool_info.get('max-concurrency', 0),
+                'active_tasks': len(active_tasks)
             })
 
         return jsonify({
             'success': True,
-            'total_workers': total_workers,
-            'total_active_tasks': total_active_tasks,
-            'workers': worker_info
+            'total_workers': len(workers),
+            'workers': workers
         })
-
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'total_workers': 0, 'workers': [], 'error': str(e)})
 
 
-@tasks_bp.route('/api/beat-schedule')
+@tasks_bp.route('/api/beat')
+@limiter.exempt
 @login_required
 @require_role('admin')
 def api_beat_schedule():
-    """Get Celery Beat scheduled tasks."""
+    """API endpoint to get Celery Beat scheduled tasks."""
+    from app.tasks.celery_app import celery
+
     try:
-        from celery.schedules import crontab
-
-        beat_schedule = celery.conf.beat_schedule or {}
-
         scheduled_tasks = []
-        for name, config in beat_schedule.items():
-            schedule = config.get('schedule')
 
-            # Format schedule for display
-            if isinstance(schedule, crontab):
-                schedule_str = f"cron({schedule._orig_minute}, {schedule._orig_hour}, {schedule._orig_day_of_week}, {schedule._orig_day_of_month}, {schedule._orig_month_of_year})"
-                # Simplify common patterns
-                if str(schedule._orig_minute) == '*':
-                    schedule_str = 'Cada minuto'
-                elif str(schedule._orig_hour) != '*' and str(schedule._orig_minute) != '*':
-                    schedule_str = f"Diario a las {schedule._orig_hour}:{schedule._orig_minute:02d}" if isinstance(schedule._orig_minute, int) else f"Diario a las {schedule._orig_hour}:{schedule._orig_minute}"
-            elif hasattr(schedule, 'seconds'):
-                schedule_str = f"Cada {schedule.seconds} segundos"
+        # Get beat schedule from celery config
+        beat_schedule = celery.conf.get('beat_schedule', {})
+
+        for name, config in beat_schedule.items():
+            schedule = config.get('schedule', '')
+            if hasattr(schedule, 'run_every'):
+                schedule_str = f"Cada {schedule.run_every}"
+            elif hasattr(schedule, 'crontab'):
+                schedule_str = str(schedule)
             else:
                 schedule_str = str(schedule)
 
             scheduled_tasks.append({
                 'name': name,
-                'task': config.get('task', 'unknown'),
-                'schedule': schedule_str,
-                'args': config.get('args', []),
-                'kwargs': config.get('kwargs', {})
+                'task': config.get('task', 'Unknown'),
+                'schedule': schedule_str
             })
 
         return jsonify({
             'success': True,
-            'scheduled_tasks': scheduled_tasks,
-            'total': len(scheduled_tasks)
+            'total': len(scheduled_tasks),
+            'scheduled_tasks': scheduled_tasks
         })
-
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'total': 0, 'scheduled_tasks': [], 'error': str(e)})
 
 
-@tasks_bp.route('/api/monitoring-tasks')
+@tasks_bp.route('/api/monitoring')
+@limiter.exempt
 @login_required
 @require_role('admin')
 def api_monitoring_tasks():
-    """Get active monitoring tasks from database."""
+    """API endpoint to get active monitoring tasks from DB."""
     try:
         from app.models.monitoring import MonitoringTask, MonitoringStatus
-        from datetime import datetime
+        from app.models.case import Case
 
-        # Get active tasks (ACTIVE is the status for running periodic checks)
+        # Filter by active status and not deleted
         tasks = MonitoringTask.query.filter(
             MonitoringTask.status == MonitoringStatus.ACTIVE,
             MonitoringTask.is_deleted == False
-        ).order_by(MonitoringTask.next_check_at.asc()).all()
+        ).all()
 
         monitoring_tasks = []
+        now = datetime.utcnow()
+
         for task in tasks:
-            # Calculate time until next check
+            case = Case.query.get(task.case_id)
+
+            # Calculate next check time
             time_until_next = None
-            if task.next_check_at:
-                delta = task.next_check_at - datetime.utcnow()
-                if delta.total_seconds() > 0:
-                    minutes = int(delta.total_seconds() / 60)
-                    if minutes < 60:
-                        time_until_next = f"{minutes} min"
-                    else:
-                        hours = minutes // 60
-                        time_until_next = f"{hours}h {minutes % 60}m"
+            if task.next_check_at and task.next_check_at > now:
+                delta = task.next_check_at - now
+                if delta.seconds < 3600:
+                    time_until_next = f"{delta.seconds // 60} min"
                 else:
-                    time_until_next = "Pendiente"
+                    time_until_next = f"{delta.seconds // 3600}h {(delta.seconds % 3600) // 60}m"
 
             monitoring_tasks.append({
                 'id': task.id,
                 'name': task.name,
                 'case_id': task.case_id,
-                'case_name': task.case.numero_orden if task.case else 'N/A',
-                'status': task.status.value,
+                'case_name': case.numero_orden if case else 'Unknown',
                 'sources_count': task.sources.count() if task.sources else 0,
                 'check_interval': task.check_interval_minutes,
-                'last_check': task.last_check_at.strftime('%H:%M:%S') if task.last_check_at else 'Nunca',
-                'next_check': task.next_check_at.strftime('%H:%M:%S') if task.next_check_at else 'N/A',
+                'last_check': task.last_check_at.strftime('%d/%m %H:%M') if task.last_check_at else 'Nunca',
+                'next_check': task.next_check_at.strftime('%d/%m %H:%M') if task.next_check_at else 'Pendiente',
                 'time_until_next': time_until_next,
                 'total_results': task.total_results,
                 'alerts_count': task.alerts_count,
@@ -316,39 +281,47 @@ def api_monitoring_tasks():
 
         return jsonify({
             'success': True,
-            'monitoring_tasks': monitoring_tasks,
-            'total': len(monitoring_tasks)
+            'total': len(monitoring_tasks),
+            'monitoring_tasks': monitoring_tasks
         })
-
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'total': 0, 'monitoring_tasks': [], 'error': str(e)})
 
 
-@tasks_bp.route('/detail/<task_id>')
+@tasks_bp.route('/active')
 @login_required
 @require_role('admin')
-@audit_action('TASK_DETAIL_VIEWED', 'task')
-def task_detail(task_id):
-    """View detailed information about a specific task."""
-    result = AsyncResult(task_id, app=celery)
+def active_tasks():
+    """Get list of active tasks from Celery."""
+    from app.tasks.celery_app import celery
 
-    task_info = {
-        'id': task_id,
-        'state': result.state,
-        'ready': result.ready(),
-        'successful': result.successful() if result.ready() else None,
-        'failed': result.failed() if result.ready() else None,
-        'result': None,
-        'error': None
+    inspector = celery.control.inspect()
+
+    result = {
+        'active': {},
+        'reserved': {},
+        'scheduled': {},
+        'stats': {}
     }
 
-    if result.ready():
-        if result.successful():
-            task_info['result'] = result.result
-        elif result.failed():
-            task_info['error'] = str(result.info)
+    try:
+        active = inspector.active()
+        if active:
+            result['active'] = active
 
-    return render_template('tasks/detail.html', task=task_info)
+        reserved = inspector.reserved()
+        if reserved:
+            result['reserved'] = reserved
+
+        scheduled = inspector.scheduled()
+        if scheduled:
+            result['scheduled'] = scheduled
+
+        stats = inspector.stats()
+        if stats:
+            result['stats'] = stats
+
+    except Exception as e:
+        result['error'] = str(e)
+
+    return jsonify(result)

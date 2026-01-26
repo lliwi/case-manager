@@ -1,5 +1,5 @@
 """
-Task monitoring blueprint.
+Tasks blueprint for Celery task monitoring.
 """
 from flask import Blueprint
 

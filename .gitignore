@@ -1,55 +1,201 @@
-# Environment
+# ===========================================
+# Environment & Secrets
+# ===========================================
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+credentials/
+
+# ===========================================
+# Python
+# ===========================================
 venv/
 env/
 ENV/
+.venv/
 *.pyc
+*.pyo
+*.pyd
 __pycache__/
 .Python
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg
+*.egg-info/
+.eggs/
+*.manifest
+*.spec
 
-# IDE
+# ===========================================
+# IDE & Editors
+# ===========================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
+.project
+.pydevproject
+.settings/
+*.code-workspace
 
-# Flask
+# ===========================================
+# Flask & Application
+# ===========================================
 instance/
 .webassets-cache
 
+# ===========================================
 # Database
+# ===========================================
 *.db
 *.sqlite
 *.sqlite3
-migrations/versions/*.py
-!migrations/versions/.gitkeep
 
-# Docker volumes
-volumes/
+# ===========================================
+# Docker
+# ===========================================
+docker/postgres/ssl/*.crt
+docker/postgres/ssl/*.key
+docker/postgres/ssl/*.pem
+!docker/postgres/ssl/.gitkeep
+
+# ===========================================
+# Data directories (user data, not code)
+# ===========================================
+data/
+!data/.gitkeep
+
+# Evidence files
 data/evidence/*
-data/uploads/*
-data/exports/*
 !data/evidence/.gitkeep
+
+# Uploaded files
+data/uploads/*
 !data/uploads/.gitkeep
+
+# Exported files
+data/exports/*
 !data/exports/.gitkeep
 
+# Generated reports
+data/reports/*
+!data/reports/.gitkeep
+
+# Backup files (sensitive!)
+data/backups/*
+!data/backups/.gitkeep
+
+# Monitoring downloads (OSINT media)
+data/monitoring/*
+!data/monitoring/.gitkeep
+
+# ===========================================
 # Logs
+# ===========================================
 *.log
 logs/
 celery*.log
+gunicorn*.log
+flask*.log
 
+# ===========================================
+# Celery
+# ===========================================
+celerybeat-schedule
+celerybeat-schedule.*
+celerybeat.pid
+celeryd.pid
+
+# ===========================================
 # Testing
+# ===========================================
 .pytest_cache/
 .coverage
-htmlcov/
+coverage.xml
 *.cover
+htmlcov/
+.tox/
+.nox/
+nosetests.xml
+test-results/
+tests/fixtures/temp/
+tests/output/
 
-# Distribution
+# ===========================================
+# Distribution & Build
+# ===========================================
 dist/
 build/
 *.egg-info/
+*.whl
+MANIFEST
 
-# OS
+# ===========================================
+# Documentation build
+# ===========================================
+docs/_build/
+site/
+
+# ===========================================
+# OS generated files
+# ===========================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
+
+# ===========================================
+# Temporary files
+# ===========================================
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+tmp/
+temp/
+
+# ===========================================
+# Jupyter Notebooks
+# ===========================================
+.ipynb_checkpoints/
+*.ipynb
+
+# ===========================================
+# mypy / type checking
+# ===========================================
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ===========================================
+# profiling
+# ===========================================
+*.prof
+profile_output/
+
+# ===========================================
+# Local development overrides
+# ===========================================
+local_settings.py
+local_config.py
+config.local.py
+
+# ===========================================
+# Claude Code / Documentation
+# ===========================================
+CLAUDE.md
+DEV_STATUS.md
+Requisitos App*.md

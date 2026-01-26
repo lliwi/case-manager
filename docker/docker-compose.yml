@@ -98,6 +98,7 @@ services:
       - upload_data:/app/data/uploads
       - export_data:/app/data/exports
       - report_data:/app/data/reports
+      - backup_data:/app/data/backups
       # Mount CA certificate for SSL verification
       - ./postgres/ssl/ca.crt:/app/ssl/ca.crt:ro
     depends_on:
@@ -135,6 +136,9 @@ services:
       - ../app:/app/app
       - evidence_data:/app/data/evidence
       - upload_data:/app/data/uploads
+      - export_data:/app/data/exports
+      - report_data:/app/data/reports
+      - backup_data:/app/data/backups
       # Mount CA certificate for SSL verification
       - ./postgres/ssl/ca.crt:/app/ssl/ca.crt:ro
     depends_on:
@@ -214,6 +218,8 @@ volumes:
   export_data:
     driver: local
   report_data:
+    driver: local
+  backup_data:
     driver: local
 
 networks:
