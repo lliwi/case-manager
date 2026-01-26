@@ -30,7 +30,8 @@ def login():
             AuditLog.log(
                 action='LOGIN_FAILED',
                 resource_type='user',
-                user=user if user else User(id=0, email=form.email.data),
+                user=user,  # None if user doesn't exist
+                user_email=form.email.data,  # Always log the attempted email
                 description=f'Failed login attempt for {form.email.data}',
                 ip_address=request.remote_addr,
                 user_agent=request.headers.get('User-Agent')

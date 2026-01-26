@@ -30,9 +30,9 @@ class AuditLog(db.Model):
     resource_id = db.Column(db.Integer)
     description = db.Column(db.Text)
 
-    # User context
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    user_email = db.Column(db.String(120), nullable=False)  # Denormalized for audit trail
+    # User context (nullable for anonymous events like failed logins)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    user_email = db.Column(db.String(120), nullable=True)  # Denormalized for audit trail
 
     # Request context
     ip_address = db.Column(db.String(45))  # IPv6-compatible
@@ -57,16 +57,16 @@ class AuditLog(db.Model):
         return f'<AuditLog {self.action} by {self.user_email} at {self.timestamp}>'
 
     @classmethod
-    def log(cls, action, resource_type, user, description=None, resource_id=None,
+    def log(cls, action, resource_type, user=None, description=None, resource_id=None,
             ip_address=None, user_agent=None, request_method=None, request_path=None,
-            extra_data=None):
+            extra_data=None, user_email=None):
         """
         Create an audit log entry with cryptographic timestamp.
 
         Args:
             action: Action performed (e.g., 'CREATED', 'VIEWED', 'UPDATED', 'DELETED')
             resource_type: Type of resource (e.g., 'case', 'evidence', 'user')
-            user: User object who performed the action
+            user: User object who performed the action (optional for anonymous events)
             description: Human-readable description
             resource_id: ID of the affected resource
             ip_address: Client IP address
@@ -74,6 +74,7 @@ class AuditLog(db.Model):
             request_method: HTTP method
             request_path: Request path
             extra_data: Additional JSON metadata
+            user_email: Email for anonymous events (when user is None)
 
         Returns:
             AuditLog instance with cryptographic timestamp signature
@@ -83,8 +84,8 @@ class AuditLog(db.Model):
             resource_type=resource_type,
             resource_id=resource_id,
             description=description,
-            user_id=user.id,
-            user_email=user.email,
+            user_id=user.id if user else None,
+            user_email=user.email if user else user_email,
             ip_address=ip_address,
             user_agent=user_agent,
             request_method=request_method,
