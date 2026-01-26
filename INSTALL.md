@@ -1,15 +1,56 @@
-# Guía de Instalación - Case Manager
+# Guia de Instalacion - Case Manager
 
-Sistema de gestión de investigaciones privadas conforme a la Ley 5/2014 de Seguridad Privada y estándar forense UNE 71506.
+Sistema de gestion de investigaciones privadas conforme a la Ley 5/2014 de Seguridad Privada y estandar forense UNE 71506.
 
 ## Requisitos Previos
 
 - Docker 20.10 o superior
 - Docker Compose 2.0 o superior
+- OpenSSL (para generar certificados SSL)
 - Al menos 4GB de RAM disponible
 - 10GB de espacio en disco
 
-## Instalación para Nuevas Instancias
+## Instalacion Rapida (Recomendado)
+
+Para una instalacion limpia y automatica:
+
+```bash
+# Clonar el repositorio
+git clone <repository-url>
+cd case-manager
+
+# Ejecutar instalacion completa
+./setup.sh
+```
+
+El script `setup.sh` realiza automaticamente:
+1. Verifica requisitos (Docker, Docker Compose)
+2. Genera certificados SSL para PostgreSQL
+3. Crea archivo `.env` con contraseñas seguras aleatorias
+4. Construye las imagenes Docker
+5. Inicia todos los contenedores
+6. Inicializa la base de datos desde los modelos
+7. Crea el usuario administrador inicial
+
+### Credenciales por defecto
+
+- **Email**: admin@casemanager.com
+- **Contraseña**: admin123
+- **TIP**: TIP-00001
+
+**IMPORTANTE**: Cambiar la contraseña despues del primer inicio de sesion.
+
+### URLs de acceso
+
+- **Aplicacion Web**: http://localhost
+- **Neo4j Browser**: http://localhost:7474
+- **Flower (Monitor Celery)**: http://localhost:5555
+
+---
+
+## Instalacion Manual (Avanzado)
+
+Si prefieres control total sobre el proceso:
 
 ### 1. Clonar el Repositorio
 
@@ -21,74 +62,71 @@ cd case-manager
 ### 2. Configurar Variables de Entorno
 
 ```bash
-cd docker
-cp .env.example .env
-# Editar .env con tus configuraciones (contraseñas, claves secretas, etc.)
+cp .env.example docker/.env
+# Editar docker/.env con tus configuraciones
 ```
 
-**Variables importantes a configurar:**
+**Variables importantes:**
+- `SECRET_KEY`: Clave secreta de Flask
 - `POSTGRES_PASSWORD`: Contraseña de PostgreSQL
-- `SECRET_KEY`: Clave secreta de Flask (generar con `python -c "import secrets; print(secrets.token_hex(32))"`)
 - `NEO4J_PASSWORD`: Contraseña de Neo4j
+- `REDIS_PASSWORD`: Contraseña de Redis
+- `EVIDENCE_ENCRYPTION_KEY`: Clave de cifrado (64 caracteres hex)
 
-### 3. Iniciar Contenedores
+Generar valores seguros:
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+### 3. Generar Certificados SSL
 
 ```bash
+mkdir -p docker/postgres/ssl
+cd docker/postgres/ssl
+
+# CA
+openssl genrsa -out ca.key 4096
+openssl req -new -x509 -days 3650 -key ca.key -out ca.crt \
+    -subj "/CN=CaseManager-CA"
+
+# Server
+openssl genrsa -out server.key 4096
+openssl req -new -key server.key -out server.csr -subj "/CN=postgres"
+openssl x509 -req -days 3650 -in server.csr -CA ca.crt -CAkey ca.key \
+    -CAcreateserial -out server.crt
+
+chmod 600 server.key
+cd ../../..
+```
+
+### 4. Iniciar Contenedores
+
+```bash
+cd docker
 docker-compose up -d
 ```
 
-Esto iniciará:
-- **PostgreSQL**: Base de datos transaccional
-- **Neo4j**: Base de datos de grafos para análisis de relaciones
-- **Redis**: Cola de mensajes para tareas asíncronas
-- **Flask Web**: Aplicación web principal
-- **Celery Worker**: Procesamiento de tareas en segundo plano
-- **Flower**: Monitor de tareas Celery
+Servicios iniciados:
+- **PostgreSQL**: Base de datos transaccional con SSL
+- **Neo4j**: Base de datos de grafos
+- **Redis**: Broker para Celery
+- **Flask Web**: Aplicacion principal
+- **Celery Worker**: Procesamiento asincrono
+- **Celery Beat**: Tareas programadas
+- **Flower**: Monitor de tareas
+- **Nginx**: Proxy inverso
 
-### 4. Inicializar Base de Datos
-
-Ejecutar el script de configuración:
+### 5. Inicializar Base de Datos
 
 ```bash
-cd ..
-./setup_database.sh
+docker exec casemanager_web python init_database.py
 ```
 
-Este script:
-- Verifica que los contenedores estén ejecutándose
-- Espera a que PostgreSQL esté listo
-- Aplica todas las migraciones de base de datos
-- Crea todas las tablas necesarias
-
-**Tablas creadas:**
-- `users`, `roles`: Gestión de usuarios y permisos
-- `audit_logs`: Registro de auditoría inmutable
-- `cases`, `legitimacy_types_custom`: Gestión de casos
-- `evidences`, `chain_of_custody`: Evidencias y cadena de custodia
-- `evidence_analyses`: Resultados de análisis forenses (NUEVO)
-- `graph_nodes`, `graph_relationships`: Análisis de relaciones
-- `timeline_events`: Línea temporal de investigaciones
-- `reports`: Informes periciales
-
-### 5. Crear Usuario Inicial
+### 6. Crear Usuario Inicial
 
 ```bash
 docker exec casemanager_web python create_test_user.py
 ```
-
-Credenciales por defecto:
-- **Email**: admin@casemanager.com
-- **Contraseña**: admin123
-- **Roles**: Admin, Detective
-- **TIP**: TIP-00001
-
-**⚠️ IMPORTANTE**: Cambiar estas credenciales en producción.
-
-### 6. Acceder a la Aplicación
-
-- **Aplicación Web**: http://localhost
-- **Neo4j Browser**: http://localhost:7474
-- **Flower (Monitor Celery)**: http://localhost:5555
 
 ## Estructura de la Base de Datos
 
@@ -227,18 +265,26 @@ docker exec casemanager_postgres psql -U postgres -d case_manager -c "\d evidenc
 - Rotar claves periódicamente
 - Revisar logs de auditoría regularmente
 
-## Respaldo y Recuperación
+## Respaldo y Recuperacion
+
+Los backups se gestionan mediante scripts de shell para mayor fiabilidad:
 
 ```bash
-# Backup PostgreSQL
-docker exec casemanager_postgres pg_dump -U postgres case_manager > backup_$(date +%Y%m%d).sql
+# Crear backup completo (PostgreSQL + Neo4j + Volumenes)
+./backup/backup.sh
 
-# Backup Neo4j
-docker exec casemanager_neo4j neo4j-admin dump --to=/backups/neo4j_$(date +%Y%m%d).dump
+# Listar backups disponibles
+./backup/list.sh
 
-# Restaurar PostgreSQL
-cat backup_20260109.sql | docker exec -i casemanager_postgres psql -U postgres -d case_manager
+# Restaurar un backup (detiene servicios temporalmente)
+./backup/restore.sh backup_YYYYMMDD_HHMMSS.tar.gz
 ```
+
+Los backups se almacenan en `data/backups/` e incluyen:
+- Dump de PostgreSQL
+- Datos de Neo4j
+- Volumenes de evidencias, uploads, exports y reports
+- Checksum SHA-256 para verificacion
 
 ## Soporte
 

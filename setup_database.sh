@@ -2,70 +2,64 @@
 ##
 # Database Setup Script for Case Manager
 #
-# This script initializes the database for a new Case Manager installation.
-# It creates all tables using Flask-Migrate migrations.
+# Initializes database for a new installation or applies pending migrations.
+# For fresh installs, creates tables directly from models (no migration needed).
+# For existing installs, applies any pending migrations.
 #
 # Usage:
 #   ./setup_database.sh
 #
 # Prerequisites:
 #   - Docker containers must be running (docker-compose up -d)
-#   - PostgreSQL container must be healthy
 ##
 
 set -e
 
-echo "🔍 Checking if Docker containers are running..."
+echo "=========================================="
+echo "  Case Manager - Database Setup"
+echo "=========================================="
+echo ""
+
+# Check containers
 if ! docker ps | grep -q casemanager_web; then
-    echo "❌ Error: casemanager_web container is not running"
-    echo "   Please start containers with: cd docker && docker-compose up -d"
+    echo "Error: casemanager_web container is not running"
+    echo "Start containers: cd docker && docker-compose up -d"
     exit 1
 fi
 
 if ! docker ps | grep -q casemanager_postgres; then
-    echo "❌ Error: casemanager_postgres container is not running"
-    echo "   Please start containers with: cd docker && docker-compose up -d"
+    echo "Error: casemanager_postgres container is not running"
     exit 1
 fi
 
-echo "✅ Docker containers are running"
-echo ""
+echo "Containers are running"
 
-echo "🔍 Checking PostgreSQL health..."
+# Wait for PostgreSQL
+echo "Waiting for PostgreSQL..."
 for i in {1..30}; do
     if docker exec casemanager_postgres pg_isready -U postgres -d case_manager >/dev/null 2>&1; then
-        echo "✅ PostgreSQL is ready"
+        echo "PostgreSQL is ready"
         break
     fi
-    if [ $i -eq 30 ]; then
-        echo "❌ Error: PostgreSQL did not become ready in time"
-        exit 1
-    fi
-    echo "   Waiting for PostgreSQL... ($i/30)"
+    [ $i -eq 30 ] && { echo "PostgreSQL timeout"; exit 1; }
     sleep 1
 done
 
 echo ""
-echo "🗄️  Applying database migrations..."
-docker exec casemanager_web flask db upgrade
 
-if [ $? -eq 0 ]; then
-    echo "✅ Database migrations applied successfully"
-    echo ""
-    echo "📋 Database tables created:"
-    echo "   - users, roles, audit_logs"
-    echo "   - cases, evidences, chain_of_custody"
-    echo "   - evidence_analyses (forensic plugin results)"
-    echo "   - graph nodes and relationships"
-    echo "   - timeline events, reports"
-    echo "   - custom legitimacy and relationship types"
-    echo ""
-    echo "✅ Database setup complete!"
-    echo ""
-    echo "Next steps:"
-    echo "1. Create a test user: docker exec casemanager_web python create_test_user.py"
-    echo "2. Access the application at http://localhost"
+# Check database state
+TABLE_COUNT=$(docker exec casemanager_postgres psql -U postgres -d case_manager -t -c \
+    "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ')
+
+if [ "$TABLE_COUNT" = "0" ] || [ -z "$TABLE_COUNT" ]; then
+    echo "Fresh database - initializing from models..."
+    docker exec casemanager_web python init_database.py
 else
-    echo "❌ Error: Failed to apply database migrations"
-    exit 1
+    echo "Existing database ($TABLE_COUNT tables) - checking for updates..."
+    docker exec casemanager_web flask db upgrade
 fi
+
+echo ""
+echo "Database setup complete!"
+echo ""
+echo "Next: docker exec casemanager_web python create_test_user.py"
