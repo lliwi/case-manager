@@ -61,8 +61,8 @@ class Config:
     WTF_CSRF_TIME_LIMIT = None
     BCRYPT_LOG_ROUNDS = 12
 
-    # Rate limiting
-    RATELIMIT_STORAGE_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+    # Rate limiting (using Redis as storage backend)
+    RATELIMIT_STORAGE_URI = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
     RATELIMIT_DEFAULT = "200 per day, 50 per hour"
 
     # File uploads

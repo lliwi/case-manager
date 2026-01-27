@@ -123,6 +123,15 @@ class GraphService:
             "CREATE INDEX company_name IF NOT EXISTS FOR (c:Company) ON (c.name)",
             "CREATE INDEX address_city IF NOT EXISTS FOR (a:Address) ON (a.city)",
             "CREATE INDEX social_username IF NOT EXISTS FOR (s:SocialProfile) ON (s.username)",
+            # Indexes for case_id filtering (critical for multi-tenant isolation)
+            "CREATE INDEX person_case_id IF NOT EXISTS FOR (p:Person) ON (p.case_id)",
+            "CREATE INDEX company_case_id IF NOT EXISTS FOR (c:Company) ON (c.case_id)",
+            "CREATE INDEX phone_case_id IF NOT EXISTS FOR (ph:Phone) ON (ph.case_id)",
+            "CREATE INDEX email_case_id IF NOT EXISTS FOR (e:Email) ON (e.case_id)",
+            "CREATE INDEX vehicle_case_id IF NOT EXISTS FOR (v:Vehicle) ON (v.case_id)",
+            "CREATE INDEX address_case_id IF NOT EXISTS FOR (a:Address) ON (a.case_id)",
+            "CREATE INDEX evidence_case_id IF NOT EXISTS FOR (ev:Evidence) ON (ev.case_id)",
+            "CREATE INDEX social_case_id IF NOT EXISTS FOR (s:SocialProfile) ON (s.case_id)",
         ]
 
         with driver.session() as session:

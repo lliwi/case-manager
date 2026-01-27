@@ -24,5 +24,9 @@ echo "Data directories ready!"
 echo "Running database migrations..."
 flask db upgrade || echo "No migrations to run"
 
+# Initialize Neo4j constraints and indexes
+echo "Initializing Neo4j indexes..."
+flask init_neo4j || echo "Neo4j initialization skipped"
+
 # Execute the main command
 exec "$@"
