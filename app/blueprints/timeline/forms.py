@@ -88,6 +88,12 @@ class TimelineEventForm(FlaskForm):
         description='Color para visualización (ej: #FF5733)'
     )
 
+    icon = StringField(
+        'Icono',
+        validators=[Length(max=50)],
+        description='Clase de Bootstrap Icons (ej: bi-star)'
+    )
+
     evidence_id = HiddenField('Evidence ID')
 
     submit = SubmitField('Guardar Evento')
