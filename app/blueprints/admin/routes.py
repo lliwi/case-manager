@@ -154,6 +154,57 @@ def create_user():
     return redirect(url_for('admin.users'))
 
 
+@admin_bp.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_USER_EDIT', 'admin')
+def edit_user(user_id):
+    """Edit an existing user."""
+    user = User.query.get_or_404(user_id)
+    roles = Role.query.all()
+
+    if request.method == 'GET':
+        return render_template('admin/edit_user.html', user=user, roles=roles)
+
+    # POST - Update user
+    email = request.form.get('email')
+    nombre = request.form.get('nombre')
+    apellidos = request.form.get('apellidos')
+    tip_number = request.form.get('tip_number')
+    despacho = request.form.get('despacho')
+    telefono = request.form.get('telefono')
+    role_ids = request.form.getlist('roles')
+
+    # Validate email uniqueness (excluding current user)
+    existing_user = User.query.filter(
+        User.email == email,
+        User.id != user_id
+    ).first()
+    if existing_user:
+        flash('El email ya está registrado por otro usuario', 'error')
+        return redirect(url_for('admin.edit_user', user_id=user_id))
+
+    # Update user fields
+    user.email = email
+    user.nombre = nombre
+    user.apellidos = apellidos
+    user.tip_number = tip_number
+    user.despacho = despacho
+    user.telefono = telefono
+
+    # Update roles
+    user.roles = []
+    for role_id in role_ids:
+        role = Role.query.get(role_id)
+        if role:
+            user.roles.append(role)
+
+    db.session.commit()
+
+    flash(f'Usuario {email} actualizado exitosamente', 'success')
+    return redirect(url_for('admin.user_detail', user_id=user_id))
+
+
 @admin_bp.route('/users/<int:user_id>/toggle-status', methods=['POST'])
 @login_required
 @require_role('admin')

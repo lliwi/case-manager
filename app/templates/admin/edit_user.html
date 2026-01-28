@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Usuario: {{ user.email }} - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">Editar Usuario</h1>
+                <a href="{{ url_for('admin.user_detail', user_id=user.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Cancelar
+                </a>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="bi bi-person-gear"></i> Editar Informacion del Usuario</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('admin.edit_user', user_id=user.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="email" name="email"
+                                   value="{{ user.email }}" required>
+                            <small class="text-muted">Sera utilizado como nombre de usuario</small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="nombre" class="form-label">Nombre <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="nombre" name="nombre"
+                                       value="{{ user.nombre }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="apellidos" class="form-label">Apellidos <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="apellidos" name="apellidos"
+                                       value="{{ user.apellidos }}" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="tip_number" class="form-label">Numero TIP <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="tip_number" name="tip_number"
+                                   value="{{ user.tip_number }}" required
+                                   placeholder="Tarjeta de Identidad Profesional">
+                            <small class="text-muted">Tarjeta de Identidad Profesional del detective</small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="despacho" class="form-label">Despacho</label>
+                                <input type="text" class="form-control" id="despacho" name="despacho"
+                                       value="{{ user.despacho or '' }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="telefono" class="form-label">Telefono</label>
+                                <input type="text" class="form-control" id="telefono" name="telefono"
+                                       value="{{ user.telefono or '' }}">
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6><i class="bi bi-shield-lock"></i> Roles y Permisos</h6>
+
+                        <div class="mb-3">
+                            <label class="form-label">Asignar Roles</label>
+                            {% for role in roles %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="role_{{ role.id }}"
+                                           name="roles" value="{{ role.id }}"
+                                           {% if role in user.roles %}checked{% endif %}>
+                                    <label class="form-check-label" for="role_{{ role.id }}">
+                                        <strong>{{ role.name }}</strong>
+                                        {% if role.description %}
+                                            <span class="text-muted">- {{ role.description }}</span>
+                                        {% endif %}
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-lg"></i> Guardar Cambios
+                            </button>
+                            <a href="{{ url_for('admin.user_detail', user_id=user.id) }}" class="btn btn-outline-secondary">
+                                Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-4">
+                <h6 class="alert-heading"><i class="bi bi-info-circle"></i> Informacion</h6>
+                <ul class="mb-0 small">
+                    <li>Para cambiar la contrasena del usuario, utilice la opcion <strong>"Restablecer Contrasena"</strong> en la pagina de detalle del usuario.</li>
+                    <li>Los cambios en los roles se aplicaran inmediatamente al guardar.</li>
+                    <li>El rol <strong>admin</strong> otorga acceso completo al panel de administracion.</li>
+                </ul>
+            </div>
+
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> Estado Actual del Usuario</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Estado:</strong>
+                            {% if user.is_active %}
+                                <span class="badge bg-success">Activo</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inactivo</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>MFA:</strong>
+                            {% if user.mfa_enabled %}
+                                <span class="badge bg-success"><i class="bi bi-shield-check"></i> Activado</span>
+                            {% else %}
+                                <span class="badge bg-secondary"><i class="bi bi-shield-x"></i> Desactivado</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Email verificado:</strong>
+                            {% if user.email_verified %}
+                                <span class="badge bg-success">Si</span>
+                            {% else %}
+                                <span class="badge bg-warning">No</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <p class="text-muted small mt-2 mb-0">
+                        <i class="bi bi-clock"></i> Creado: {{ user.created_at.strftime('%d/%m/%Y %H:%M') }}
+                        {% if user.last_login %}
+                            | Ultimo acceso: {{ user.last_login.strftime('%d/%m/%Y %H:%M') }}
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
