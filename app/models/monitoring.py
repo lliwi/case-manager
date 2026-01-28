@@ -316,6 +316,7 @@ class MonitoringResult(db.Model):
     media_downloaded = db.Column(db.Boolean, default=False, nullable=False)
     media_local_paths = db.Column(db.JSON)  # Paths to downloaded files
     media_hashes = db.Column(db.JSON)  # SHA-256 hashes of downloaded media
+    media_base64 = db.Column(db.JSON)  # Base64 encoded images (for reliable display/analysis)
 
     # Timestamps from source
     source_timestamp = db.Column(db.DateTime, index=True)  # When the post was created

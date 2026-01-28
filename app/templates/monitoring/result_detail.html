@@ -53,18 +53,40 @@
                 {% endif %}
 
                 <!-- Media Gallery -->
-                {% if result.has_media and result.media_urls %}
+                {% if result.has_media %}
                 <div class="row g-2 mb-3">
-                    {% for url in result.media_urls[:4] %}
-                    <div class="col-6 col-md-3">
-                        <a href="{{ url }}" target="_blank">
-                            <img src="{{ url }}" class="img-fluid rounded" alt="Media {{ loop.index }}" style="max-height: 150px; object-fit: cover; width: 100%;">
-                        </a>
-                    </div>
-                    {% endfor %}
-                    {% if result.media_urls|length > 4 %}
+                    {# Priority: 1) Stored base64, 2) Local files via API, 3) Original URLs (may expire) #}
+                    {% if result.media_base64 %}
+                        {% for base64_img in result.media_base64[:4] %}
+                        <div class="col-6 col-md-3">
+                            <a href="{{ base64_img }}" target="_blank" class="media-link">
+                                <img src="{{ base64_img }}" class="img-fluid rounded" alt="Media {{ loop.index }}" style="max-height: 150px; object-fit: cover; width: 100%;">
+                            </a>
+                        </div>
+                        {% endfor %}
+                    {% elif result.media_downloaded and result.media_local_paths %}
+                        {% for path in result.media_local_paths[:4] %}
+                        <div class="col-6 col-md-3">
+                            <a href="{{ url_for('monitoring.serve_result_media', result_id=result.id, media_index=loop.index0) }}" target="_blank" class="media-link">
+                                <img src="{{ url_for('monitoring.serve_result_media', result_id=result.id, media_index=loop.index0) }}" class="img-fluid rounded" alt="Media {{ loop.index }}" style="max-height: 150px; object-fit: cover; width: 100%;">
+                            </a>
+                        </div>
+                        {% endfor %}
+                    {% elif result.media_urls %}
+                        {% for url in result.media_urls[:4] %}
+                        <div class="col-6 col-md-3">
+                            <a href="{{ url }}" target="_blank" class="media-link">
+                                <img src="{{ url }}" class="img-fluid rounded media-fallback" alt="Media {{ loop.index }}"
+                                     style="max-height: 150px; object-fit: cover; width: 100%;"
+                                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/image-broken.svg') }}'; this.alt='Imagen no disponible';">
+                            </a>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                    {% set media_count = (result.media_base64|length if result.media_base64 else (result.media_local_paths|length if result.media_local_paths else (result.media_urls|length if result.media_urls else 0))) %}
+                    {% if media_count > 4 %}
                     <div class="col-12">
-                        <small class="text-muted">+{{ result.media_urls|length - 4 }} más</small>
+                        <small class="text-muted">+{{ media_count - 4 }} más</small>
                     </div>
                     {% endif %}
                 </div>

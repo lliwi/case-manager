@@ -9,7 +9,7 @@ Provides web interface for:
 """
 from datetime import datetime
 from flask import (
-    render_template, redirect, url_for, flash, request, jsonify, abort
+    render_template, redirect, url_for, flash, request, jsonify, abort, current_app
 )
 from flask_login import login_required, current_user
 
@@ -717,8 +717,14 @@ def serve_result_media(result_id, media_index):
     media_path = result.media_local_paths[media_index]
 
     # Security check: ensure path is within expected directory
-    if not media_path.startswith('/app/data/evidence/monitoring/'):
-        abort(403)
+    evidence_folder = current_app.config.get('EVIDENCE_FOLDER', 'data/evidence')
+    # Normalize paths for comparison
+    normalized_media_path = os.path.normpath(os.path.abspath(media_path))
+    normalized_evidence_folder = os.path.normpath(os.path.abspath(evidence_folder))
+    if not normalized_media_path.startswith(normalized_evidence_folder):
+        # Also check for Docker paths
+        if not media_path.startswith('/app/data/evidence/monitoring/'):
+            abort(403)
 
     if not os.path.exists(media_path):
         abort(404)
@@ -730,3 +736,59 @@ def serve_result_media(result_id, media_index):
         mimetype = 'application/octet-stream'
 
     return send_file(media_path, mimetype=mimetype)
+
+
+@monitoring_bp.route('/api/result/<int:result_id>/media-base64/<int:media_index>')
+@login_required
+def serve_result_media_base64(result_id, media_index):
+    """
+    Serve a media file as base64 data URI for a monitoring result.
+    Useful when the original Instagram URLs have expired.
+
+    Args:
+        result_id: Monitoring result ID
+        media_index: Index of the media file (0-based)
+
+    Returns:
+        JSON with base64 data URI or error
+    """
+    result = MonitoringResult.query.get_or_404(result_id)
+
+    # Check user has access to the case
+    if result.task and result.task.case:
+        case = result.task.case
+        if not current_user.is_admin() and case.detective_id != current_user.id:
+            abort(403)
+
+    # First try stored base64
+    if result.media_base64 and media_index < len(result.media_base64):
+        return jsonify({
+            'success': True,
+            'data_uri': result.media_base64[media_index]
+        })
+
+    # Try to generate from local file
+    if result.media_downloaded and result.media_local_paths:
+        if media_index < len(result.media_local_paths):
+            from app.services.media_download_service import MediaDownloadService
+            download_service = MediaDownloadService()
+            try:
+                base64_images = download_service.get_media_for_analysis(
+                    [result.media_local_paths[media_index]],
+                    as_base64=True
+                )
+                if base64_images:
+                    return jsonify({
+                        'success': True,
+                        'data_uri': base64_images[0]
+                    })
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'error': str(e)
+                }), 500
+
+    return jsonify({
+        'success': False,
+        'error': 'Media not available'
+    }), 404

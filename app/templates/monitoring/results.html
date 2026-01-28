@@ -72,15 +72,25 @@
         <a href="{{ url_for('monitoring.result_detail', case_id=case.id, task_id=task.id, result_id=result.id) }}" class="list-group-item list-group-item-action {% if result.is_alert and not result.alert_acknowledged %}list-group-item-warning{% endif %}">
             <div class="row">
                 <!-- Thumbnail column -->
-                {% if result.has_media and result.media_urls %}
+                {% if result.has_media %}
                 <div class="col-auto">
+                    {# Priority: 1) Stored base64, 2) Local files via API, 3) Original URLs (may expire) #}
+                    {% if result.media_base64 and result.media_base64|length > 0 %}
+                    <img src="{{ result.media_base64[0] }}" alt="Miniatura"
+                         class="rounded" style="width: 80px; height: 80px; object-fit: cover;">
+                    {% elif result.media_downloaded and result.media_local_paths and result.media_local_paths|length > 0 %}
+                    <img src="{{ url_for('monitoring.serve_result_media', result_id=result.id, media_index=0) }}" alt="Miniatura"
+                         class="rounded" style="width: 80px; height: 80px; object-fit: cover;"
+                         onerror="this.style.display='none'">
+                    {% elif result.media_urls and result.media_urls|length > 0 %}
                     <img src="{{ result.media_urls[0] }}" alt="Miniatura"
                          class="rounded" style="width: 80px; height: 80px; object-fit: cover;"
                          onerror="this.style.display='none'">
+                    {% endif %}
                 </div>
                 {% endif %}
 
-                <div class="{% if result.has_media and result.media_urls %}col-md-7{% else %}col-md-8{% endif %}">
+                <div class="{% if result.has_media %}col-md-7{% else %}col-md-8{% endif %}">
                     <div class="d-flex align-items-center gap-2 mb-1">
                         {% if result.is_alert %}
                         <span class="badge bg-danger">

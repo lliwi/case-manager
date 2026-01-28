@@ -1258,7 +1258,7 @@ class MonitoringService:
 
     @staticmethod
     def _download_result_media(result: MonitoringResult, media_urls: List[str]):
-        """Download media for a result."""
+        """Download media for a result and generate base64 for reliable display/analysis."""
         try:
             download_service = MediaDownloadService()
             downloaded = download_service.download_media(
@@ -1280,6 +1280,15 @@ class MonitoringService:
                 result.media_local_paths = local_paths
                 result.media_hashes = hashes
                 result.media_downloaded = True
+
+                # Generate base64 for the first 4 images (for display and AI analysis)
+                # This ensures images are available even if Instagram URLs expire
+                base64_images = download_service.get_media_for_analysis(
+                    local_paths[:4],
+                    as_base64=True
+                )
+                if base64_images:
+                    result.media_base64 = base64_images
 
         except Exception as e:
             logger.error(f"Error downloading media for result {result.id}: {e}")
@@ -1303,13 +1312,38 @@ class MonitoringService:
             )
 
             # Prepare images for analysis
+            # Priority: 1) Stored base64, 2) Local files, 3) URLs (may expire)
             images = []
-            if result.media_downloaded and result.media_local_paths:
+            if result.media_base64:
+                # Use stored base64 images (most reliable)
+                images = result.media_base64[:4]
+            elif result.media_downloaded and result.media_local_paths:
+                # Generate base64 from local files
                 download_service = MediaDownloadService()
                 images = download_service.get_media_for_analysis(result.media_local_paths)
             elif result.media_urls:
-                # Use URLs directly if not downloaded
-                images = result.media_urls[:4]  # Limit to 4 images
+                # Last resort: Use URLs directly (may be expired for Instagram)
+                # Try to download and convert to base64 first
+                download_service = MediaDownloadService()
+                try:
+                    # Attempt to download temporarily for analysis
+                    downloaded = download_service.download_media(
+                        result.media_urls[:4],
+                        result.task_id,
+                        result.id
+                    )
+                    local_paths = [item['local_path'] for item in downloaded if item['success']]
+                    if local_paths:
+                        images = download_service.get_media_for_analysis(local_paths)
+                        # Store for future use
+                        result.media_local_paths = local_paths
+                        result.media_hashes = [item['sha256_hash'] for item in downloaded if item['success']]
+                        result.media_downloaded = True
+                        result.media_base64 = images[:4] if images else None
+                except Exception as e:
+                    logger.warning(f"Failed to download images for analysis: {e}")
+                    # Fall back to URLs (may not work for Instagram)
+                    images = result.media_urls[:4]
             elif result.content_metadata:
                 # Try to extract image URL from content_metadata (Instagram format)
                 content_meta = result.content_metadata
