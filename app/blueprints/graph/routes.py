@@ -903,7 +903,7 @@ def api_import_elements(case_id):
                             'osint_contact_id': contact.id,
                             'name': contact.name,
                             'is_validated': contact.is_validated,
-                            'extra_data': extra,
+                            'extra_data': json.dumps(extra) if extra else None,
                             'source': 'osint_contact'
                         }
                     )

@@ -149,6 +149,44 @@ class GraphService:
 
         current_app.logger.info('Neo4j constraints and indexes created')
 
+    @staticmethod
+    def _sanitize_properties(properties: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Sanitize properties for Neo4j storage.
+
+        Neo4j only accepts primitive types (str, int, float, bool) or arrays thereof.
+        This method filters out None values and converts dicts to JSON strings.
+
+        Args:
+            properties: Dictionary of properties
+
+        Returns:
+            Sanitized properties dictionary
+        """
+        import json
+        sanitized = {}
+        for key, value in properties.items():
+            if value is None:
+                continue  # Skip None values
+            elif isinstance(value, dict):
+                # Convert dicts to JSON strings
+                sanitized[key] = json.dumps(value) if value else None
+                if sanitized[key] is None:
+                    del sanitized[key]
+            elif isinstance(value, (list, tuple)):
+                # For lists, ensure all elements are primitives
+                if all(isinstance(v, (str, int, float, bool)) for v in value):
+                    sanitized[key] = list(value)
+                else:
+                    # Convert complex lists to JSON
+                    sanitized[key] = json.dumps(value)
+            elif isinstance(value, (str, int, float, bool)):
+                sanitized[key] = value
+            else:
+                # Convert other types to string
+                sanitized[key] = str(value)
+        return sanitized
+
     def create_node(self, node: GraphNode, case_id: int) -> str:
         """
         Create a node in the graph.
@@ -166,13 +204,16 @@ class GraphService:
         node.properties['case_id'] = case_id
         node.properties['updated_at'] = datetime.utcnow().isoformat()
 
+        # Sanitize properties for Neo4j compatibility
+        sanitized_props = self._sanitize_properties(node.properties)
+
         query = f"""
         CREATE (n:{node.node_type.value} $properties)
-        RETURN id(n) as node_id
+        RETURN elementId(n) as node_id
         """
 
         with driver.session() as session:
-            result = session.run(query, properties=node.properties)
+            result = session.run(query, properties=sanitized_props)
             record = result.single()
             return str(record['node_id'])
 
@@ -191,12 +232,12 @@ class GraphService:
 
         query = f"""
         MATCH (n:{node_type.value})
-        WHERE id(n) = $node_id
+        WHERE elementId(n) = $node_id
         RETURN n
         """
 
         with driver.session() as session:
-            result = session.run(query, node_id=int(node_id))
+            result = session.run(query, node_id=node_id)
             record = result.single()
 
             if record:
@@ -220,15 +261,18 @@ class GraphService:
         # Add updated timestamp
         properties['updated_at'] = datetime.utcnow().isoformat()
 
+        # Sanitize properties for Neo4j compatibility
+        sanitized_props = self._sanitize_properties(properties)
+
         query = f"""
         MATCH (n:{node_type.value})
-        WHERE id(n) = $node_id
+        WHERE elementId(n) = $node_id
         SET n += $properties
         RETURN n
         """
 
         with driver.session() as session:
-            result = session.run(query, node_id=int(node_id), properties=properties)
+            result = session.run(query, node_id=node_id, properties=sanitized_props)
             return result.single() is not None
 
     def delete_node(self, node_id: str, node_type: NodeType) -> bool:
@@ -246,12 +290,12 @@ class GraphService:
 
         query = f"""
         MATCH (n:{node_type.value})
-        WHERE id(n) = $node_id
+        WHERE elementId(n) = $node_id
         DETACH DELETE n
         """
 
         with driver.session() as session:
-            result = session.run(query, node_id=int(node_id))
+            result = session.run(query, node_id=node_id)
             return result.consume().counters.nodes_deleted > 0
 
     def create_relationship(self, relationship: GraphRelationship) -> str:
@@ -275,19 +319,22 @@ class GraphService:
         else:
             rel_type_str = relationship.relationship_type
 
+        # Sanitize properties for Neo4j compatibility
+        sanitized_props = self._sanitize_properties(relationship.properties)
+
         query = f"""
         MATCH (from_node), (to_node)
-        WHERE id(from_node) = $from_id AND id(to_node) = $to_id
+        WHERE elementId(from_node) = $from_id AND elementId(to_node) = $to_id
         CREATE (from_node)-[r:{rel_type_str} $properties]->(to_node)
-        RETURN id(r) as rel_id
+        RETURN elementId(r) as rel_id
         """
 
         with driver.session() as session:
             result = session.run(
                 query,
-                from_id=int(relationship.from_node_id),
-                to_id=int(relationship.to_node_id),
-                properties=relationship.properties
+                from_id=relationship.from_node_id,
+                to_id=relationship.to_node_id,
+                properties=sanitized_props
             )
             record = result.single()
             return str(record['rel_id'])
@@ -308,19 +355,19 @@ class GraphService:
         if relationship_type:
             query = f"""
             MATCH (n)-[r:{relationship_type.value}]-(m)
-            WHERE id(n) = $node_id
-            RETURN r, id(startNode(r)) as from_id, id(endNode(r)) as to_id
+            WHERE elementId(n) = $node_id
+            RETURN r, elementId(startNode(r)) as from_id, elementId(endNode(r)) as to_id
             """
         else:
             query = """
             MATCH (n)-[r]-(m)
-            WHERE id(n) = $node_id
-            RETURN r, type(r) as rel_type, id(startNode(r)) as from_id, id(endNode(r)) as to_id
+            WHERE elementId(n) = $node_id
+            RETURN r, type(r) as rel_type, elementId(startNode(r)) as from_id, elementId(endNode(r)) as to_id
             """
 
         relationships = []
         with driver.session() as session:
-            result = session.run(query, node_id=int(node_id))
+            result = session.run(query, node_id=node_id)
 
             for record in result:
                 if relationship_type:
@@ -354,15 +401,18 @@ class GraphService:
         # Add updated timestamp
         properties['updated_at'] = datetime.utcnow().isoformat()
 
+        # Sanitize properties for Neo4j compatibility
+        sanitized_props = self._sanitize_properties(properties)
+
         query = """
         MATCH ()-[r]->()
-        WHERE id(r) = $rel_id
+        WHERE elementId(r) = $rel_id
         SET r += $properties
         RETURN r
         """
 
         with driver.session() as session:
-            result = session.run(query, rel_id=int(relationship_id), properties=properties)
+            result = session.run(query, rel_id=relationship_id, properties=sanitized_props)
             return result.single() is not None
 
     def delete_relationship(self, relationship_id: str) -> bool:
@@ -379,12 +429,12 @@ class GraphService:
 
         query = """
         MATCH ()-[r]->()
-        WHERE id(r) = $rel_id
+        WHERE elementId(r) = $rel_id
         DELETE r
         """
 
         with driver.session() as session:
-            result = session.run(query, rel_id=int(relationship_id))
+            result = session.run(query, rel_id=relationship_id)
             return result.consume().counters.relationships_deleted > 0
 
     def get_case_graph(self, case_id: int, max_depth: int = 3) -> Dict[str, Any]:
@@ -406,8 +456,8 @@ class GraphService:
         OPTIONAL MATCH (n)-[r]-(m)
         WHERE m.case_id = $case_id
         RETURN
-            collect(DISTINCT {{id: id(n), labels: labels(n), properties: n}}) as nodes,
-            collect(DISTINCT {{id: id(r), type: type(r), from: id(startNode(r)), to: id(endNode(r)), properties: r}}) as relationships
+            collect(DISTINCT {{id: elementId(n), labels: labels(n), properties: n}}) as nodes,
+            collect(DISTINCT {{id: elementId(r), type: type(r), from: elementId(startNode(r)), to: elementId(endNode(r)), properties: r}}) as relationships
         """
 
         with driver.session() as session:
@@ -466,16 +516,16 @@ class GraphService:
         MATCH path = shortestPath(
             (from_node)-[*..{max_hops}]-(to_node)
         )
-        WHERE id(from_node) = $from_id AND id(to_node) = $to_id
-        RETURN [node in nodes(path) | {{id: id(node), labels: labels(node), properties: node}}] as path_nodes,
+        WHERE elementId(from_node) = $from_id AND elementId(to_node) = $to_id
+        RETURN [node in nodes(path) | {{id: elementId(node), labels: labels(node), properties: node}}] as path_nodes,
                [rel in relationships(path) | {{type: type(rel), properties: rel}}] as path_rels
         """
 
         with driver.session() as session:
             result = session.run(
                 query,
-                from_id=int(from_node_id),
-                to_id=int(to_node_id)
+                from_id=from_node_id,
+                to_id=to_node_id
             )
             record = result.single()
 
@@ -502,13 +552,13 @@ class GraphService:
 
         query = """
         MATCH (n1)--(common)--(n2)
-        WHERE id(n1) = $node_1 AND id(n2) = $node_2 AND id(common) <> $node_1 AND id(common) <> $node_2
-        RETURN DISTINCT id(common) as id, labels(common) as labels, common
+        WHERE elementId(n1) = $node_1 AND elementId(n2) = $node_2 AND elementId(common) <> $node_1 AND elementId(common) <> $node_2
+        RETURN DISTINCT elementId(common) as id, labels(common) as labels, common
         """
 
         common_nodes = []
         with driver.session() as session:
-            result = session.run(query, node_1=int(node_id_1), node_2=int(node_id_2))
+            result = session.run(query, node_1=node_id_1, node_2=node_id_2)
 
             for record in result:
                 common_nodes.append({
@@ -545,7 +595,7 @@ class GraphService:
                 toLower(toString(n.plate)) CONTAINS toLower($query) OR
                 toLower(toString(n.username)) CONTAINS toLower($query)
             )
-            RETURN id(n) as id, labels(n) as labels, n
+            RETURN elementId(n) as id, labels(n) as labels, n
             LIMIT 50
             """
         else:
@@ -560,7 +610,7 @@ class GraphService:
                 toLower(toString(n.plate)) CONTAINS toLower($query) OR
                 toLower(toString(n.username)) CONTAINS toLower($query)
             )
-            RETURN id(n) as id, labels(n) as labels, n
+            RETURN elementId(n) as id, labels(n) as labels, n
             LIMIT 50
             """
 
@@ -591,14 +641,14 @@ class GraphService:
 
         query = """
         MATCH (n)
-        WHERE id(n) = $node_id
+        WHERE elementId(n) = $node_id
         OPTIONAL MATCH (n)<-[r_in]-()
         OPTIONAL MATCH (n)-[r_out]->()
         RETURN count(DISTINCT r_in) as in_degree, count(DISTINCT r_out) as out_degree
         """
 
         with driver.session() as session:
-            result = session.run(query, node_id=int(node_id))
+            result = session.run(query, node_id=node_id)
             record = result.single()
 
             in_deg = record['in_degree'] or 0
