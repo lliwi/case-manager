@@ -162,6 +162,12 @@
                 <strong>Relaciones:</strong> <span id="relationship-count">0</span>
             </div>
             <div class="col-md-4 text-end">
+                <button class="btn btn-sm btn-outline-success" id="save-layout-button" title="Guardar posiciones actuales de los nodos">
+                    <i class="bi bi-save"></i> Guardar Layout
+                </button>
+                <button class="btn btn-sm btn-outline-danger" id="reset-layout-button" title="Resetear a disposición automática">
+                    <i class="bi bi-arrow-counterclockwise"></i> Resetear Layout
+                </button>
                 <button class="btn btn-sm btn-outline-secondary" onclick="resetGraph()">
                     <i class="bi bi-arrow-clockwise"></i> Reiniciar Vista
                 </button>
@@ -507,11 +513,54 @@
 <script>
 let network = null;
 let allData = null;
+let savedPositions = {};
+let hasSavedLayout = false;
+// Load saved layout positions
+async function loadSavedLayout() {
+    try {
+        const response = await fetch('/graph/api/case/{{ case.id }}/layout');
+        const data = await response.json();
+        if (data.positions && Object.keys(data.positions).length > 0) {
+            savedPositions = data.positions;
+            hasSavedLayout = true;
+        }
+    } catch (e) {
+        console.warn('[Layout] No se pudieron cargar posiciones guardadas:', e);
+    }
+}
+
+// Save all current positions to server
+async function saveAllPositions() {
+    if (!network) return;
+    const positions = network.getPositions();
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const response = await fetch('/graph/api/case/{{ case.id }}/layout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ positions: positions })
+        });
+        const result = await response.json();
+        if (result.success) {
+            savedPositions = positions;
+            hasSavedLayout = true;
+        }
+        return result;
+    } catch (e) {
+        console.error('[Layout] Error al guardar layout:', e);
+    }
+}
 
 // Load graph data
 async function loadGraphData() {
     console.log('[Graph] Starting to load graph data...');
     try {
+        // Load saved positions first
+        await loadSavedLayout();
+
         const url = '{{ url_for("graph.api_graph_data", case_id=case.id) }}';
         console.log('[Graph] Fetching from:', url);
 
@@ -576,6 +625,18 @@ function renderGraph(data) {
         console.log('[Graph] Loading indicator hidden');
     }
 
+    // Apply saved positions to nodes
+    if (hasSavedLayout) {
+        data.nodes.forEach(node => {
+            const pos = savedPositions[String(node.id)];
+            if (pos) {
+                node.x = pos.x;
+                node.y = pos.y;
+                node.fixed = { x: true, y: true };
+            }
+        });
+    }
+
     // Configure nodes dataset
     console.log('[Graph] Creating vis.DataSet with nodes:', data.nodes.length);
     const nodes = new vis.DataSet(data.nodes);
@@ -612,7 +673,7 @@ function renderGraph(data) {
             }
         },
         physics: {
-            enabled: true,
+            enabled: !hasSavedLayout,
             stabilization: {
                 enabled: true,
                 iterations: 100
@@ -651,9 +712,25 @@ function renderGraph(data) {
         network = new vis.Network(container, graphData, options);
         console.log('[Graph] Network created successfully:', network);
 
-        // Add click event listener for nodes
+        // Fix node in place after dragging
+        network.on('dragEnd', function(params) {
+            if (params.nodes.length > 0) {
+                params.nodes.forEach(nodeId => {
+                    nodes.update({ id: nodeId, fixed: { x: true, y: true } });
+                });
+            }
+        });
+
+        // Single click: unfix node so it can be dragged again
         network.on('click', function(params) {
-            console.log('[Graph] Click event:', params);
+            if (params.nodes.length > 0) {
+                const nodeId = params.nodes[0];
+                nodes.update({ id: nodeId, fixed: false });
+            }
+        });
+
+        // Double click: show details (nodes) or relationship info (edges)
+        network.on('doubleClick', function(params) {
             if (params.nodes.length > 0) {
                 const nodeId = params.nodes[0];
                 const node = nodes.get(nodeId);
@@ -1333,6 +1410,42 @@ function reloadGraph() {
     // Reload data
     loadGraphData();
 }
+
+// Save layout button
+document.getElementById('save-layout-button').addEventListener('click', async function() {
+    if (!network) return;
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+    const result = await saveAllPositions();
+    if (result && result.success) {
+        btn.innerHTML = '<i class="bi bi-check-circle"></i> Guardado';
+    } else {
+        btn.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Error';
+    }
+    setTimeout(() => {
+        btn.innerHTML = '<i class="bi bi-save"></i> Guardar Layout';
+        btn.disabled = false;
+    }, 2000);
+});
+
+// Reset layout button
+document.getElementById('reset-layout-button').addEventListener('click', async function() {
+    if (!confirm('¿Resetear el layout? Los nodos volverán a posicionarse automáticamente.')) return;
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        await fetch('/graph/api/case/{{ case.id }}/layout', {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': csrfToken }
+        });
+        savedPositions = {};
+        hasSavedLayout = false;
+        // Reload graph with physics enabled
+        reloadGraph();
+    } catch (e) {
+        console.error('[Layout] Error al resetear layout:', e);
+    }
+});
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {

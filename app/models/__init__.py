@@ -22,6 +22,7 @@ from app.models.monitoring import (
     MonitoringTask, MonitoringSource, MonitoringResult, MonitoringCheckLog,
     MonitoringStatus, SourcePlatform, SourceQueryType, AIProvider
 )
+from app.models.graph_layout import GraphLayout
 
 __all__ = [
     'User', 'Role', 'AuditLog',
@@ -35,5 +36,6 @@ __all__ = [
     'ApiKey',
     'OSINTValidation', 'OSINTContact',
     'MonitoringTask', 'MonitoringSource', 'MonitoringResult', 'MonitoringCheckLog',
-    'MonitoringStatus', 'SourcePlatform', 'SourceQueryType', 'AIProvider'
+    'MonitoringStatus', 'SourcePlatform', 'SourceQueryType', 'AIProvider',
+    'GraphLayout'
 ]

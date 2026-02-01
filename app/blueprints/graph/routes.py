@@ -21,6 +21,8 @@ import json
 from app.services.graph_service import GraphService
 from app.services.legitimacy_service import LegitimacyService
 from app.utils.decorators import require_detective, audit_action
+from app.models.graph_layout import GraphLayout
+from app.extensions import db as pg_db
 from datetime import datetime
 
 
@@ -986,3 +988,69 @@ def api_import_elements(case_id):
             'errors': len(results['errors'])
         }
     })
+
+
+# =============================================================================
+# Graph Layout (Node Positions) API
+# =============================================================================
+
+@graph_bp.route('/api/case/<int:case_id>/layout')
+@login_required
+@require_detective()
+def api_get_layout(case_id):
+    """API endpoint to get saved node positions for a case."""
+    case = Case.query.get_or_404(case_id)
+
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        abort(403)
+
+    layout = GraphLayout.query.filter_by(case_id=case_id).first()
+    if layout:
+        return jsonify({'positions': layout.get_positions()})
+    return jsonify({'positions': {}})
+
+
+@graph_bp.route('/api/case/<int:case_id>/layout', methods=['POST'])
+@login_required
+@require_detective()
+def api_save_layout(case_id):
+    """API endpoint to save node positions for a case."""
+    case = Case.query.get_or_404(case_id)
+
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        abort(403)
+
+    data = request.get_json()
+    if not data or 'positions' not in data:
+        return jsonify({'error': 'No positions provided'}), 400
+
+    positions = data['positions']
+
+    layout = GraphLayout.query.filter_by(case_id=case_id).first()
+    if not layout:
+        layout = GraphLayout(case_id=case_id, updated_by=current_user.id)
+        pg_db.session.add(layout)
+
+    layout.set_positions(positions)
+    layout.updated_by = current_user.id
+    pg_db.session.commit()
+
+    return jsonify({'success': True, 'message': 'Layout guardado'})
+
+
+@graph_bp.route('/api/case/<int:case_id>/layout', methods=['DELETE'])
+@login_required
+@require_detective()
+def api_reset_layout(case_id):
+    """API endpoint to reset node positions for a case."""
+    case = Case.query.get_or_404(case_id)
+
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        abort(403)
+
+    layout = GraphLayout.query.filter_by(case_id=case_id).first()
+    if layout:
+        pg_db.session.delete(layout)
+        pg_db.session.commit()
+
+    return jsonify({'success': True, 'message': 'Layout reseteado'})

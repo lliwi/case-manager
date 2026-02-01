@@ -266,12 +266,13 @@ class ReportService:
             }
 
     @staticmethod
-    def _generate_graph_image(graph_data):
+    def _generate_graph_image(graph_data, case_id=None):
         """
         Generate a visualization image of the graph.
 
         Args:
             graph_data: Dictionary with 'nodes' and 'relationships'
+            case_id: Optional case ID to load saved node positions
 
         Returns:
             str: Path to temporary image file, or None if generation fails
@@ -339,8 +340,49 @@ class ReportService:
             fig = plt.figure(figsize=(12, 8))
             plt.title('Grafo de Relaciones del Caso', fontsize=16, fontweight='bold')
 
-            # Use spring layout for better visualization
-            pos = nx.spring_layout(G, k=2, iterations=50, seed=42)
+            # Use saved positions if available, otherwise spring layout
+            saved_pos = {}
+            if case_id:
+                try:
+                    from app.models.graph_layout import GraphLayout
+                    layout = GraphLayout.query.filter_by(case_id=case_id).first()
+                    if layout:
+                        saved_pos = layout.get_positions()
+                except Exception as e:
+                    current_app.logger.warning(f'Could not load saved layout: {e}')
+
+            if saved_pos:
+                # Build position dict from saved layout, normalizing coordinates
+                raw_pos = {}
+                for node_id in G.nodes:
+                    p = saved_pos.get(str(node_id))
+                    if p:
+                        raw_pos[node_id] = (p['x'], p['y'])
+
+                if raw_pos:
+                    # Normalize to [-1, 1] range for NetworkX rendering
+                    xs = [v[0] for v in raw_pos.values()]
+                    ys = [v[1] for v in raw_pos.values()]
+                    x_min, x_max = min(xs), max(xs)
+                    y_min, y_max = min(ys), max(ys)
+                    x_range = x_max - x_min if x_max != x_min else 1
+                    y_range = y_max - y_min if y_max != y_min else 1
+
+                    pos = {}
+                    for node_id in G.nodes:
+                        if node_id in raw_pos:
+                            nx_x = (raw_pos[node_id][0] - x_min) / x_range * 2 - 1
+                            # Invert Y axis (screen coordinates have Y increasing downward)
+                            nx_y = -((raw_pos[node_id][1] - y_min) / y_range * 2 - 1)
+                            pos[node_id] = (nx_x, nx_y)
+                        else:
+                            pos[node_id] = (0, 0)
+
+                    current_app.logger.info(f'Using {len(raw_pos)} saved positions for graph image')
+                else:
+                    pos = nx.spring_layout(G, k=2, iterations=50, seed=42)
+            else:
+                pos = nx.spring_layout(G, k=2, iterations=50, seed=42)
 
             # Draw nodes
             nx.draw_networkx_nodes(G, pos,
@@ -1084,7 +1126,7 @@ class ReportService:
                     story.append(Spacer(1, 0.5*cm))
 
                     # Generate and include graph visualization
-                    graph_image_path = ReportService._generate_graph_image(graph_data)
+                    graph_image_path = ReportService._generate_graph_image(graph_data, case_id=report.case_id)
                     if graph_image_path and os.path.exists(graph_image_path):
                         try:
                             current_app.logger.info(f'Adding graph image to PDF: {graph_image_path}')

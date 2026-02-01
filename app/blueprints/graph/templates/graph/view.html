@@ -134,6 +134,12 @@
                 </form>
             </div>
             <div class="col-md-6 text-end">
+                <button id="save-layout-button" class="btn btn-outline-success" title="Guardar posiciones actuales de los nodos">
+                    <i class="bi bi-save"></i> Guardar Layout
+                </button>
+                <button id="reset-layout-button" class="btn btn-outline-danger" title="Resetear a disposición automática">
+                    <i class="bi bi-arrow-counterclockwise"></i> Resetear Layout
+                </button>
                 <button id="fit-button" class="btn btn-outline-secondary">
                     <i class="bi bi-arrows-angle-expand"></i> Ajustar Vista
                 </button>
@@ -158,7 +164,7 @@
         <div class="card-footer">
             <small class="text-muted">
                 <i class="bi bi-info-circle"></i>
-                Haga clic en un nodo para ver detalles. Arrastre para reorganizar. Use la rueda del ratón para zoom.
+                Haga clic en un nodo para ver detalles. Arrastre para reorganizar (se guarda automáticamente). Use la rueda del ratón para zoom.
             </small>
         </div>
     </div>
@@ -227,10 +233,52 @@
 <script>
     let network = null;
     let physicsEnabled = true;
+    let savedPositions = {};
+    let hasSavedLayout = false;
+    // Load saved layout positions
+    async function loadSavedLayout() {
+        try {
+            const response = await fetch('/graph/api/case/{{ case.id }}/layout');
+            const data = await response.json();
+            if (data.positions && Object.keys(data.positions).length > 0) {
+                savedPositions = data.positions;
+                hasSavedLayout = true;
+            }
+        } catch (e) {
+            console.warn('No se pudieron cargar posiciones guardadas:', e);
+        }
+    }
+
+    // Save all current positions to server
+    async function saveAllPositions() {
+        if (!network) return;
+        const positions = network.getPositions();
+        try {
+            const response = await fetch('/graph/api/case/{{ case.id }}/layout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ positions: positions })
+            });
+            const result = await response.json();
+            if (result.success) {
+                savedPositions = positions;
+                hasSavedLayout = true;
+            }
+            return result;
+        } catch (e) {
+            console.error('Error al guardar layout:', e);
+        }
+    }
 
     // Load graph data from API
     async function loadGraph() {
         try {
+            // Load saved positions first
+            await loadSavedLayout();
+
             const response = await fetch('{{ url_for("graph.api_graph_data", case_id=case.id) }}');
             const data = await response.json();
 
@@ -238,6 +286,18 @@
                 console.error('Error loading graph:', data.error);
                 alert('Error al cargar el grafo: ' + data.error);
                 return;
+            }
+
+            // Apply saved positions to nodes
+            if (hasSavedLayout) {
+                data.nodes.forEach(node => {
+                    const pos = savedPositions[String(node.id)];
+                    if (pos) {
+                        node.x = pos.x;
+                        node.y = pos.y;
+                        node.fixed = { x: true, y: true };
+                    }
+                });
             }
 
             // Create vis.js network
@@ -276,6 +336,7 @@
                     }
                 },
                 physics: {
+                    enabled: !hasSavedLayout,
                     stabilization: {
                         iterations: 200
                     },
@@ -293,7 +354,27 @@
                 }
             };
 
+            // Update physics toggle state
+            if (hasSavedLayout) {
+                physicsEnabled = false;
+                document.getElementById('physics-toggle').innerHTML =
+                    '<i class="bi bi-play-circle"></i> Física';
+            }
+
             network = new vis.Network(container, data, options);
+
+            // When a node is dragged and released, fix it and auto-save
+            network.on('dragEnd', function(params) {
+                if (params.nodes.length > 0) {
+                    params.nodes.forEach(nodeId => {
+                        const pos = network.getPosition(nodeId);
+                        network.body.data.nodes.update({
+                            id: nodeId,
+                            fixed: { x: true, y: true }
+                        });
+                    });
+}
+            });
 
             // Event handlers
             network.on('click', function(params) {
@@ -382,6 +463,54 @@
         const container = document.getElementById('graph-container');
         if (container.requestFullscreen) {
             container.requestFullscreen();
+        }
+    });
+
+    // Save layout button
+    document.getElementById('save-layout-button').addEventListener('click', async function() {
+        if (!network) return;
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+        const result = await saveAllPositions();
+        if (result && result.success) {
+            btn.innerHTML = '<i class="bi bi-check-circle"></i> Guardado';
+            setTimeout(() => {
+                btn.innerHTML = '<i class="bi bi-save"></i> Guardar Layout';
+                btn.disabled = false;
+            }, 2000);
+        } else {
+            btn.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Error';
+            setTimeout(() => {
+                btn.innerHTML = '<i class="bi bi-save"></i> Guardar Layout';
+                btn.disabled = false;
+            }, 2000);
+        }
+    });
+
+    // Reset layout button
+    document.getElementById('reset-layout-button').addEventListener('click', async function() {
+        if (!confirm('¿Resetear el layout? Los nodos volverán a posicionarse automáticamente.')) return;
+        try {
+            await fetch('/graph/api/case/{{ case.id }}/layout', {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
+            });
+            savedPositions = {};
+            hasSavedLayout = false;
+            // Unfix all nodes and re-enable physics
+            if (network) {
+                const allNodes = network.body.data.nodes.getIds();
+                allNodes.forEach(id => {
+                    network.body.data.nodes.update({ id: id, fixed: false });
+                });
+                physicsEnabled = true;
+                network.setOptions({ physics: { enabled: true } });
+                document.getElementById('physics-toggle').innerHTML =
+                    '<i class="bi bi-pause-circle"></i> Física';
+            }
+        } catch (e) {
+            console.error('Error al resetear layout:', e);
         }
     });
 
