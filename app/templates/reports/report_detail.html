@@ -195,14 +195,16 @@
                                 {% endif %}
 
                                 {% if report.status.name == 'COMPLETED' or report.status.name == 'SIGNED' %}
-                                    <a href="{{ url_for('reports.preview_report', report_id=report.id) }}"
-                                       class="btn btn-sm btn-primary">
-                                        <i class="bi bi-eye"></i> Ver PDF
-                                    </a>
-                                    <a href="{{ url_for('reports.download_pdf', report_id=report.id) }}"
-                                       class="btn btn-sm btn-success">
-                                        <i class="bi bi-download"></i> Descargar PDF
-                                    </a>
+                                    {% if report.file_path %}
+                                        <a href="{{ url_for('reports.preview_report', report_id=report.id) }}"
+                                           class="btn btn-sm btn-primary">
+                                            <i class="bi bi-eye"></i> Ver PDF
+                                        </a>
+                                        <a href="{{ url_for('reports.download_pdf', report_id=report.id) }}"
+                                           class="btn btn-sm btn-success">
+                                            <i class="bi bi-download"></i> Descargar PDF
+                                        </a>
+                                    {% endif %}
                                     {% if report.docx_file_path %}
                                         <a href="{{ url_for('reports.download_pdf', report_id=report.id, format='docx') }}"
                                            class="btn btn-sm btn-info">
@@ -211,7 +213,7 @@
                                     {% endif %}
 
                                     <button type="button" class="btn btn-sm btn-success" onclick="generatePDF({{ report.id }})">
-                                        <i class="bi bi-file-earmark-pdf"></i> Regenerar PDF
+                                        <i class="bi bi-file-earmark-pdf"></i> {% if report.file_path %}Regenerar{% else %}Generar{% endif %} PDF
                                     </button>
                                     <button type="button" class="btn btn-sm btn-primary" onclick="generateDOCX({{ report.id }})">
                                         <i class="bi bi-file-earmark-word"></i> {% if report.docx_file_path %}Regenerar{% else %}Generar{% endif %} DOCX
