@@ -59,11 +59,17 @@ class Report(db.Model):
     include_evidence_thumbnails = db.Column(db.Boolean, default=False)
     include_osint_contacts = db.Column(db.Boolean, default=False)
 
-    # File information
+    # PDF file information
     file_path = db.Column(db.String(500))  # Path to generated PDF
     file_size = db.Column(db.Integer)  # File size in bytes
     file_hash_sha256 = db.Column(db.String(64))  # SHA-256 hash of PDF
     file_hash_sha512 = db.Column(db.String(128))  # SHA-512 hash of PDF
+
+    # DOCX file information
+    docx_file_path = db.Column(db.String(500))
+    docx_file_size = db.Column(db.Integer)
+    docx_file_hash_sha256 = db.Column(db.String(64))
+    docx_file_hash_sha512 = db.Column(db.String(128))
 
     # Digital signature
     is_signed = db.Column(db.Boolean, default=False)
@@ -122,10 +128,16 @@ class Report(db.Model):
         return f"{self.report_type.value} - Caso {self.case.numero_orden}: {self.title}"
 
     def get_file_name(self):
-        """Get standardized file name for the report."""
+        """Get standardized file name for the PDF report."""
         case_number = self.case.numero_orden.replace('/', '-')
         timestamp = self.created_at.strftime('%Y%m%d')
         return f"Informe_{case_number}_{timestamp}_v{self.version}.pdf"
+
+    def get_docx_file_name(self):
+        """Get standardized file name for the DOCX report."""
+        case_number = self.case.numero_orden.replace('/', '-')
+        timestamp = self.created_at.strftime('%Y%m%d')
+        return f"Informe_{case_number}_{timestamp}_v{self.version}.docx"
 
     def mark_as_generated(self, file_path, file_size, sha256_hash, sha512_hash):
         """
@@ -143,6 +155,17 @@ class Report(db.Model):
         self.file_hash_sha512 = sha512_hash
         self.status = ReportStatus.COMPLETED
         self.generated_at = datetime.utcnow()
+        db.session.commit()
+
+    def mark_docx_as_generated(self, file_path, file_size, sha256_hash, sha512_hash):
+        """Mark DOCX as successfully generated."""
+        self.docx_file_path = file_path
+        self.docx_file_size = file_size
+        self.docx_file_hash_sha256 = sha256_hash
+        self.docx_file_hash_sha512 = sha512_hash
+        if self.status in (ReportStatus.DRAFT, ReportStatus.GENERATING):
+            self.status = ReportStatus.COMPLETED
+        self.generated_at = self.generated_at or datetime.utcnow()
         db.session.commit()
 
     def mark_as_signed(self, signature_data, signer_name, signer_tip):

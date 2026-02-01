@@ -203,11 +203,41 @@ def generate_pdf(report_id):
         }), 500
 
 
+@reports_bp.route('/report/<int:report_id>/generate-docx', methods=['POST'])
+@login_required
+@audit_action('REPORT_GENERATE_DOCX', 'report')
+def generate_docx(report_id):
+    """Generate DOCX for a report."""
+    report = Report.query.get_or_404(report_id)
+
+    # Check permissions
+    if report.case.detective_id != current_user.id and not current_user.has_role('admin'):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    # Generate DOCX
+    result = ReportService.generate_docx(report_id, current_user.id)
+
+    if result['success']:
+        flash('DOCX generado exitosamente', 'success')
+        return jsonify({
+            'success': True,
+            'message': 'DOCX generado correctamente',
+            'file_size': result['file_size'],
+            'sha256': result['sha256']
+        })
+    else:
+        flash(f'Error generando DOCX: {result["error"]}', 'error')
+        return jsonify({
+            'success': False,
+            'error': result['error']
+        }), 500
+
+
 @reports_bp.route('/report/<int:report_id>/download')
 @login_required
-@audit_action('REPORT_DOWNLOAD_PDF', 'report')
+@audit_action('REPORT_DOWNLOAD', 'report')
 def download_pdf(report_id):
-    """Download report PDF."""
+    """Download report in PDF or DOCX format."""
     report = Report.query.get_or_404(report_id)
 
     # Check permissions
@@ -215,12 +245,24 @@ def download_pdf(report_id):
         flash('No tienes permisos para descargar este informe', 'error')
         return redirect(url_for('cases.index'))
 
-    # Check if PDF exists
+    fmt = request.args.get('format', 'pdf')
+
+    if fmt == 'docx':
+        if not report.docx_file_path or not os.path.exists(report.docx_file_path):
+            flash('El DOCX no ha sido generado aún', 'error')
+            return redirect(url_for('reports.report_detail', report_id=report_id))
+        return send_file(
+            report.docx_file_path,
+            as_attachment=True,
+            download_name=report.get_docx_file_name(),
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+
+    # Default: PDF
     if not report.file_path or not os.path.exists(report.file_path):
         flash('El PDF no ha sido generado aún', 'error')
         return redirect(url_for('reports.report_detail', report_id=report_id))
 
-    # Send file
     return send_file(
         report.file_path,
         as_attachment=True,

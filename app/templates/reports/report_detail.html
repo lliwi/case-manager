@@ -106,11 +106,22 @@
                             {% if report.file_size %}
                                 <hr>
                                 <dl class="row mb-0 small">
-                                    <dt class="col-sm-5">Tamaño:</dt>
+                                    <dt class="col-sm-5">PDF Tamaño:</dt>
                                     <dd class="col-sm-7">{{ (report.file_size / 1024)|round(2) }} KB</dd>
 
-                                    <dt class="col-sm-12">SHA-256:</dt>
+                                    <dt class="col-sm-12">PDF SHA-256:</dt>
                                     <dd class="col-sm-12"><code class="small" style="word-break: break-all;">{{ report.file_hash_sha256 }}</code></dd>
+                                </dl>
+                            {% endif %}
+
+                            {% if report.docx_file_size %}
+                                <hr>
+                                <dl class="row mb-0 small">
+                                    <dt class="col-sm-5">DOCX Tamaño:</dt>
+                                    <dd class="col-sm-7">{{ (report.docx_file_size / 1024)|round(2) }} KB</dd>
+
+                                    <dt class="col-sm-12">DOCX SHA-256:</dt>
+                                    <dd class="col-sm-12"><code class="small" style="word-break: break-all;">{{ report.docx_file_hash_sha256 }}</code></dd>
                                 </dl>
                             {% endif %}
 
@@ -178,6 +189,9 @@
                                     <button type="button" class="btn btn-sm btn-success" onclick="generatePDF({{ report.id }})">
                                         <i class="bi bi-file-earmark-pdf"></i> Generar PDF
                                     </button>
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="generateDOCX({{ report.id }})">
+                                        <i class="bi bi-file-earmark-word"></i> Generar DOCX
+                                    </button>
                                 {% endif %}
 
                                 {% if report.status.name == 'COMPLETED' or report.status.name == 'SIGNED' %}
@@ -189,6 +203,19 @@
                                        class="btn btn-sm btn-success">
                                         <i class="bi bi-download"></i> Descargar PDF
                                     </a>
+                                    {% if report.docx_file_path %}
+                                        <a href="{{ url_for('reports.download_pdf', report_id=report.id, format='docx') }}"
+                                           class="btn btn-sm btn-info">
+                                            <i class="bi bi-file-earmark-word"></i> Descargar DOCX
+                                        </a>
+                                    {% endif %}
+
+                                    <button type="button" class="btn btn-sm btn-success" onclick="generatePDF({{ report.id }})">
+                                        <i class="bi bi-file-earmark-pdf"></i> Regenerar PDF
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="generateDOCX({{ report.id }})">
+                                        <i class="bi bi-file-earmark-word"></i> {% if report.docx_file_path %}Regenerar{% else %}Generar{% endif %} DOCX
+                                    </button>
                                 {% endif %}
 
                                 <a href="{{ url_for('reports.export_json', report_id=report.id) }}"
@@ -238,6 +265,32 @@ function generatePDF(reportId) {
     })
     .catch(error => {
         alert('Error al generar PDF: ' + error);
+    });
+}
+
+function generateDOCX(reportId) {
+    if (!confirm('¿Generar DOCX del informe? Este proceso puede tardar algunos segundos.')) {
+        return;
+    }
+
+    fetch(`/reports/report/${reportId}/generate-docx`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('DOCX generado exitosamente');
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error al generar DOCX: ' + error);
     });
 }
 </script>

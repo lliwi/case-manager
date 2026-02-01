@@ -45,6 +45,17 @@ try:
 except ImportError:
     NETWORKX_AVAILABLE = False
 
+try:
+    from docx import Document as DocxDocument
+    from docx.shared import Pt, Cm, Inches, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
+
 
 def generate_timeline_chart(events, output_path):
     """
@@ -1247,6 +1258,783 @@ class ReportService:
             all_temp_files.extend(report._temp_files)
 
         for temp_file in all_temp_files:
+            try:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+                    current_app.logger.info(f'Cleaned up temporary file: {temp_file}')
+            except Exception as e:
+                current_app.logger.warning(f'Failed to clean up temp file {temp_file}: {e}')
+
+        return file_path
+
+    @staticmethod
+    def generate_docx(report_id, user_id):
+        """
+        Generate DOCX for a report.
+
+        Args:
+            report_id: Report ID
+            user_id: User ID requesting generation
+
+        Returns:
+            dict: Generation result
+        """
+        if not DOCX_AVAILABLE:
+            return {
+                'success': False,
+                'error': 'python-docx library not available'
+            }
+
+        report = Report.query.get(report_id)
+        if not report:
+            return {
+                'success': False,
+                'error': 'Report not found'
+            }
+
+        # Update status
+        previous_status = report.status
+        report.status = ReportStatus.GENERATING
+        db.session.commit()
+
+        try:
+            docx_path = ReportService._create_docx_document(report)
+
+            file_size = os.path.getsize(docx_path)
+            hashes = calculate_file_hashes(docx_path)
+
+            report.mark_docx_as_generated(
+                file_path=docx_path,
+                file_size=file_size,
+                sha256_hash=hashes['sha256'],
+                sha512_hash=hashes['sha512']
+            )
+
+            # Log generation
+            user = User.query.get(user_id)
+            if user:
+                AuditLog.log(
+                    action='REPORT_DOCX_GENERATED',
+                    resource_type='report',
+                    resource_id=report.id,
+                    user=user,
+                    extra_data={
+                        'file_size': file_size,
+                        'sha256': hashes['sha256']
+                    }
+                )
+
+            return {
+                'success': True,
+                'report_id': report.id,
+                'file_path': docx_path,
+                'file_size': file_size,
+                'sha256': hashes['sha256']
+            }
+
+        except Exception as e:
+            report.status = previous_status if previous_status != ReportStatus.GENERATING else ReportStatus.FAILED
+            db.session.commit()
+            current_app.logger.error(f'Error generating DOCX: {e}', exc_info=True)
+
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    @staticmethod
+    def _set_cell_shading(cell, color_hex):
+        """Set background color on a table cell in python-docx."""
+        shading = OxmlElement('w:shd')
+        shading.set(qn('w:fill'), color_hex)
+        shading.set(qn('w:val'), 'clear')
+        cell._tc.get_or_add_tcPr().append(shading)
+
+    @staticmethod
+    def _add_styled_table(doc, headers, rows, header_color='34495e'):
+        """
+        Create a styled table with header row coloring.
+
+        Args:
+            doc: DocxDocument instance
+            headers: List of header strings
+            rows: List of lists with row data
+            header_color: Hex color for header background (without #)
+
+        Returns:
+            Table object
+        """
+        table = doc.add_table(rows=1 + len(rows), cols=len(headers))
+        table.style = 'Table Grid'
+        table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+        # Header row
+        for i, header in enumerate(headers):
+            cell = table.rows[0].cells[i]
+            cell.text = ''
+            p = cell.paragraphs[0]
+            run = p.add_run(header)
+            run.bold = True
+            run.font.size = Pt(9)
+            run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+            ReportService._set_cell_shading(cell, header_color)
+
+        # Data rows
+        for row_idx, row_data in enumerate(rows):
+            for col_idx, value in enumerate(row_data):
+                cell = table.rows[row_idx + 1].cells[col_idx]
+                cell.text = ''
+                p = cell.paragraphs[0]
+                run = p.add_run(str(value))
+                run.font.size = Pt(8)
+
+        return table
+
+    @staticmethod
+    def _create_docx_document(report):
+        """
+        Create the actual DOCX document.
+
+        Args:
+            report: Report instance
+
+        Returns:
+            str: Path to generated DOCX
+        """
+        reports_dir = current_app.config.get('REPORTS_PATH', 'data/reports')
+        os.makedirs(reports_dir, exist_ok=True)
+
+        filename = report.get_docx_file_name()
+        file_path = os.path.join(reports_dir, filename)
+
+        doc = DocxDocument()
+        temp_files_to_cleanup = []
+
+        # Configure default style
+        style = doc.styles['Normal']
+        style.font.name = 'Calibri'
+        style.font.size = Pt(10)
+
+        # =====================================================================
+        # TITLE PAGE
+        # =====================================================================
+        for _ in range(4):
+            doc.add_paragraph()
+
+        title_para = doc.add_paragraph()
+        title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = title_para.add_run(report.get_full_title())
+        run.font.size = Pt(18)
+        run.bold = True
+        run.font.color.rgb = RGBColor(0x1a, 0x1a, 0x1a)
+
+        doc.add_paragraph()
+
+        # Metadata table
+        metadata_rows = [
+            ['Caso:', report.case.numero_orden],
+            ['Tipo de Informe:', report.report_type.value],
+            ['Versión:', f'v{report.version}'],
+            ['Fecha de Generación:', datetime.now().strftime('%d/%m/%Y %H:%M:%S')],
+            ['Investigador:', report.created_by.nombre],
+            ['TIP:', report.created_by.tip_number or ''],
+        ]
+
+        meta_table = doc.add_table(rows=len(metadata_rows), cols=2)
+        meta_table.style = 'Table Grid'
+        meta_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+        for i, (label, value) in enumerate(metadata_rows):
+            cell_label = meta_table.rows[i].cells[0]
+            cell_label.text = ''
+            p = cell_label.paragraphs[0]
+            p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            run = p.add_run(label)
+            run.bold = True
+            run.font.size = Pt(9)
+
+            cell_value = meta_table.rows[i].cells[1]
+            cell_value.text = ''
+            p = cell_value.paragraphs[0]
+            run = p.add_run(str(value or ''))
+            run.font.size = Pt(9)
+
+        doc.add_page_break()
+
+        # =====================================================================
+        # NUMBERED SECTIONS
+        # =====================================================================
+        section_num = 1
+
+        # Introduction
+        if report.introduction:
+            doc.add_heading(f'{section_num}. INTRODUCCIÓN', level=2)
+            doc.add_paragraph(report.introduction)
+            section_num += 1
+
+        # Methodology
+        if report.methodology:
+            doc.add_heading(f'{section_num}. METODOLOGÍA', level=2)
+            doc.add_paragraph(report.methodology)
+            section_num += 1
+
+        # Findings
+        if report.findings:
+            doc.add_heading(f'{section_num}. HALLAZGOS', level=2)
+            doc.add_paragraph(report.findings)
+            section_num += 1
+
+        # Get evidence list
+        evidence_list = Evidence.query.filter_by(
+            case_id=report.case_id,
+            is_deleted=False
+        ).all()
+
+        # =====================================================================
+        # EVIDENCE LIST
+        # =====================================================================
+        if report.include_evidence_list:
+            doc.add_page_break()
+            doc.add_heading(f'{section_num}. RELACIÓN DE EVIDENCIAS', level=2)
+
+            if evidence_list:
+                # Evidence table
+                headers = ['#', 'Tipo', 'Descripción', 'Fecha']
+                rows = []
+                for idx, evidence in enumerate(evidence_list, 1):
+                    desc = evidence.description[:60] + '...' if len(evidence.description) > 60 else evidence.description
+                    date_str = evidence.uploaded_at.strftime('%d/%m/%Y') if evidence.uploaded_at else '-'
+                    rows.append([str(idx), evidence.evidence_type.value, desc, date_str])
+
+                ReportService._add_styled_table(doc, headers, rows, header_color='808080')
+                doc.add_paragraph()
+
+                # SHA-256 hashes
+                p = doc.add_paragraph()
+                run = p.add_run('Hashes SHA-256 de Evidencias:')
+                run.bold = True
+
+                for idx, evidence in enumerate(evidence_list, 1):
+                    p = doc.add_paragraph()
+                    run = p.add_run(f'[{idx}] ')
+                    run.bold = True
+                    run.font.size = Pt(7)
+                    run = p.add_run(evidence.sha256_hash if evidence.sha256_hash else 'N/A')
+                    run.font.name = 'Courier New'
+                    run.font.size = Pt(7)
+
+                # Evidence thumbnails
+                if report.include_evidence_thumbnails:
+                    doc.add_paragraph()
+                    p = doc.add_paragraph()
+                    run = p.add_run('Miniaturas de Evidencias (Imágenes):')
+                    run.bold = True
+
+                    image_evidences = [e for e in evidence_list if e.is_image()]
+
+                    if image_evidences:
+                        # Create 2-column table for thumbnails
+                        num_rows = (len(image_evidences) + 1) // 2
+                        thumb_table = doc.add_table(rows=num_rows, cols=2)
+                        thumb_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+                        for idx, evidence in enumerate(image_evidences):
+                            try:
+                                img_path = evidence.get_decrypted_path()
+                                from PIL import Image
+                                img = Image.open(img_path)
+                                img.thumbnail((150, 150), Image.Resampling.LANCZOS)
+
+                                thumb_filename = f'thumb_{evidence.id}_{datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.jpg'
+                                thumb_path = os.path.join('/tmp', thumb_filename)
+                                img.convert('RGB').save(thumb_path, 'JPEG', quality=85)
+                                temp_files_to_cleanup.append(thumb_path)
+
+                                row_idx = idx // 2
+                                col_idx = idx % 2
+                                cell = thumb_table.rows[row_idx].cells[col_idx]
+                                cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                                run = cell.paragraphs[0].add_run()
+                                run.add_picture(thumb_path, width=Cm(4))
+                                p = cell.add_paragraph()
+                                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                                run = p.add_run(f'[{idx+1}] {evidence.original_filename[:20]}...')
+                                run.font.size = Pt(7)
+
+                                if evidence.is_encrypted and img_path != evidence.file_path:
+                                    try:
+                                        os.remove(img_path)
+                                    except:
+                                        pass
+                            except Exception as e:
+                                current_app.logger.error(f'Error creating thumbnail for evidence {evidence.id}: {e}')
+                                continue
+                    else:
+                        doc.add_paragraph('No hay evidencias de tipo imagen.').italic = True
+            else:
+                doc.add_paragraph('No se encontraron evidencias asociadas.')
+
+            section_num += 1
+
+        # =====================================================================
+        # TIMELINE
+        # =====================================================================
+        if report.include_timeline:
+            doc.add_page_break()
+            doc.add_heading(f'{section_num}. CRONOLOGÍA DE EVENTOS', level=2)
+
+            timeline_events = TimelineEvent.query.filter_by(
+                case_id=report.case_id,
+                is_deleted=False
+            ).order_by(TimelineEvent.event_date.asc()).all()
+
+            if timeline_events:
+                # Generate timeline chart
+                timeline_chart_path = None
+                try:
+                    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+                        timeline_chart_path = tmp_file.name
+
+                    if generate_timeline_chart(timeline_events[:20], timeline_chart_path):
+                        p = doc.add_paragraph()
+                        run = p.add_run('Visualización gráfica:')
+                        run.bold = True
+                        doc.add_picture(timeline_chart_path, width=Cm(16))
+                        doc.add_paragraph()
+                except Exception as e:
+                    current_app.logger.error(f'Error adding timeline chart to DOCX: {e}')
+                finally:
+                    if timeline_chart_path:
+                        temp_files_to_cleanup.append(timeline_chart_path)
+
+                # Events table
+                p = doc.add_paragraph()
+                run = p.add_run('Listado de eventos:')
+                run.bold = True
+
+                headers = ['Fecha', 'Evento', 'Descripción']
+                rows = []
+                for event in timeline_events[:20]:
+                    desc = event.description[:80] + '...' if event.description and len(event.description) > 80 else (event.description or '-')
+                    title = event.title[:40] + '...' if len(event.title) > 40 else event.title
+                    rows.append([
+                        event.event_date.strftime('%d/%m/%Y %H:%M'),
+                        title,
+                        desc
+                    ])
+
+                if rows:
+                    ReportService._add_styled_table(doc, headers, rows)
+            else:
+                doc.add_paragraph('No se encontraron eventos en el timeline.')
+
+            section_num += 1
+
+        # =====================================================================
+        # OSINT CONTACTS
+        # =====================================================================
+        if report.include_osint_contacts:
+            doc.add_page_break()
+            doc.add_heading(f'{section_num}. CONTACTOS OSINT', level=2)
+
+            osint_contacts = OSINTContact.query.filter_by(
+                case_id=report.case_id,
+                is_deleted=False
+            ).order_by(OSINTContact.created_at.desc()).all()
+
+            if osint_contacts:
+                # Contacts table
+                headers = ['#', 'Tipo', 'Valor', 'Nombre', 'Validado', 'Riesgo']
+                rows = []
+                for idx, contact in enumerate(osint_contacts, 1):
+                    rows.append([
+                        str(idx),
+                        contact.contact_type or '-',
+                        (contact.contact_value[:40] + '...') if len(contact.contact_value or '') > 40 else (contact.contact_value or '-'),
+                        (contact.name[:25] + '...') if len(contact.name or '') > 25 else (contact.name or '-'),
+                        'Sí' if contact.is_validated else 'No',
+                        contact.risk_level or '-'
+                    ])
+
+                ReportService._add_styled_table(doc, headers, rows, header_color='16a085')
+                doc.add_paragraph()
+
+                # Validated contact details
+                validated_contacts = [c for c in osint_contacts if c.is_validated and c.extra_data and isinstance(c.extra_data, dict)]
+                if validated_contacts:
+                    p = doc.add_paragraph()
+                    run = p.add_run('Detalles de contactos validados:')
+                    run.bold = True
+
+                    for contact in validated_contacts[:10]:
+                        p = doc.add_paragraph()
+                        run = p.add_run(f'{contact.contact_type}: {contact.contact_value}')
+                        run.bold = True
+
+                        extra = contact.extra_data or {}
+                        details = []
+
+                        # Instagram profile
+                        if 'instagram_profile' in extra and isinstance(extra.get('instagram_profile'), dict):
+                            ig = extra['instagram_profile']
+                            if ig.get('full_name'):
+                                details.append(f'Nombre completo: {ig["full_name"]}')
+                            if ig.get('biography'):
+                                details.append(f'Biografía: {str(ig["biography"])[:100]}...')
+                            if ig.get('follower_count'):
+                                details.append(f'Seguidores: {ig["follower_count"]}')
+                            if ig.get('following_count'):
+                                details.append(f'Siguiendo: {ig["following_count"]}')
+
+                        # X/Twitter profile
+                        if 'x_profile' in extra or 'twitter_profile' in extra:
+                            tw = extra.get('x_profile') or extra.get('twitter_profile') or {}
+                            if isinstance(tw, dict):
+                                if tw.get('name'):
+                                    details.append(f'Nombre: {tw["name"]}')
+                                if tw.get('description'):
+                                    details.append(f'Descripción: {str(tw["description"])[:100]}...')
+                                if tw.get('followers_count'):
+                                    details.append(f'Seguidores: {tw["followers_count"]}')
+                                if tw.get('location'):
+                                    details.append(f'Ubicación: {tw["location"]}')
+
+                        # Email validation
+                        if 'holehe_results' in extra and isinstance(extra.get('holehe_results'), dict):
+                            holehe = extra['holehe_results']
+                            services_found = holehe.get('services_found')
+                            if services_found and isinstance(services_found, list):
+                                details.append(f'Servicios encontrados: {", ".join(str(s) for s in services_found[:5])}')
+
+                        for detail in details:
+                            doc.add_paragraph(f'  • {detail}')
+
+                # Tweet evidences
+                tweet_evidences = [e for e in evidence_list if e.extracted_metadata and isinstance(e.extracted_metadata, dict) and e.extracted_metadata.get('type') == 'tweet']
+                if tweet_evidences:
+                    doc.add_paragraph()
+                    p = doc.add_paragraph()
+                    run = p.add_run('Tweets guardados como evidencia:')
+                    run.bold = True
+
+                    headers = ['#', 'Autor', 'Tweet', 'Fecha', 'Likes', 'RT']
+                    rows = []
+                    for idx, ev in enumerate(tweet_evidences[:20], 1):
+                        meta = ev.extracted_metadata or {}
+                        author = meta.get('author') or {}
+                        content = meta.get('content') or {}
+                        metrics = meta.get('metrics') or {}
+                        text = (content.get('text') or '')[:60]
+                        if len(content.get('text') or '') > 60:
+                            text += '...'
+                        created_at = content.get('created_at') or ''
+                        rows.append([
+                            str(idx),
+                            f'@{author.get("username") or "-"}',
+                            text or '-',
+                            created_at[:10] if created_at else '-',
+                            str(metrics.get('like_count', 0) or 0),
+                            str(metrics.get('retweet_count', 0) or 0)
+                        ])
+
+                    if rows:
+                        ReportService._add_styled_table(doc, headers, rows, header_color='1DA1F2')
+
+                # X/Twitter tweets from contacts
+                contacts_with_tweets = [c for c in osint_contacts if c.extra_data and ('x_tweets' in c.extra_data or 'tweets' in c.extra_data)]
+                if contacts_with_tweets:
+                    doc.add_paragraph()
+                    p = doc.add_paragraph()
+                    run = p.add_run('Tweets de X (Twitter) de contactos OSINT:')
+                    run.bold = True
+
+                    for contact in contacts_with_tweets:
+                        extra = contact.extra_data or {}
+                        tweets_container = extra.get('x_tweets') or extra.get('tweets') or {}
+                        if isinstance(tweets_container, dict):
+                            tweets_data = tweets_container.get('data') or tweets_container or {}
+                            tweets = tweets_data.get('tweets', []) if isinstance(tweets_data, dict) else []
+                            user_info = tweets_data.get('user') or {} if isinstance(tweets_data, dict) else {}
+                        else:
+                            tweets = []
+                            user_info = {}
+
+                        if tweets and isinstance(tweets, list):
+                            username = (user_info.get('username') if user_info else None) or contact.contact_value
+                            p = doc.add_paragraph()
+                            run = p.add_run(f'@{username} ({len(tweets)} tweets)')
+                            run.bold = True
+
+                            headers = ['Fecha', 'Tweet', 'Likes', 'RT']
+                            rows = []
+                            for tweet in tweets[:15]:
+                                if not tweet or not isinstance(tweet, dict):
+                                    continue
+                                text = (tweet.get('text') or '')[:80]
+                                if len(tweet.get('text') or '') > 80:
+                                    text += '...'
+                                metrics = tweet.get('metrics') or tweet.get('public_metrics') or {}
+                                created_at = tweet.get('created_at_formatted') or tweet.get('created_at') or ''
+                                rows.append([
+                                    created_at[:10] if created_at else '-',
+                                    text or '-',
+                                    str(metrics.get('like_count', metrics.get('likes', 0)) if metrics else 0),
+                                    str(metrics.get('retweet_count', metrics.get('retweets', 0)) if metrics else 0)
+                                ])
+
+                            if rows:
+                                ReportService._add_styled_table(doc, headers, rows, header_color='1DA1F2')
+                                doc.add_paragraph()
+
+                # Instagram posts from contacts
+                contacts_with_posts = [c for c in osint_contacts if c.extra_data and ('instagram_posts' in c.extra_data or 'posts' in c.extra_data)]
+                if contacts_with_posts:
+                    doc.add_paragraph()
+                    p = doc.add_paragraph()
+                    run = p.add_run('Posts de Instagram de contactos OSINT:')
+                    run.bold = True
+
+                    for contact in contacts_with_posts:
+                        extra = contact.extra_data or {}
+                        posts_container = extra.get('instagram_posts') or extra.get('posts') or {}
+                        if isinstance(posts_container, dict):
+                            posts_data = posts_container.get('data') or posts_container or {}
+                            posts = posts_data.get('posts', []) if isinstance(posts_data, dict) else []
+                            profile_info = posts_data.get('profile') or {} if isinstance(posts_data, dict) else {}
+                        else:
+                            posts = []
+                            profile_info = {}
+
+                        if posts and isinstance(posts, list):
+                            username = (profile_info.get('username') if profile_info else None) or contact.contact_value
+                            p = doc.add_paragraph()
+                            run = p.add_run(f'@{username} ({len(posts)} posts)')
+                            run.bold = True
+
+                            headers = ['Fecha', 'Caption', 'Tipo', 'Likes', 'Comentarios']
+                            rows = []
+                            for post in posts[:15]:
+                                if not post or not isinstance(post, dict):
+                                    continue
+                                caption = (post.get('caption') or '')[:60]
+                                if len(post.get('caption') or '') > 60:
+                                    caption += '...'
+                                timestamp = post.get('timestamp_formatted') or post.get('timestamp') or ''
+                                post_type = post.get('type') or 'Image'
+                                if post_type == 'Sidecar':
+                                    post_type = 'Carrusel'
+                                elif post_type == 'Video':
+                                    post_type = 'Video'
+                                else:
+                                    post_type = 'Imagen'
+                                rows.append([
+                                    timestamp[:10] if timestamp else '-',
+                                    caption if caption else '(sin caption)',
+                                    post_type,
+                                    str(post.get('likes_count', 0) or 0),
+                                    str(post.get('comments_count', 0) or 0)
+                                ])
+
+                            if rows:
+                                ReportService._add_styled_table(doc, headers, rows, header_color='E1306C')
+                                doc.add_paragraph()
+            else:
+                doc.add_paragraph('No se encontraron contactos OSINT asociados al caso.')
+
+            section_num += 1
+
+        # =====================================================================
+        # PLUGIN ANALYSIS RESULTS
+        # =====================================================================
+        if report.include_plugin_results:
+            doc.add_page_break()
+            doc.add_heading('ANEXO A: RESULTADOS DE ANÁLISIS FORENSE', level=2)
+
+            if evidence_list:
+                evidence_ids = [e.id for e in evidence_list]
+                analyses = EvidenceAnalysis.query.filter(
+                    EvidenceAnalysis.evidence_id.in_(evidence_ids),
+                    EvidenceAnalysis.success == True
+                ).order_by(EvidenceAnalysis.analyzed_at.desc()).all()
+            else:
+                analyses = []
+
+            if analyses:
+                for analysis in analyses:
+                    evidence = Evidence.query.get(analysis.evidence_id)
+
+                    p = doc.add_paragraph()
+                    run = p.add_run(f'Evidencia: ')
+                    run.bold = True
+                    p.add_run(evidence.original_filename)
+
+                    p = doc.add_paragraph()
+                    run = p.add_run(f'Plugin: ')
+                    run.bold = True
+                    p.add_run(f'{analysis.plugin_name} (v{analysis.plugin_version or "N/A"})')
+
+                    p = doc.add_paragraph()
+                    run = p.add_run(f'Analista: ')
+                    run.bold = True
+                    p.add_run(analysis.analyzed_by.nombre)
+
+                    p = doc.add_paragraph()
+                    run = p.add_run(f'Fecha: ')
+                    run.bold = True
+                    p.add_run(analysis.analyzed_at.strftime('%d/%m/%Y %H:%M:%S'))
+
+                    # Results
+                    if analysis.result_data:
+                        p = doc.add_paragraph()
+                        run = p.add_run('Resultados:')
+                        run.bold = True
+
+                        if 'metadata' in analysis.result_data:
+                            metadata = analysis.result_data['metadata']
+                            if metadata:
+                                doc.add_paragraph('Metadatos extraídos:')
+                                for key, value in list(metadata.items())[:10]:
+                                    if value:
+                                        doc.add_paragraph(f'  • {key}: {str(value)[:100]}')
+
+                        if 'date_info' in analysis.result_data:
+                            date_info = analysis.result_data['date_info']
+                            if date_info:
+                                doc.add_paragraph('Información temporal:')
+                                if date_info.get('creation_date'):
+                                    doc.add_paragraph(f'  • Fecha de creación: {date_info["creation_date"]}')
+                                if date_info.get('modification_date'):
+                                    doc.add_paragraph(f'  • Última modificación: {date_info["modification_date"]}')
+
+                        if 'author_info' in analysis.result_data:
+                            author_info = analysis.result_data['author_info']
+                            if any(author_info.values()):
+                                doc.add_paragraph('Información de autoría:')
+                                if author_info.get('author'):
+                                    doc.add_paragraph(f'  • Autor: {author_info["author"]}')
+                                if author_info.get('creator'):
+                                    doc.add_paragraph(f'  • Creador: {author_info["creator"]}')
+
+                        if 'software_info' in analysis.result_data:
+                            software_info = analysis.result_data['software_info']
+                            if any(software_info.values()):
+                                doc.add_paragraph('Software utilizado:')
+                                if software_info.get('producer'):
+                                    doc.add_paragraph(f'  • Productor: {software_info["producer"]}')
+                                if software_info.get('creator_tool'):
+                                    doc.add_paragraph(f'  • Herramienta: {software_info["creator_tool"]}')
+
+                    # Separator
+                    doc.add_paragraph('─' * 50)
+            else:
+                doc.add_paragraph('No se encontraron análisis forenses realizados.')
+
+        # =====================================================================
+        # GRAPH RELATIONSHIPS
+        # =====================================================================
+        if report.include_graph:
+            doc.add_page_break()
+            doc.add_heading('ANEXO B: GRAFO DE RELACIONES', level=2)
+
+            try:
+                graph_service = GraphService()
+                graph_data = graph_service.get_case_graph(report.case_id)
+
+                if graph_data['nodes'] or graph_data['relationships']:
+                    # Summary
+                    p = doc.add_paragraph()
+                    run = p.add_run('Resumen del grafo:')
+                    run.bold = True
+                    doc.add_paragraph(f'  • Total de nodos: {len(graph_data["nodes"])}')
+                    doc.add_paragraph(f'  • Total de relaciones: {len(graph_data["relationships"])}')
+
+                    # Graph image
+                    graph_image_path = ReportService._generate_graph_image(graph_data, case_id=report.case_id)
+                    if graph_image_path and os.path.exists(graph_image_path):
+                        try:
+                            doc.add_picture(graph_image_path, width=Cm(16))
+                            doc.add_paragraph()
+                            temp_files_to_cleanup.append(graph_image_path)
+                        except Exception as e:
+                            current_app.logger.error(f'Error adding graph image to DOCX: {e}')
+                            doc.add_paragraph('No se pudo generar la visualización del grafo').italic = True
+                    else:
+                        doc.add_paragraph('Visualización del grafo no disponible').italic = True
+
+                    # Nodes by type
+                    nodes_by_type = {}
+                    for node in graph_data['nodes']:
+                        node_type = node['label']
+                        if node_type not in nodes_by_type:
+                            nodes_by_type[node_type] = []
+                        nodes_by_type[node_type].append(node)
+
+                    p = doc.add_paragraph()
+                    run = p.add_run('Nodos del grafo:')
+                    run.bold = True
+
+                    for node_type, nodes in nodes_by_type.items():
+                        p = doc.add_paragraph()
+                        run = p.add_run(f'{node_type}:')
+                        run.bold = True
+
+                        for node in nodes[:20]:
+                            props = node['properties']
+                            identifier = (props.get('name') or
+                                        props.get('number') or
+                                        props.get('address') or
+                                        props.get('plate') or
+                                        props.get('username') or
+                                        props.get('dni_cif') or
+                                        'N/A')
+                            doc.add_paragraph(f'  • {identifier}')
+
+                        if len(nodes) > 20:
+                            doc.add_paragraph(f'  ... y {len(nodes) - 20} más')
+
+                    # Relationships
+                    if graph_data['relationships']:
+                        p = doc.add_paragraph()
+                        run = p.add_run('Relaciones identificadas:')
+                        run.bold = True
+
+                        rels_by_type = {}
+                        for rel in graph_data['relationships']:
+                            rel_type = rel['type']
+                            if rel_type not in rels_by_type:
+                                rels_by_type[rel_type] = []
+                            rels_by_type[rel_type].append(rel)
+
+                        for rel_type, rels in rels_by_type.items():
+                            doc.add_paragraph(f'  • {rel_type}: {len(rels)} relación(es)')
+                else:
+                    doc.add_paragraph('No se encontraron nodos o relaciones en el grafo.')
+
+                graph_service.close()
+
+            except Exception as e:
+                current_app.logger.error(f'Error al obtener grafo: {e}')
+                doc.add_paragraph(f'Error al generar grafo de relaciones: {str(e)}')
+
+        # =====================================================================
+        # CONCLUSIONS & RECOMMENDATIONS
+        # =====================================================================
+        if report.conclusions:
+            doc.add_page_break()
+            doc.add_heading(f'{section_num}. CONCLUSIONES', level=2)
+            doc.add_paragraph(report.conclusions)
+            section_num += 1
+
+        if report.recommendations:
+            doc.add_heading(f'{section_num}. RECOMENDACIONES', level=2)
+            doc.add_paragraph(report.recommendations)
+            section_num += 1
+
+        # =====================================================================
+        # SAVE & CLEANUP
+        # =====================================================================
+        doc.save(file_path)
+
+        for temp_file in temp_files_to_cleanup:
             try:
                 if os.path.exists(temp_file):
                     os.remove(temp_file)
