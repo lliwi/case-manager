@@ -226,6 +226,8 @@ class PDLService:
             network = (p.get('network') or '').lower()
             raw_url = p.get('url') or ''
             url = ('https://' + raw_url) if raw_url and not raw_url.startswith('http') else raw_url
+            if network == 'linkedin' and url:
+                url = url.replace('linkedin.com', 'linkedin.es')
             profiles.append({
                 'network': network,
                 'label': self.NETWORK_LABELS.get(network, network.title()),
@@ -249,7 +251,10 @@ class PDLService:
             'facebook_id', 'linkedin_id',
         ]:
             if data.get(field):
-                social_links[field] = data[field]
+                value = data[field]
+                if field == 'linkedin_url' and isinstance(value, str):
+                    value = value.replace('linkedin.com', 'linkedin.es')
+                social_links[field] = value
 
         # --- Employment ---
         experience = []
