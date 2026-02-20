@@ -9,7 +9,7 @@ import base64
 import hashlib
 from app.blueprints.osint import osint
 from app.blueprints.osint.forms import OSINTContactForm, ValidateContactForm, SearchContactForm
-from app.models import OSINTContact, OSINTValidation, Case, ApiKey
+from app.models import OSINTContact, OSINTValidation, Case, ApiKey, OSINTContactTypeConfig
 from app.plugins.osint.ipqualityscore_validator import IPQualityScoreValidatorPlugin
 from app.utils.decorators import require_detective
 from app import db
@@ -103,6 +103,7 @@ def create(case_id):
         return redirect(url_for('cases.index'))
 
     form = OSINTContactForm()
+    form.contact_type.choices = OSINTContactTypeConfig.get_active_choices()
 
     if form.validate_on_submit():
         try:
@@ -133,6 +134,7 @@ def create(case_id):
 def create_no_case():
     """Create a new OSINT contact without case association (global view)"""
     form = OSINTContactForm()
+    form.contact_type.choices = OSINTContactTypeConfig.get_active_choices()
 
     # Populate case choices
     cases = Case.query.filter_by(is_deleted=False).order_by(Case.created_at.desc()).all()
@@ -262,6 +264,7 @@ def edit(case_id, contact_id):
         return redirect(url_for('osint.case_contacts', case_id=case_id))
 
     form = OSINTContactForm(obj=contact)
+    form.contact_type.choices = OSINTContactTypeConfig.get_all_choices()
 
     if form.validate_on_submit():
         try:
@@ -301,6 +304,7 @@ def edit_no_case(contact_id):
         return redirect(url_for('osint.index'))
 
     form = OSINTContactForm(obj=contact)
+    form.contact_type.choices = OSINTContactTypeConfig.get_all_choices()
 
     # Populate case choices
     cases = Case.query.filter_by(is_deleted=False).order_by(Case.created_at.desc()).all()
@@ -1364,6 +1368,103 @@ def instagram_posts_lookup_no_case(contact_id):
         return jsonify({
             'success': False,
             'error': f'Error al obtener posts: {str(e)}'
+        }), 500
+
+
+# ---------------------------------------------------------------------------
+# PeopleDataLabs Person Enrichment
+# ---------------------------------------------------------------------------
+
+@osint.route('/case/<int:case_id>/<int:contact_id>/pdl-enrich', methods=['POST'])
+@login_required
+@require_detective()
+def pdl_enrich(case_id, contact_id):
+    """Execute PeopleDataLabs person enrichment within case context."""
+    from app.plugins.osint.pdl_person_enrich import PDLPersonEnrichPlugin
+
+    case = Case.query.get_or_404(case_id)
+    contact = OSINTContact.query.get_or_404(contact_id)
+
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        return jsonify({'success': False, 'error': 'No tiene permiso para modificar este caso.'}), 403
+
+    if case.is_deleted or contact.is_deleted:
+        return jsonify({'success': False, 'error': 'El caso o contacto ha sido eliminado.'}), 404
+
+    if contact.case_id != case_id:
+        return jsonify({'success': False, 'error': 'El contacto no pertenece a este caso.'}), 400
+
+    return _run_pdl_enrich(contact)
+
+
+@osint.route('/<int:contact_id>/pdl-enrich', methods=['POST'])
+@login_required
+def pdl_enrich_no_case(contact_id):
+    """Execute PeopleDataLabs person enrichment (global view)."""
+    contact = OSINTContact.query.get_or_404(contact_id)
+
+    if contact.is_deleted:
+        return jsonify({'success': False, 'error': 'Este contacto ha sido eliminado.'}), 404
+
+    return _run_pdl_enrich(contact)
+
+
+def _run_pdl_enrich(contact):
+    """Shared logic for PDL person enrichment."""
+    from app.plugins.osint.pdl_person_enrich import PDLPersonEnrichPlugin
+
+    # Read optional extra parameters from POST body
+    company = (request.form.get('company') or '').strip()
+    location = (request.form.get('location') or '').strip()
+    name = (request.form.get('name') or contact.name or '').strip()
+
+    try:
+        plugin = PDLPersonEnrichPlugin()
+        result = plugin.lookup(
+            query=contact.contact_value,
+            query_type=contact.contact_type,
+            name=name,
+            company=company,
+            location=location,
+        )
+
+        if not result.get('success'):
+            return jsonify(result), 400
+
+        # Persist result in contact extra_data
+        if not contact.extra_data:
+            contact.extra_data = {}
+
+        contact.extra_data['pdl_enrichment'] = {
+            'data': result,
+            'fetched_at': datetime.utcnow().isoformat(),
+            'fetched_by': current_user.email,
+            'params': {
+                'name': name,
+                'company': company,
+                'location': location,
+            },
+        }
+        flag_modified(contact, 'extra_data')
+
+        # Update contact name if not set and PDL returned a full name
+        if not contact.name and result.get('full_name'):
+            contact.name = result['full_name']
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Enriquecimiento PDL completado exitosamente.',
+            'result': result,
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error executing PDL person enrichment: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error al enriquecer persona: {str(e)}',
         }), 500
 
 

@@ -542,6 +542,175 @@
                     </div>
                     {% endif %}
 
+                    <!-- PeopleDataLabs Enrichment Results -->
+                    {% if contact.extra_data and contact.extra_data.get('pdl_enrichment') %}
+                    {% set pdl = contact.extra_data.pdl_enrichment.data %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header text-white" style="background-color: #1a1a2e;">
+                            <h5 class="mb-0 d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-people-fill"></i> PeopleDataLabs — Enriquecimiento de Persona</span>
+                                <span class="badge bg-light text-dark">
+                                    Probabilidad: {{ pdl.likelihood }}/10
+                                    <div class="progress d-inline-flex align-middle ms-1" style="width:60px; height:8px; vertical-align:middle;">
+                                        <div class="progress-bar {% if pdl.likelihood >= 8 %}bg-success{% elif pdl.likelihood >= 5 %}bg-warning{% else %}bg-danger{% endif %}"
+                                             style="width:{{ pdl.likelihood_pct }}%"></div>
+                                    </div>
+                                </span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+
+                            <!-- Identity -->
+                            {% if pdl.full_name or pdl.industry or pdl.job_title %}
+                            <div class="mb-3">
+                                {% if pdl.full_name %}
+                                <h5 class="mb-1">{{ pdl.full_name }}</h5>
+                                {% endif %}
+                                {% if pdl.job_title or pdl.job_company_name %}
+                                <p class="text-muted mb-1">
+                                    {{ pdl.job_title }}{% if pdl.job_title and pdl.job_company_name %} · {% endif %}{{ pdl.job_company_name }}
+                                </p>
+                                {% endif %}
+                                {% if pdl.industry %}
+                                <span class="badge bg-secondary">{{ pdl.industry }}</span>
+                                {% endif %}
+                                {% if pdl.gender %}
+                                <span class="badge bg-light text-dark">{{ pdl.gender }}</span>
+                                {% endif %}
+                                {% if pdl.birth_year %}
+                                <span class="badge bg-light text-dark">{{ pdl.birth_year }}</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            <!-- Social Profiles -->
+                            {% if pdl.profiles %}
+                            <h6 class="text-muted mb-2"><i class="bi bi-share"></i> Perfiles Sociales</h6>
+                            <div class="row g-2 mb-3">
+                                {% for profile in pdl.profiles %}
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-center border rounded p-2">
+                                        <i class="bi {{ profile.icon }} fs-5 me-2 text-primary"></i>
+                                        <div class="overflow-hidden">
+                                            <div class="fw-semibold small">{{ profile.label }}</div>
+                                            {% if profile.url %}
+                                            {% set profile_href = profile.url if profile.url.startswith('http') else 'https://' + profile.url %}
+                                            <a href="{{ profile_href }}" target="_blank" rel="noopener"
+                                               class="text-truncate small d-block">
+                                                {% if profile.username %}@{{ profile.username }}{% else %}{{ profile.url }}{% endif %}
+                                            </a>
+                                            {% elif profile.username %}
+                                            <span class="small text-muted">@{{ profile.username }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% if profile.num_sources > 1 %}
+                                        <span class="badge bg-light text-dark ms-auto small" title="{{ profile.num_sources }} fuentes">
+                                            {{ profile.num_sources }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            <!-- Employment -->
+                            {% if pdl.experience %}
+                            <h6 class="text-muted mb-2"><i class="bi bi-briefcase"></i> Experiencia Laboral</h6>
+                            <ul class="list-unstyled mb-3">
+                                {% for exp in pdl.experience %}
+                                <li class="mb-1">
+                                    {% if exp.is_primary %}<strong>{% endif %}
+                                    {{ exp.title or '—' }}
+                                    {% if exp.company %}· {{ exp.company }}{% endif %}
+                                    {% if exp.is_primary %}</strong>
+                                    <span class="badge bg-success ms-1">Actual</span>
+                                    {% endif %}
+                                    {% if exp.start_date %}
+                                    <small class="text-muted ms-1">
+                                        ({{ exp.start_date[:4] }}{% if exp.end_date %} – {{ exp.end_date[:4] }}{% else %} – presente{% endif %})
+                                    </small>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+
+                            <!-- Locations -->
+                            {% if pdl.locations %}
+                            <h6 class="text-muted mb-2"><i class="bi bi-geo-alt"></i> Ubicaciones</h6>
+                            <ul class="list-unstyled mb-3">
+                                {% for loc in pdl.locations %}
+                                <li class="mb-1">
+                                    {% if loc.is_primary %}<strong>{% endif %}
+                                    {{ loc.name or ([loc.locality, loc.region, loc.country] | select | join(', ')) }}
+                                    {% if loc.is_primary %}</strong> <span class="badge bg-primary ms-1">Principal</span>{% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+
+                            <!-- Emails / Phones -->
+                            {% if pdl.emails or pdl.phones %}
+                            <div class="row mb-3">
+                                {% if pdl.emails %}
+                                <div class="col-md-6">
+                                    <h6 class="text-muted mb-2"><i class="bi bi-envelope"></i> Emails</h6>
+                                    <ul class="list-unstyled small">
+                                        {% for em in pdl.emails %}
+                                        <li>{{ em }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endif %}
+                                {% if pdl.phones %}
+                                <div class="col-md-6">
+                                    <h6 class="text-muted mb-2"><i class="bi bi-telephone"></i> Teléfonos</h6>
+                                    <ul class="list-unstyled small">
+                                        {% for ph in pdl.phones %}
+                                        <li>{{ ph }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            <!-- Education -->
+                            {% if pdl.education %}
+                            <h6 class="text-muted mb-2"><i class="bi bi-mortarboard"></i> Educación</h6>
+                            <ul class="list-unstyled mb-3">
+                                {% for edu in pdl.education %}
+                                <li class="mb-1">
+                                    {{ edu.school }}
+                                    {% if edu.degrees %}<small class="text-muted">({{ edu.degrees | join(', ') }})</small>{% endif %}
+                                    {% if edu.end_date %}<small class="text-muted ms-1">{{ edu.end_date[:4] }}</small>{% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+
+                            <!-- Matched fields -->
+                            {% if pdl.matched_fields %}
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="bi bi-check-circle"></i> Campos coincidentes:
+                                    {% for f in pdl.matched_fields %}<span class="badge bg-light text-dark me-1">{{ f }}</span>{% endfor %}
+                                </small>
+                            </div>
+                            {% endif %}
+
+                            <div class="text-muted small mt-2">
+                                <i class="bi bi-clock"></i> Datos obtenidos el {{ contact.extra_data.pdl_enrichment.fetched_at }}
+                                por {{ contact.extra_data.pdl_enrichment.fetched_by }}
+                                {% if contact.extra_data.pdl_enrichment.params.company %}
+                                · Empresa: {{ contact.extra_data.pdl_enrichment.params.company }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- Validation Status -->
                     <div class="card shadow-sm mb-4">
                         <div class="card-header bg-light">
@@ -725,6 +894,25 @@
                                     </form>
                                     {% endif %}
                                 {% endif %}
+
+                                <!-- PeopleDataLabs Enrichment -->
+                                {% if case %}
+                                <form method="POST" action="{{ url_for('osint.pdl_enrich', case_id=case.id, contact_id=contact.id) }}" class="pdl-form">
+                                {% else %}
+                                <form method="POST" action="{{ url_for('osint.pdl_enrich_no_case', contact_id=contact.id) }}" class="pdl-form">
+                                {% endif %}
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="text" name="name" class="form-control mb-1"
+                                           placeholder="Nombre completo (ej: Juan García)"
+                                           value="{{ contact.name or '' }}">
+                                    <input type="text" name="company" class="form-control mb-1"
+                                           placeholder="Empresa (opcional)">
+                                    <input type="text" name="location" class="form-control mb-2"
+                                           placeholder="Localización (opcional, ej: Madrid)">
+                                    <button type="submit" class="btn btn-dark w-100">
+                                        <i class="bi bi-people-fill"></i> Buscar en PeopleDataLabs
+                                    </button>
+                                </form>
 
                                 {% if case %}
                                 <form method="POST" action="{{ url_for('osint.archive', case_id=case.id, contact_id=contact.id) }}">
@@ -972,6 +1160,64 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     toastTitle.textContent = '✗ Error';
                     toastBody.innerHTML = `<div class="text-danger">${data.error || 'Error al procesar la solicitud'}</div>`;
+                    validationToast.show();
+                }
+
+            } catch (error) {
+                const toastTitle = document.getElementById('validationToastTitle');
+                const toastBody = document.getElementById('validationToastBody');
+                toastTitle.textContent = '✗ Error';
+                toastBody.innerHTML = `<div class="text-danger">Error: ${error.message}</div>`;
+                validationToast.show();
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalHtml;
+            }
+        });
+    });
+
+    // Handle PeopleDataLabs enrichment form
+    const pdlForms = document.querySelectorAll('.pdl-form');
+
+    pdlForms.forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalHtml = submitButton.innerHTML;
+
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Consultando PDL...';
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                const formData = new FormData(form);
+
+                const headers = {};
+                if (csrfToken) {
+                    headers['X-CSRFToken'] = csrfToken;
+                }
+
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    headers: headers,
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                const toastTitle = document.getElementById('validationToastTitle');
+                const toastBody = document.getElementById('validationToastBody');
+
+                if (data.success) {
+                    const profiles = data.result && data.result.profiles ? data.result.profiles.length : 0;
+                    toastTitle.textContent = '✓ PeopleDataLabs — Enriquecimiento Completado';
+                    toastBody.innerHTML = `<div class="text-success">${data.message}<br><small>Probabilidad: ${data.result.likelihood}/10 · ${profiles} perfil(es) social(es) encontrado(s)</small></div>`;
+                    validationToast.show();
+                    setTimeout(() => location.reload(), 2500);
+                } else {
+                    toastTitle.textContent = '✗ Error PDL';
+                    toastBody.innerHTML = `<div class="text-danger">${data.error || 'Error al consultar PeopleDataLabs'}</div>`;
                     validationToast.show();
                 }
 

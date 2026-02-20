@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Tipos de Contacto OSINT - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3">
+                        <i class="bi bi-person-lines-fill"></i> Tipos de Contacto OSINT
+                    </h1>
+                    <small class="text-muted">Configura nombres, iconos, colores y visibilidad de cada tipo de contacto</small>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('admin.create_osint_contact_type') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Nuevo Tipo
+                    </a>
+                    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver
+                    </a>
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                <strong>Información:</strong>
+                Los tipos <span class="badge bg-secondary">integrado</span> están vinculados al esquema de la base de datos y no pueden eliminarse.
+                Puedes crear tipos adicionales y eliminar los personalizados si no tienen contactos asociados.
+                Un tipo desactivado no aparecerá al crear nuevos contactos, pero los contactos existentes no se ven afectados.
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:50px;">Orden</th>
+                                    <th>Clave</th>
+                                    <th>Nombre Mostrado</th>
+                                    <th>Descripción</th>
+                                    <th>Icono</th>
+                                    <th>Color</th>
+                                    <th>Contactos</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for config in configs %}
+                                <tr class="{% if not config.is_active %}table-secondary text-muted{% endif %}">
+                                    <td class="text-center fw-bold text-muted">{{ config.sort_order }}</td>
+                                    <td>
+                                        <code class="small">{{ config.type_key }}</code>
+                                        {% if config.is_builtin %}
+                                            <span class="badge bg-secondary ms-1" title="Tipo integrado en el sistema">integrado</span>
+                                        {% else %}
+                                            <span class="badge bg-primary ms-1" title="Tipo personalizado">custom</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ config.color }} fs-6">
+                                            <i class="bi {{ config.icon_class }}"></i>
+                                            {{ config.display_name }}
+                                        </span>
+                                    </td>
+                                    <td class="small text-muted">
+                                        {{ config.description or '—' }}
+                                    </td>
+                                    <td>
+                                        <i class="bi {{ config.icon_class }} fs-5" title="{{ config.icon_class }}"></i>
+                                        <code class="small ms-1 text-muted">{{ config.icon_class }}</code>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ config.color }}">{{ config.color }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-{% if contact_counts[config.type_key] > 0 %}primary{% else %}secondary{% endif %}">
+                                            {{ contact_counts[config.type_key] }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if config.is_active %}
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check-circle"></i> Activo
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">
+                                                <i class="bi bi-x-circle"></i> Inactivo
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('admin.edit_osint_contact_type', config_id=config.id) }}"
+                                               class="btn btn-outline-primary"
+                                               title="Editar configuración">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <form method="POST"
+                                                  action="{{ url_for('admin.toggle_osint_contact_type', config_id=config.id) }}"
+                                                  class="d-inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit"
+                                                        class="btn btn-outline-{% if config.is_active %}warning{% else %}success{% endif %}"
+                                                        title="{% if config.is_active %}Desactivar{% else %}Activar{% endif %}">
+                                                    <i class="bi bi-{% if config.is_active %}toggle-on{% else %}toggle-off{% endif %}"></i>
+                                                </button>
+                                            </form>
+                                            {% if not config.is_builtin %}
+                                            <form method="POST"
+                                                  action="{{ url_for('admin.delete_osint_contact_type', config_id=config.id) }}"
+                                                  class="d-inline"
+                                                  onsubmit="return confirm('¿Eliminar el tipo «{{ config.display_name }}»? Esta acción no se puede deshacer.');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit"
+                                                        class="btn btn-outline-danger"
+                                                        title="Eliminar tipo personalizado"
+                                                        {% if contact_counts[config.type_key] > 0 %}disabled title="Hay contactos usando este tipo"{% endif %}>
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                            {% else %}
+                                            <button class="btn btn-outline-secondary" disabled title="Los tipos integrados no se pueden eliminar">
+                                                <i class="bi bi-shield-lock"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Icon reference -->
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="bi bi-grid"></i> Referencia de Iconos Bootstrap
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-2">
+                        Iconos comunes que puedes usar. Consulta el catálogo completo en
+                        <a href="https://icons.getbootstrap.com/" target="_blank" rel="noopener">icons.getbootstrap.com</a>.
+                    </p>
+                    <div class="d-flex flex-wrap gap-3">
+                        {% for icon in [
+                            'bi-envelope', 'bi-envelope-at', 'bi-telephone', 'bi-telephone-fill',
+                            'bi-person-circle', 'bi-person-badge', 'bi-person', 'bi-person-fill',
+                            'bi-globe', 'bi-globe2', 'bi-info-circle', 'bi-hash',
+                            'bi-linkedin', 'bi-twitter-x', 'bi-facebook', 'bi-instagram',
+                            'bi-github', 'bi-youtube', 'bi-whatsapp', 'bi-telegram',
+                            'bi-chat', 'bi-at', 'bi-link-45deg', 'bi-shield-check',
+                            'bi-bank', 'bi-building', 'bi-car-front', 'bi-geo-alt'
+                        ] %}
+                        <div class="text-center" style="min-width:70px;">
+                            <i class="bi {{ icon }} fs-4 d-block"></i>
+                            <code class="x-small" style="font-size:0.65rem;">{{ icon }}</code>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -23,6 +23,7 @@ from app.models.monitoring import (
     MonitoringStatus, SourcePlatform, SourceQueryType, AIProvider
 )
 from app.models.graph_layout import GraphLayout
+from app.models.osint_contact_type_config import OSINTContactTypeConfig
 
 __all__ = [
     'User', 'Role', 'AuditLog',
@@ -34,7 +35,7 @@ __all__ = [
     'TimelineEvent', 'EventType',
     'Report', 'ReportType', 'ReportStatus',
     'ApiKey',
-    'OSINTValidation', 'OSINTContact',
+    'OSINTValidation', 'OSINTContact', 'OSINTContactTypeConfig',
     'MonitoringTask', 'MonitoringSource', 'MonitoringResult', 'MonitoringCheckLog',
     'MonitoringStatus', 'SourcePlatform', 'SourceQueryType', 'AIProvider',
     'GraphLayout'

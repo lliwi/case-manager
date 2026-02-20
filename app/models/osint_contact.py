@@ -18,11 +18,7 @@ class OSINTContact(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     # Contact Information
-    contact_type = db.Column(
-        db.Enum('email', 'phone', 'social_profile', 'username', 'other', name='osint_contact_type_enum'),
-        nullable=False,
-        index=True
-    )
+    contact_type = db.Column(db.String(50), nullable=False, index=True)
     contact_value = db.Column(db.String(500), nullable=False, index=True)
 
     # Additional Information

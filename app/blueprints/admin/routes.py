@@ -1109,6 +1109,160 @@ def delete_api_key(key_id):
     return redirect(url_for('admin.api_keys'))
 
 
+# ============================================================================
+# OSINT CONTACT TYPE CONFIGURATION
+# ============================================================================
+
+@admin_bp.route('/osint-contact-types')
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_OSINT_CONTACT_TYPES_VIEWED', 'admin')
+def osint_contact_types():
+    """View and manage OSINT contact type configurations."""
+    from app.models.osint_contact_type_config import OSINTContactTypeConfig
+    from app.models.osint_contact import OSINTContact
+
+    configs = OSINTContactTypeConfig.query.order_by(
+        OSINTContactTypeConfig.sort_order
+    ).all()
+
+    # Count contacts per type
+    contact_counts = {}
+    for config in configs:
+        count = OSINTContact.query.filter_by(
+            contact_type=config.type_key,
+            is_deleted=False
+        ).count()
+        contact_counts[config.type_key] = count
+
+    return render_template(
+        'admin/osint_contact_types.html',
+        configs=configs,
+        contact_counts=contact_counts,
+    )
+
+
+@admin_bp.route('/osint-contact-types/create', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_OSINT_CONTACT_TYPE_CREATE', 'admin')
+def create_osint_contact_type():
+    """Create a new custom OSINT contact type."""
+    from app.blueprints.admin.forms import OSINTContactTypeConfigForm
+    from app.models.osint_contact_type_config import OSINTContactTypeConfig
+
+    form = OSINTContactTypeConfigForm()
+
+    if form.validate_on_submit():
+        type_key = form.type_key.data.strip().lower()
+
+        existing = OSINTContactTypeConfig.query.filter_by(type_key=type_key).first()
+        if existing:
+            flash(f'Ya existe un tipo con la clave "{type_key}"', 'danger')
+            return render_template('admin/osint_contact_type_form.html',
+                                   form=form, config=None, creating=True)
+
+        config = OSINTContactTypeConfig(
+            type_key=type_key,
+            display_name=form.display_name.data,
+            description=form.description.data,
+            icon_class=form.icon_class.data or 'bi-info-circle',
+            color=form.color.data,
+            sort_order=form.sort_order.data,
+            is_active=form.is_active.data,
+            is_builtin=False,
+            created_by_id=current_user.id,
+        )
+        db.session.add(config)
+        db.session.commit()
+
+        flash(f'Tipo de contacto "{config.display_name}" creado exitosamente', 'success')
+        return redirect(url_for('admin.osint_contact_types'))
+
+    return render_template('admin/osint_contact_type_form.html',
+                           form=form, config=None, creating=True)
+
+
+@admin_bp.route('/osint-contact-types/<int:config_id>/edit', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_OSINT_CONTACT_TYPE_EDIT', 'admin')
+def edit_osint_contact_type(config_id):
+    """Edit an OSINT contact type configuration."""
+    from app.blueprints.admin.forms import OSINTContactTypeConfigForm
+    from app.models.osint_contact_type_config import OSINTContactTypeConfig
+
+    config = OSINTContactTypeConfig.query.get_or_404(config_id)
+    form = OSINTContactTypeConfigForm(obj=config)
+
+    if form.validate_on_submit():
+        config.display_name = form.display_name.data
+        config.description = form.description.data
+        config.icon_class = form.icon_class.data or 'bi-info-circle'
+        config.color = form.color.data
+        config.sort_order = form.sort_order.data
+        config.is_active = form.is_active.data
+        config.updated_at = datetime.utcnow()
+
+        db.session.commit()
+        flash(f'Tipo de contacto "{config.display_name}" actualizado exitosamente', 'success')
+        return redirect(url_for('admin.osint_contact_types'))
+
+    return render_template(
+        'admin/osint_contact_type_form.html',
+        form=form,
+        config=config,
+        creating=False,
+    )
+
+
+@admin_bp.route('/osint-contact-types/<int:config_id>/toggle', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_OSINT_CONTACT_TYPE_TOGGLE', 'admin')
+def toggle_osint_contact_type(config_id):
+    """Toggle active/inactive status of an OSINT contact type."""
+    from app.models.osint_contact_type_config import OSINTContactTypeConfig
+
+    config = OSINTContactTypeConfig.query.get_or_404(config_id)
+    config.is_active = not config.is_active
+    config.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    status = 'activado' if config.is_active else 'desactivado'
+    flash(f'Tipo de contacto "{config.display_name}" {status} exitosamente', 'success')
+    return redirect(url_for('admin.osint_contact_types'))
+
+
+@admin_bp.route('/osint-contact-types/<int:config_id>/delete', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_OSINT_CONTACT_TYPE_DELETE', 'admin')
+def delete_osint_contact_type(config_id):
+    """Delete a custom (non-builtin) OSINT contact type."""
+    from app.models.osint_contact_type_config import OSINTContactTypeConfig
+
+    config = OSINTContactTypeConfig.query.get_or_404(config_id)
+
+    if config.is_builtin:
+        flash('Los tipos integrados no se pueden eliminar.', 'danger')
+        return redirect(url_for('admin.osint_contact_types'))
+
+    count = config.contact_count()
+    if count > 0:
+        flash(
+            f'No se puede eliminar "{config.display_name}": '
+            f'hay {count} contacto(s) que usan este tipo.',
+            'danger'
+        )
+        return redirect(url_for('admin.osint_contact_types'))
+
+    db.session.delete(config)
+    db.session.commit()
+    flash(f'Tipo de contacto "{config.display_name}" eliminado exitosamente', 'success')
+    return redirect(url_for('admin.osint_contact_types'))
+
+
 @admin_bp.route('/api-keys/<int:key_id>/test', methods=['POST'])
 @login_required
 @require_role('admin')
@@ -1143,6 +1297,22 @@ def test_api_key(key_id):
             return jsonify({
                 'success': False,
                 'error': test_result.get('error', 'Error desconocido')
+            }), 400
+    elif api_key.service_name == 'peopledatalabs':
+        from app.services.pdl_service import PDLService
+
+        service = PDLService(api_key)
+        test_result = service.test_connection()
+
+        if test_result['success']:
+            return jsonify({
+                'success': True,
+                'message': test_result.get('message', 'Conexión exitosa con PeopleDataLabs'),
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': test_result.get('error', 'Error desconocido'),
             }), 400
     else:
         return jsonify({

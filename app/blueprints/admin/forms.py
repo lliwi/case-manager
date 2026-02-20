@@ -2,8 +2,8 @@
 Forms for admin functionality.
 """
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, BooleanField, SelectMultipleField, SelectField, PasswordField
-from wtforms.validators import DataRequired, Length, Optional
+from wtforms import StringField, TextAreaField, BooleanField, SelectMultipleField, SelectField, PasswordField, IntegerField
+from wtforms.validators import DataRequired, Length, Optional, NumberRange, Regexp
 
 
 class LegitimacyTypeCustomForm(FlaskForm):
@@ -90,6 +90,7 @@ class ApiKeyForm(FlaskForm):
             ('openai', 'OpenAI (GPT-4 Vision - Análisis de Imágenes)'),
             ('deepseek', 'DeepSeek (VL - Análisis Visual Económico)'),
             ('serpapi', 'SerpAPI (Búsqueda Web - Google, DuckDuckGo)'),
+            ('peopledatalabs', 'PeopleDataLabs (OSINT - Perfiles Sociales)'),
             ('other', 'Otro servicio')
         ],
         validators=[DataRequired(message='El servicio es obligatorio')],
@@ -130,4 +131,73 @@ class ApiKeyForm(FlaskForm):
         'Activa',
         default=True,
         render_kw={'class': 'form-check-input'}
+    )
+
+
+class OSINTContactTypeConfigForm(FlaskForm):
+    """Form for creating/editing an OSINT contact type configuration."""
+
+    type_key = StringField(
+        'Clave Interna (type_key)',
+        validators=[
+            DataRequired(message='La clave interna es obligatoria'),
+            Length(min=2, max=50, message='Entre 2 y 50 caracteres'),
+            Regexp(
+                r'^[a-z0-9_]+$',
+                message='Solo letras minúsculas, números y guiones bajos'
+            ),
+        ],
+        render_kw={'placeholder': 'Ej: ip_address, mac_address'}
+    )
+
+    display_name = StringField(
+        'Nombre a Mostrar',
+        validators=[
+            DataRequired(message='El nombre es obligatorio'),
+            Length(min=2, max=100, message='El nombre debe tener entre 2 y 100 caracteres')
+        ],
+        render_kw={'placeholder': 'Ej: Correo Electrónico'}
+    )
+
+    description = TextAreaField(
+        'Descripción',
+        validators=[Optional()],
+        render_kw={
+            'rows': 3,
+            'placeholder': 'Descripción del tipo de contacto...'
+        }
+    )
+
+    icon_class = StringField(
+        'Icono Bootstrap Icons',
+        validators=[Optional(), Length(max=100)],
+        render_kw={'placeholder': 'Ej: bi-envelope'}
+    )
+
+    color = SelectField(
+        'Color',
+        choices=[
+            ('primary', 'Azul (primary)'),
+            ('secondary', 'Gris (secondary)'),
+            ('success', 'Verde (success)'),
+            ('danger', 'Rojo (danger)'),
+            ('warning', 'Amarillo (warning)'),
+            ('info', 'Celeste (info)'),
+            ('dark', 'Oscuro (dark)'),
+        ],
+        render_kw={'class': 'form-select'}
+    )
+
+    sort_order = IntegerField(
+        'Orden de Visualización',
+        validators=[
+            DataRequired(message='El orden es obligatorio'),
+            NumberRange(min=1, max=999, message='El orden debe estar entre 1 y 999')
+        ],
+        render_kw={'placeholder': '1'}
+    )
+
+    is_active = BooleanField(
+        'Activo',
+        default=True
     )

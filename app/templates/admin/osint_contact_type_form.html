@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}{% if creating %}Nuevo{% else %}Editar{% endif %} Tipo de Contacto OSINT - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-{% if creating %}success{% else %}primary{% endif %} text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-{% if creating %}plus-circle{% else %}pencil{% endif %}"></i>
+                        {% if creating %}
+                            Nuevo Tipo de Contacto OSINT
+                        {% else %}
+                            Editar Tipo:
+                            <code class="text-white-50">{{ config.type_key }}</code>
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+
+                    <!-- Live preview -->
+                    <div class="mb-4 p-3 bg-light rounded border">
+                        <small class="text-muted d-block mb-2 fw-bold">Vista previa del badge:</small>
+                        <span id="badge-preview" class="badge bg-{{ config.color if config else 'secondary' }} fs-6">
+                            <i id="preview-icon" class="bi {{ config.icon_class if config else 'bi-info-circle' }}"></i>
+                            <span id="preview-name">{{ config.display_name if config else 'Nuevo tipo' }}</span>
+                        </span>
+                    </div>
+
+                    <form method="POST" id="edit-form">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Clave interna (type_key) -->
+                        <div class="mb-3">
+                            {{ form.type_key.label(class="form-label") }}
+                            <span class="text-danger">*</span>
+                            {% if creating %}
+                                {{ form.type_key(class="form-control" + (" is-invalid" if form.type_key.errors else ""), id="input-type-key") }}
+                                {% if form.type_key.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.type_key.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    Identificador único usado internamente. Solo letras minúsculas, números y guiones bajos.
+                                    <strong>No se puede cambiar una vez creado.</strong>
+                                </small>
+                            {% else %}
+                                <input type="text" class="form-control bg-light" value="{{ config.type_key }}" readonly>
+                                {# Keep the hidden value so validate_on_submit passes #}
+                                <input type="hidden" name="{{ form.type_key.name }}" value="{{ config.type_key }}">
+                                <small class="form-text text-muted">La clave interna no puede modificarse.</small>
+                            {% endif %}
+                        </div>
+
+                        <!-- Nombre a Mostrar -->
+                        <div class="mb-3">
+                            {{ form.display_name.label(class="form-label") }}
+                            <span class="text-danger">*</span>
+                            {{ form.display_name(class="form-control" + (" is-invalid" if form.display_name.errors else ""), id="input-name") }}
+                            {% if form.display_name.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.display_name.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Descripción -->
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else "")) }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.description.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <!-- Icono -->
+                            <div class="col-md-6 mb-3">
+                                {{ form.icon_class.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i id="icon-preview" class="bi {{ config.icon_class if config else 'bi-info-circle' }}"></i>
+                                    </span>
+                                    {{ form.icon_class(class="form-control" + (" is-invalid" if form.icon_class.errors else ""), id="input-icon") }}
+                                    {% if form.icon_class.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.icon_class.errors %}{{ error }}{% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <small class="form-text text-muted">
+                                    Clase Bootstrap Icons. Ej: <code>bi-envelope</code>, <code>bi-telephone</code>
+                                </small>
+                            </div>
+
+                            <!-- Color -->
+                            <div class="col-md-6 mb-3">
+                                {{ form.color.label(class="form-label") }}
+                                {{ form.color(class="form-select" + (" is-invalid" if form.color.errors else ""), id="input-color") }}
+                                {% if form.color.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.color.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Orden -->
+                        <div class="mb-3" style="max-width: 160px;">
+                            {{ form.sort_order.label(class="form-label") }}
+                            {{ form.sort_order(class="form-control" + (" is-invalid" if form.sort_order.errors else ""), min=1, max=999) }}
+                            {% if form.sort_order.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.sort_order.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">Menor número = aparece antes</small>
+                        </div>
+
+                        <!-- Activo -->
+                        <div class="mb-4 form-check">
+                            {{ form.is_active(class="form-check-input") }}
+                            {{ form.is_active.label(class="form-check-label") }}
+                            <small class="form-text text-muted d-block ms-4">
+                                Los tipos inactivos no aparecen al crear nuevos contactos
+                            </small>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin.osint_contact_types') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-{% if creating %}success{% else %}primary{% endif %}">
+                                <i class="bi bi-check-circle"></i>
+                                {% if creating %}Crear Tipo{% else %}Guardar Cambios{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function () {
+    const nameInput  = document.getElementById('input-name');
+    const iconInput  = document.getElementById('input-icon');
+    const colorSel   = document.getElementById('input-color');
+
+    const previewBadge = document.getElementById('badge-preview');
+    const previewIcon  = document.getElementById('preview-icon');
+    const previewName  = document.getElementById('preview-name');
+    const iconPrev     = document.getElementById('icon-preview');
+
+    const COLORS = ['primary','secondary','success','danger','warning','info','dark'];
+
+    function update() {
+        const name  = nameInput ? nameInput.value.trim() || '(sin nombre)' : previewName.textContent;
+        const icon  = iconInput ? iconInput.value.trim() || 'bi-info-circle' : 'bi-info-circle';
+        const color = colorSel  ? colorSel.value || 'secondary' : 'secondary';
+
+        if (nameInput) previewName.textContent = name;
+        previewIcon.className = 'bi ' + icon;
+        if (iconPrev) iconPrev.className = 'bi ' + icon;
+
+        COLORS.forEach(c => previewBadge.classList.remove('bg-' + c));
+        previewBadge.classList.add('bg-' + color);
+    }
+
+    if (nameInput)  nameInput.addEventListener('input', update);
+    if (iconInput)  iconInput.addEventListener('input', update);
+    if (colorSel)   colorSel.addEventListener('change', update);
+})();
+</script>
+{% endblock %}
