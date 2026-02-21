@@ -17,7 +17,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Verificar que existe .env
-if [ ! -f .env ]; then
+if [ ! -f docker/.env ]; then
     echo -e "${RED}ERROR: Archivo .env no encontrado${NC}"
     echo "Por favor, copia .env.example a .env y configura las variables:"
     echo "  cp .env.example .env"
