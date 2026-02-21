@@ -103,6 +103,28 @@
                 </div>
             </div>
 
+            <!-- DNI/NIE Validator -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-card-checklist"></i> Validador DNI/NIE</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-end g-2">
+                        <div class="col-md-4">
+                            <label for="dniInput" class="form-label small text-muted mb-1">DNI (12345678Z) · NIE (X1234567L)</label>
+                            <input type="text" id="dniInput" class="form-control text-uppercase"
+                                   placeholder="Ej: 12345678Z" maxlength="9" autocomplete="off">
+                        </div>
+                        <div class="col-auto">
+                            <button id="dniValidateBtn" class="btn btn-primary">
+                                <i class="bi bi-search"></i> Validar
+                            </button>
+                        </div>
+                        <div class="col-md-6" id="dniResult"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Contacts List -->
             {% if contacts %}
                 <div class="card shadow-sm">
@@ -252,6 +274,59 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // DNI/NIE Validator
+    const dniInput = document.getElementById('dniInput');
+    const dniBtn = document.getElementById('dniValidateBtn');
+    const dniResult = document.getElementById('dniResult');
+
+    async function validateDni() {
+        const identifier = dniInput.value.trim().toUpperCase();
+        if (!identifier) return;
+
+        dniBtn.disabled = true;
+        dniBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        dniResult.innerHTML = '';
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const headers = { 'Content-Type': 'application/json' };
+            if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+
+            const resp = await fetch('/plugins/api/validate-dni', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ identifier })
+            });
+            const data = await resp.json();
+
+            if (data.valid) {
+                dniResult.innerHTML = `
+                    <div class="alert alert-success py-2 mb-0">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <strong>${data.type} válido</strong> &mdash;
+                        Número: <code>${data.number}</code>
+                        &nbsp;Letra: <code>${data.letter}</code>
+                        ${data.prefix ? `&nbsp;Prefijo: <code>${data.prefix}</code>` : ''}
+                    </div>`;
+            } else {
+                dniResult.innerHTML = `
+                    <div class="alert alert-danger py-2 mb-0">
+                        <i class="bi bi-x-circle-fill"></i>
+                        <strong>No válido:</strong> ${data.error || data.message || 'Formato incorrecto'}
+                        ${data.expected_letter ? ` &mdash; Letra esperada: <code>${data.expected_letter}</code>` : ''}
+                    </div>`;
+            }
+        } catch (err) {
+            dniResult.innerHTML = `<div class="alert alert-warning py-2 mb-0"><i class="bi bi-exclamation-triangle"></i> Error: ${err.message}</div>`;
+        } finally {
+            dniBtn.disabled = false;
+            dniBtn.innerHTML = '<i class="bi bi-search"></i> Validar';
+        }
+    }
+
+    dniBtn.addEventListener('click', validateDni);
+    dniInput.addEventListener('keydown', e => { if (e.key === 'Enter') validateDni(); });
+
     const validateButtons = document.querySelectorAll('.validate-btn');
     const validationToast = new bootstrap.Toast(document.getElementById('validationToast'));
 

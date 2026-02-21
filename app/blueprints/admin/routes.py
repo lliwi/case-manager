@@ -455,10 +455,10 @@ def export_audit_logs():
 @audit_action('ADMIN_SETTINGS_VIEWED', 'admin')
 def settings():
     """View system settings."""
-    # Get system info
-    import os
     import sys
     from flask import __version__ as flask_version
+    from app.plugins import plugin_manager
+    from app.models.api_key import ApiKey
 
     system_info = {
         'python_version': sys.version,
@@ -467,9 +467,23 @@ def settings():
         'database_url': os.getenv('DATABASE_URL', 'Not configured')[:50] + '...',
     }
 
+    # Plugins
+    all_plugins = plugin_manager.get_all_plugins()
+    forensic_plugins = [p for p in all_plugins if p.get('category') == 'forensic']
+    osint_plugins = [p for p in all_plugins if p.get('category') == 'osint']
+
+    # API keys (excluding soft-deleted)
+    api_keys = ApiKey.query.filter_by(is_deleted=False).order_by(
+        ApiKey.service_name, ApiKey.key_name
+    ).all()
+
     return render_template(
         'admin/settings.html',
-        system_info=system_info
+        system_info=system_info,
+        forensic_plugins=forensic_plugins,
+        osint_plugins=osint_plugins,
+        total_plugins=len(all_plugins),
+        api_keys=api_keys,
     )
 
 
