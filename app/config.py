@@ -88,6 +88,11 @@ class Config:
     # Plugin system
     PLUGIN_FOLDER = os.path.join(os.getcwd(), 'app', 'plugins')
 
+    # Public URL of this application (required for reverse image search plugin).
+    # Must be a publicly reachable HTTPS/HTTP URL, e.g. https://investigation.example.com
+    # If empty or pointing to localhost the reverse image search plugin is disabled.
+    APP_PUBLIC_URL = os.environ.get('APP_PUBLIC_URL', '').rstrip('/')
+
     # Timestamp service
     TIMESTAMP_SERVICE_URL = os.environ.get('TIMESTAMP_SERVICE_URL')
 

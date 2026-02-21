@@ -2,7 +2,7 @@
 Plugin routes for plugin management and execution.
 """
 from datetime import datetime, date, time
-from flask import render_template, request, jsonify, flash, redirect, url_for
+from flask import render_template, request, jsonify, flash, redirect, url_for, current_app, send_file, abort
 from flask_login import login_required, current_user
 from app.blueprints.plugins import plugins_bp
 from app.plugins import plugin_manager
@@ -12,6 +12,7 @@ from app.extensions import db
 from app.utils.decorators import audit_action
 import os
 import json
+import mimetypes
 
 
 def ensure_json_serializable(obj):
@@ -49,6 +50,48 @@ def force_json_serialization(obj):
     except (TypeError, ValueError) as e:
         # If still fails, convert entire object to string representation
         return {'error': f'Serialization failed: {str(e)}', 'raw_data': str(obj)}
+
+
+@plugins_bp.route('/api/temp-image/<token>/<filename>')
+@plugins_bp.route('/api/temp-image/<token>')
+def serve_temp_image(token, filename=None):
+    """
+    Serve a temporarily accessible image for reverse image search.
+
+    No authentication required — access is controlled exclusively by a
+    one-time Redis token created by ReverseImageSearchService.  The token
+    is consumed on the first (and only) request so subsequent calls return 404.
+
+    The optional <filename> segment (e.g. photo.jpg) is present so that
+    SerpAPI can detect the image type from the URL extension; it is not
+    used for filesystem lookup (the token is the only key).
+    """
+    import redis as redis_lib
+
+    try:
+        r = redis_lib.from_url(current_app.config['REDIS_URL'])
+        key = f'ris_token:{token}'
+
+        # Atomic get-then-delete: one-time use
+        pipe = r.pipeline()
+        pipe.get(key)
+        pipe.delete(key)
+        results = pipe.execute()
+        file_path_raw = results[0]
+
+        if not file_path_raw:
+            abort(404)
+
+        file_path = file_path_raw.decode('utf-8') if isinstance(file_path_raw, bytes) else file_path_raw
+
+        if not os.path.exists(file_path):
+            abort(404)
+
+        mime = mimetypes.guess_type(file_path)[0] or 'image/jpeg'
+        return send_file(file_path, mimetype=mime)
+
+    except Exception:
+        abort(404)
 
 
 @plugins_bp.route('/')

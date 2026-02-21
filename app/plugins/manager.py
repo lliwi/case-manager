@@ -42,11 +42,13 @@ class PluginManager:
             from app.plugins.forensic.dni_validator import DNIValidatorPlugin
             from app.plugins.forensic.exif_extractor import ExifExtractorPlugin
             from app.plugins.forensic.pdf_metadata import PDFMetadataPlugin
+            from app.plugins.forensic.reverse_image_search import ReverseImageSearchPlugin
 
             # Register forensic plugins
             self.pm.register(DNIValidatorPlugin())
             self.pm.register(ExifExtractorPlugin())
             self.pm.register(PDFMetadataPlugin())
+            self.pm.register(ReverseImageSearchPlugin())
 
             # Import and register OSINT plugins
             from app.plugins.osint.ipqualityscore_validator import IPQualityScoreValidatorPlugin
