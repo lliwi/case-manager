@@ -95,12 +95,18 @@ def create_node(case_id, node_type):
 
             # Create appropriate node
             if node_type == 'person':
-                # Validate DNI if provided
+                # Validate DNI if provided — warn but allow creation
                 if properties.get('dni_cif'):
                     validation = LegitimacyService.validate_dni_cif(properties['dni_cif'])
-                    if not validation['valid']:
-                        flash(f'DNI/NIE no válido: {validation["message"]}', 'danger')
-                        return render_template('graph/create_node.html', case=case, form=form, node_type=node_type)
+                    if validation['valid']:
+                        properties['dni_valid'] = True
+                    else:
+                        properties['dni_valid'] = False
+                        flash(
+                            f'Advertencia: DNI/NIE no válido ({validation.get("message", "formato incorrecto")}). '
+                            f'El nodo se creará igualmente marcado como no verificado.',
+                            'warning'
+                        )
 
                 node = PersonNode(
                     name=properties.get('name'),

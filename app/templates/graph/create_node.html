@@ -54,3 +54,36 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const dniInput = document.getElementById('dni_cif');
+    if (!dniInput) return;
+
+    const fb = document.createElement('div');
+    fb.id = 'dni-cif-feedback';
+    dniInput.parentNode.insertBefore(fb, dniInput.nextSibling);
+
+    dniInput.addEventListener('blur', async () => {
+        const val = dniInput.value.trim().toUpperCase();
+        if (!val) { fb.innerHTML = ''; return; }
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        const headers = { 'Content-Type': 'application/json' };
+        if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+        try {
+            const resp = await fetch('/plugins/api/validate-dni', {
+                method: 'POST', headers,
+                body: JSON.stringify({ identifier: val })
+            });
+            const data = await resp.json();
+            if (data.valid) {
+                fb.innerHTML = `<small class="text-success"><i class="bi bi-check-circle-fill"></i> ${data.type} válido</small>`;
+            } else {
+                fb.innerHTML = `<small class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> ${data.error || 'Formato incorrecto'}${data.expected_letter ? ` — letra esperada: <strong>${data.expected_letter}</strong>` : ''}</small>`;
+            }
+        } catch (e) { fb.innerHTML = ''; }
+    });
+});
+</script>
+{% endblock %}

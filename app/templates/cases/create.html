@@ -299,3 +299,74 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+async function validateDniInline(identifier, feedbackEl) {
+    if (!identifier) { feedbackEl.innerHTML = ''; return; }
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    const headers = { 'Content-Type': 'application/json' };
+    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+    try {
+        const resp = await fetch('/plugins/api/validate-dni', {
+            method: 'POST', headers,
+            body: JSON.stringify({ identifier })
+        });
+        const data = await resp.json();
+        if (data.valid) {
+            feedbackEl.innerHTML = `<small class="text-success"><i class="bi bi-check-circle-fill"></i> ${data.type} válido</small>`;
+        } else {
+            feedbackEl.innerHTML = `<small class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> ${data.error || 'Formato incorrecto'}${data.expected_letter ? ` — letra esperada: <strong>${data.expected_letter}</strong>` : ''}</small>`;
+        }
+    } catch (e) { feedbackEl.innerHTML = ''; }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Cliente DNI/CIF
+    const dniCifInput = document.getElementById('cliente_dni_cif');
+    if (dniCifInput) {
+        const fb = document.createElement('div');
+        fb.id = 'dni-cif-feedback';
+        fb.className = 'mt-1';
+        dniCifInput.after(fb);
+        dniCifInput.addEventListener('blur', () => {
+            const val = dniCifInput.value.trim().toUpperCase();
+            // CIF format: skip plugin (not supported), validate format only
+            if (/^[A-W]\d{7}[0-9A-J]$/i.test(val)) {
+                fb.innerHTML = '<small class="text-success"><i class="bi bi-check-circle-fill"></i> Formato CIF correcto</small>';
+                return;
+            }
+            validateDniInline(val, fb);
+        });
+    }
+
+    // Sujeto DNI/NIE (one per line textarea)
+    const dniNieInput = document.getElementById('sujeto_dni_nie');
+    if (dniNieInput) {
+        const fb = document.createElement('div');
+        fb.id = 'dni-nie-feedback';
+        fb.className = 'mt-1';
+        dniNieInput.after(fb);
+        dniNieInput.addEventListener('blur', async () => {
+            const lines = dniNieInput.value.split('\n').map(l => l.trim().toUpperCase()).filter(Boolean);
+            if (!lines.length) { fb.innerHTML = ''; return; }
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const headers = { 'Content-Type': 'application/json' };
+            if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+            const results = await Promise.all(lines.map(async (id) => {
+                try {
+                    const r = await fetch('/plugins/api/validate-dni', { method: 'POST', headers, body: JSON.stringify({ identifier: id }) });
+                    const d = await r.json();
+                    return { id, valid: d.valid, error: d.error, expected_letter: d.expected_letter };
+                } catch { return { id, valid: null }; }
+            }));
+            fb.innerHTML = results.map(r => r.valid === null ? '' :
+                r.valid
+                    ? `<small class="text-success d-block"><i class="bi bi-check-circle-fill"></i> ${r.id} válido</small>`
+                    : `<small class="text-warning d-block"><i class="bi bi-exclamation-triangle-fill"></i> ${r.id}: ${r.error || 'Formato incorrecto'}${r.expected_letter ? ` — letra esperada: <strong>${r.expected_letter}</strong>` : ''}</small>`
+            ).filter(Boolean).join('');
+        });
+    }
+});
+</script>
+{% endblock %}

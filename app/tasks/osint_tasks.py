@@ -17,7 +17,7 @@ from app.tasks.celery_app import celery
 )
 def validate_dni(self, dni_number):
     """
-    Validate Spanish DNI/NIE using modulo 23 algorithm.
+    Validate Spanish DNI/NIE using the DNIValidatorPlugin (modulo 23).
 
     Args:
         dni_number: DNI/NIE to validate
@@ -26,41 +26,11 @@ def validate_dni(self, dni_number):
         dict: Validation results
     """
     try:
-        # DNI validation algorithm (modulo 23)
-        letters = "TRWAGMYFPDXBNJZSQVHLCKE"
-
-        # Remove spaces and convert to uppercase
-        dni = dni_number.upper().replace(' ', '').replace('-', '')
-
-        # Validate NIE (starts with X, Y, Z)
-        if dni[0] in 'XYZ':
-            nie_map = {'X': '0', 'Y': '1', 'Z': '2'}
-            number = nie_map[dni[0]] + dni[1:-1]
-        else:
-            number = dni[:-1]
-
-        # Calculate expected letter
-        try:
-            number_int = int(number)
-            expected_letter = letters[number_int % 23]
-            is_valid = dni[-1] == expected_letter
-
-            return {
-                'success': True,
-                'valid': is_valid,
-                'dni': dni_number,
-                'expected_letter': expected_letter,
-                'actual_letter': dni[-1]
-            }
-
-        except ValueError:
-            return {
-                'success': True,
-                'valid': False,
-                'dni': dni_number,
-                'error': 'Invalid number format'
-            }
-
+        from app.plugins import plugin_manager
+        result = plugin_manager.validate_dni_nie(dni_number)
+        result['success'] = True
+        result['dni'] = dni_number
+        return result
     except Exception as e:
         return {
             'success': False,

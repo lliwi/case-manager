@@ -147,54 +147,32 @@ class LegitimacyService:
         """
         Validate Spanish DNI/NIE/CIF format.
 
+        DNI and NIE are validated via the DNIValidatorPlugin (modulo 23).
+        CIF validation (company tax ID) is handled locally.
+
         Args:
             dni_cif: DNI/NIE/CIF string
 
         Returns:
-            dict with 'valid' (bool) and 'type' (str)
+            dict with 'valid' (bool), 'type' (str) and 'error' (str, optional)
         """
         if not dni_cif:
             return {'valid': False, 'type': None, 'error': 'Empty value'}
 
         dni_cif = dni_cif.strip().upper()
 
-        # DNI: 8 digits + letter
-        dni_pattern = r'^\d{8}[A-Z]$'
-        if re.match(dni_pattern, dni_cif):
-            # Validate DNI letter
-            letters = 'TRWAGMYFPDXBNJZSQVHLCKE'
-            number = int(dni_cif[:-1])
-            expected_letter = letters[number % 23]
-
-            if dni_cif[-1] == expected_letter:
-                return {'valid': True, 'type': 'DNI'}
-            else:
-                return {'valid': False, 'type': 'DNI', 'error': f'Invalid letter. Expected: {expected_letter}'}
-
-        # NIE: X/Y/Z + 7 digits + letter
-        nie_pattern = r'^[XYZ]\d{7}[A-Z]$'
-        if re.match(nie_pattern, dni_cif):
-            # Convert first letter to number
-            nie_map = {'X': '0', 'Y': '1', 'Z': '2'}
-            dni_equivalent = nie_map[dni_cif[0]] + dni_cif[1:]
-
-            # Validate like DNI
-            letters = 'TRWAGMYFPDXBNJZSQVHLCKE'
-            number = int(dni_equivalent[:-1])
-            expected_letter = letters[number % 23]
-
-            if dni_cif[-1] == expected_letter:
-                return {'valid': True, 'type': 'NIE'}
-            else:
-                return {'valid': False, 'type': 'NIE', 'error': f'Invalid letter. Expected: {expected_letter}'}
-
         # CIF: Letter + 7 digits + control (digit or letter)
         cif_pattern = r'^[A-W]\d{7}[0-9A-J]$'
         if re.match(cif_pattern, dni_cif):
-            # Basic format validation (full CIF validation is complex)
             return {'valid': True, 'type': 'CIF'}
 
-        return {'valid': False, 'type': None, 'error': 'Invalid format'}
+        # DNI / NIE — delegate to plugin
+        from app.plugins import plugin_manager
+        result = plugin_manager.validate_dni_nie(dni_cif)
+        # Normalise error key so callers can always use result.get('error')
+        if not result['valid'] and 'error' not in result:
+            result['error'] = result.get('message', 'Formato incorrecto')
+        return result
 
     @staticmethod
     def get_legitimacy_requirements(legitimacy_type):

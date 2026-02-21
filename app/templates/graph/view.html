@@ -936,6 +936,31 @@ function enterEditMode() {
 
     editFields.innerHTML = formHtml;
 
+    // Inline DNI/NIE validation for Person nodes
+    const dniInput = document.getElementById('edit-dni_cif');
+    if (dniInput) {
+        const fb = document.createElement('div');
+        fb.id = 'edit-dni-feedback';
+        dniInput.parentNode.insertBefore(fb, dniInput.nextSibling);
+        dniInput.addEventListener('blur', async () => {
+            const val = dniInput.value.trim().toUpperCase();
+            if (!val) { fb.innerHTML = ''; return; }
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const headers = { 'Content-Type': 'application/json' };
+            if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+            try {
+                const resp = await fetch('/plugins/api/validate-dni', {
+                    method: 'POST', headers,
+                    body: JSON.stringify({ identifier: val })
+                });
+                const data = await resp.json();
+                fb.innerHTML = data.valid
+                    ? `<small class="text-success"><i class="bi bi-check-circle-fill"></i> ${data.type} válido</small>`
+                    : `<small class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> ${data.error || 'Formato incorrecto'}${data.expected_letter ? ` — letra esperada: <strong>${data.expected_letter}</strong>` : ''}</small>`;
+            } catch (e) { fb.innerHTML = ''; }
+        });
+    }
+
     // Switch to edit mode
     document.getElementById('node-view-mode').style.display = 'none';
     document.getElementById('node-edit-mode').style.display = 'block';

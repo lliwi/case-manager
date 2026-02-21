@@ -107,12 +107,8 @@ class CaseCreateForm(FlaskForm):
     submit = SubmitField('Crear Caso')
 
     def validate_cliente_dni_cif(self, field):
-        """Validate Spanish DNI/CIF format."""
-        result = LegitimacyService.validate_dni_cif(field.data)
-        if not result['valid']:
-            raise ValidationError(
-                f"DNI/CIF/NIE inválido: {result.get('error', 'Formato incorrecto')}"
-            )
+        """Validate Spanish DNI/CIF format — warn only, do not block."""
+        pass
 
 
 class CaseEditForm(FlaskForm):

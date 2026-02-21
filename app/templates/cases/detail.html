@@ -90,7 +90,10 @@
                             <dd class="col-sm-8">{{ case.cliente_nombre }}</dd>
 
                             <dt class="col-sm-4">DNI/CIF:</dt>
-                            <dd class="col-sm-8">{{ case.cliente_dni_cif }}</dd>
+                            <dd class="col-sm-8">
+                                <span id="cliente-dni-value">{{ case.cliente_dni_cif }}</span>
+                                <span id="cliente-dni-badge" class="ms-2"></span>
+                            </dd>
 
                             {% if case.cliente_telefono %}
                                 <dt class="col-sm-4">Teléfono:</dt>
@@ -125,7 +128,16 @@
 
                                 {% if case.sujeto_dni_nie %}
                                     <dt class="col-sm-4">DNI/NIE:</dt>
-                                    <dd class="col-sm-8">{{ case.sujeto_dni_nie|replace('\n', '<br>')|safe }}</dd>
+                                    <dd class="col-sm-8" id="sujeto-dni-container">
+                                        {% for dni in case.sujeto_dni_nie.splitlines() %}
+                                            {% if dni.strip() %}
+                                            <div class="d-flex align-items-center gap-2 mb-1">
+                                                <span class="sujeto-dni-value">{{ dni.strip() }}</span>
+                                                <span class="sujeto-dni-badge"></span>
+                                            </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </dd>
                                 {% endif %}
 
                                 {% if case.sujeto_descripcion %}
@@ -369,4 +381,44 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function dniValidationBadge(identifier) {
+    if (!identifier) return '';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    const headers = { 'Content-Type': 'application/json' };
+    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+    // Skip full CIF validation (plugin only handles DNI/NIE)
+    if (/^[A-W]\d{7}[0-9A-J]$/i.test(identifier)) {
+        return '<span class="badge bg-secondary">CIF</span>';
+    }
+    try {
+        const resp = await fetch('/plugins/api/validate-dni', {
+            method: 'POST', headers,
+            body: JSON.stringify({ identifier })
+        });
+        const d = await resp.json();
+        return d.valid
+            ? `<span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Válido</span>`
+            : `<span class="badge bg-warning text-dark" title="${d.error || 'Formato incorrecto'}${d.expected_letter ? ' — letra esperada: ' + d.expected_letter : ''}"><i class="bi bi-exclamation-triangle-fill"></i> No válido</span>`;
+    } catch { return ''; }
+}
+
+document.addEventListener('DOMContentLoaded', async function () {
+    // Cliente DNI/CIF
+    const clienteDniVal = document.getElementById('cliente-dni-value');
+    const clienteDniBadge = document.getElementById('cliente-dni-badge');
+    if (clienteDniVal && clienteDniBadge) {
+        clienteDniBadge.innerHTML = await dniValidationBadge(clienteDniVal.textContent.trim());
+    }
+
+    // Sujeto DNI/NIE (one per row)
+    document.querySelectorAll('#sujeto-dni-container .sujeto-dni-value').forEach(async (el) => {
+        const badge = el.nextElementSibling;
+        if (badge) badge.innerHTML = await dniValidationBadge(el.textContent.trim());
+    });
+});
+</script>
 {% endblock %}
