@@ -31,11 +31,11 @@ def create_app(config_name=None):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
 
-    # Configure ProxyFix for proper IP detection behind Nginx
-    # x_for=1: Trust X-Forwarded-For header (1 proxy)
+    # Configure ProxyFix for proper IP detection behind proxies
+    # x_for=2: Trust X-Forwarded-For through 2 proxies (external proxy + Nginx)
     # x_proto=1: Trust X-Forwarded-Proto header
     # x_host=1: Trust X-Forwarded-Host header
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=2, x_proto=1, x_host=1)
 
     # Initialize extensions
     initialize_extensions(app)
