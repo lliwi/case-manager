@@ -227,6 +227,36 @@ def toggle_user_status(user_id):
     return redirect(url_for('admin.users'))
 
 
+@admin_bp.route('/users/<int:user_id>/disable-mfa', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_USER_DISABLE_MFA', 'admin')
+def admin_disable_mfa(user_id):
+    """Admin: disable MFA for a user without requiring their TOTP code."""
+    user = User.query.get_or_404(user_id)
+
+    if not user.mfa_enabled:
+        flash(f'{user.email} no tiene MFA activado.', 'info')
+        return redirect(url_for('admin.users'))
+
+    user.mfa_enabled = False
+    user.mfa_secret = None
+    db.session.commit()
+
+    AuditLog.log(
+        action='ADMIN_MFA_DISABLED',
+        resource_type='user',
+        resource_id=str(user.id),
+        user=current_user._get_current_object(),
+        description=f'Admin disabled MFA for user {user.email}',
+        ip_address=request.remote_addr,
+        user_agent=request.headers.get('User-Agent')
+    )
+
+    flash(f'MFA desactivado para {user.email}.', 'warning')
+    return redirect(url_for('admin.users'))
+
+
 @admin_bp.route('/users/<int:user_id>/reset-password', methods=['POST'])
 @login_required
 @require_role('admin')

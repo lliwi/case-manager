@@ -191,6 +191,39 @@ def setup_mfa():
     return render_template('auth/setup_mfa.html', form=form, qr_code=qr_code_base64, secret=current_user.mfa_secret)
 
 
+@auth_bp.route('/disable-mfa', methods=['GET', 'POST'])
+@login_required
+def disable_mfa():
+    """Disable MFA for current user. Requires TOTP confirmation."""
+    if not current_user.mfa_enabled:
+        flash('MFA no está activado en su cuenta.', 'info')
+        return redirect(url_for('dashboard.index'))
+
+    form = MFAVerificationForm()
+
+    if form.validate_on_submit():
+        if current_user.verify_totp(form.token.data):
+            current_user.mfa_enabled = False
+            current_user.mfa_secret = None
+            db.session.commit()
+
+            AuditLog.log(
+                action='MFA_DISABLED',
+                resource_type='user',
+                user=current_user._get_current_object(),
+                description='MFA disabled by user',
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
+
+            flash('MFA desactivado. Puede volver a activarlo desde el menú de usuario.', 'warning')
+            return redirect(url_for('dashboard.index'))
+        else:
+            flash('Código de verificación incorrecto.', 'danger')
+
+    return render_template('auth/disable_mfa.html', form=form)
+
+
 @auth_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
