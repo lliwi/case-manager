@@ -8,9 +8,20 @@ from app.blueprints.auth.forms import LoginForm, MFAVerificationForm, SetupMFAFo
 from app.models.user import User
 from app.models.audit import AuditLog
 from app.extensions import db, limiter
+from urllib.parse import urlparse
 import qrcode
 import io
 import base64
+
+
+def _safe_next(next_url):
+    """Return next_url only if it is a relative path (no scheme or netloc)."""
+    if not next_url:
+        return None
+    parsed = urlparse(next_url)
+    if parsed.scheme or parsed.netloc:
+        return None
+    return next_url
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -65,10 +76,8 @@ def login():
         flash('Bienvenido de nuevo.', 'success')
 
         # Redirect to next page or dashboard
-        next_page = request.args.get('next')
-        if next_page:
-            return redirect(next_page)
-        return redirect(url_for('dashboard.index'))
+        next_page = _safe_next(request.args.get('next'))
+        return redirect(next_page or url_for('dashboard.index'))
 
     return render_template('auth/login.html', form=form)
 
@@ -112,10 +121,8 @@ def verify_mfa():
 
             flash('Verificación MFA exitosa. Bienvenido.', 'success')
 
-            next_page = request.args.get('next')
-            if next_page:
-                return redirect(next_page)
-            return redirect(url_for('dashboard.index'))
+            next_page = _safe_next(request.args.get('next'))
+            return redirect(next_page or url_for('dashboard.index'))
         else:
             flash('Código de verificación incorrecto.', 'danger')
 
@@ -245,7 +252,7 @@ def change_password():
     return redirect(url_for('auth.profile'))
 
 
-@auth_bp.route('/logout')
+@auth_bp.route('/logout', methods=['POST'])
 @login_required
 def logout():
     """User logout."""

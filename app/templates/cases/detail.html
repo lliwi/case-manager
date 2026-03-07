@@ -123,7 +123,7 @@
                             <dl class="row mb-0">
                                 {% if case.sujeto_nombres %}
                                     <dt class="col-sm-4">Nombre(s):</dt>
-                                    <dd class="col-sm-8">{{ case.sujeto_nombres|replace('\n', '<br>')|safe }}</dd>
+                                    <dd class="col-sm-8">{{ case.sujeto_nombres|e|replace('\n', '<br>')|safe }}</dd>
                                 {% endif %}
 
                                 {% if case.sujeto_dni_nie %}
@@ -225,7 +225,7 @@
                             <h5 class="mb-0"><i class="bi bi-journal-text"></i> Notas Internas</h5>
                         </div>
                         <div class="card-body">
-                            <p class="mb-0 text-muted small">{{ case.notas_internas|replace('\n', '<br>')|safe }}</p>
+                            <p class="mb-0 text-muted small">{{ case.notas_internas|e|replace('\n', '<br>')|safe }}</p>
                         </div>
                     </div>
                 {% endif %}

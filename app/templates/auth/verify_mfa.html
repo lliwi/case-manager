@@ -45,7 +45,10 @@
 
                     <div class="d-grid gap-2">
                         {{ form.submit(class="btn btn-primary btn-lg") }}
-                        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-secondary">Cancelar</a>
+                        <form method="POST" action="{{ url_for('auth.logout') }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-outline-secondary">Cancelar</button>
+                        </form>
                     </div>
                 </form>
 
