@@ -38,7 +38,7 @@ class RegistrationForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     nombre = StringField('Nombre', validators=[DataRequired(), Length(min=2, max=200)])
     apellidos = StringField('Apellidos', validators=[Length(max=200)])
-    tip_number = StringField('Número TIP', validators=[DataRequired(), Length(max=20)])
+    tip_number = StringField('Número TIP', validators=[Length(max=20)])
     password = PasswordField('Contraseña', validators=[
         DataRequired(),
         Length(min=8, message='La contraseña debe tener al menos 8 caracteres')
@@ -56,7 +56,9 @@ class RegistrationForm(FlaskForm):
             raise ValidationError('Este email ya está registrado.')
 
     def validate_tip_number(self, tip_number):
-        """Check if TIP number already exists."""
+        """Check if TIP number already exists (only when provided)."""
+        if not tip_number.data:
+            return
         user = User.query.filter_by(tip_number=tip_number.data).first()
         if user:
             raise ValidationError('Este número TIP ya está registrado.')

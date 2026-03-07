@@ -117,7 +117,7 @@ def create_user():
     email = request.form.get('email')
     nombre = request.form.get('nombre')
     apellidos = request.form.get('apellidos')
-    tip_number = request.form.get('tip_number')
+    tip_number = request.form.get("tip_number") or None
     despacho = request.form.get('despacho')
     telefono = request.form.get('telefono')
     password = request.form.get('password')
@@ -170,7 +170,7 @@ def edit_user(user_id):
     email = request.form.get('email')
     nombre = request.form.get('nombre')
     apellidos = request.form.get('apellidos')
-    tip_number = request.form.get('tip_number')
+    tip_number = request.form.get("tip_number") or None
     despacho = request.form.get('despacho')
     telefono = request.form.get('telefono')
     role_ids = request.form.getlist('roles')

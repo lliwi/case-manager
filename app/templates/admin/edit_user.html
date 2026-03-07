@@ -42,9 +42,9 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="tip_number" class="form-label">Numero TIP <span class="text-danger">*</span></label>
+                            <label for="tip_number" class="form-label">Número TIP</label>
                             <input type="text" class="form-control" id="tip_number" name="tip_number"
-                                   value="{{ user.tip_number }}" required
+                                   value="{{ user.tip_number or '' }}"
                                    placeholder="Tarjeta de Identidad Profesional">
                             <small class="text-muted">Tarjeta de Identidad Profesional del detective</small>
                         </div>

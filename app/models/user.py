@@ -40,7 +40,7 @@ class User(UserMixin, db.Model):
     # Profile
     nombre = db.Column(db.String(200), nullable=False)
     apellidos = db.Column(db.String(200))
-    tip_number = db.Column(db.String(20), unique=True, nullable=False)  # TIP (Tarjeta de Identidad Profesional)
+    tip_number = db.Column(db.String(20), unique=True, nullable=True)  # TIP (Tarjeta de Identidad Profesional)
     despacho = db.Column(db.String(200))  # Detective agency/office
     telefono = db.Column(db.String(20))
 
