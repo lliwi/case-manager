@@ -17,44 +17,140 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Navigation -->
-    {% if current_user.is_authenticated %}
-        {% include 'nav.html' %}
-    {% endif %}
 
-    <!-- Flash Messages -->
-    <div class="container mt-3">
+{# ── Authenticated layout: sidebar + main wrapper ── #}
+{% if current_user.is_authenticated %}
+
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+<div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+        {% include 'nav.html' %}
+    </aside>
+
+    <div class="main-wrapper">
+
+        <header class="top-header">
+            <button class="sidebar-toggle-btn" id="sidebarToggle" aria-label="Menú">
+                <i class="bi bi-list"></i>
+            </button>
+
+            <div class="header-breadcrumb">
+                {% block breadcrumb %}
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Inicio</a></li>
+                        {% block breadcrumb_items %}{% endblock %}
+                    </ol>
+                </nav>
+                {% endblock %}
+            </div>
+
+            <div class="header-actions">
+                {% if not current_user.mfa_enabled %}
+                <a href="{{ url_for('auth.setup_mfa') }}"
+                   class="btn btn-sm btn-outline-secondary"
+                   title="Configurar autenticación de dos factores">
+                    <i class="bi bi-shield-exclamation text-warning"></i>
+                    <span class="d-none d-md-inline">Configurar MFA</span>
+                </a>
+                {% endif %}
+                <form method="POST" action="{{ url_for('auth.logout') }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span class="d-none d-md-inline">Salir</span>
+                    </button>
+                </form>
+            </div>
+        </header>
+
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
+            <div class="flash-zone">
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                    {% if category == 'success' %}<i class="bi bi-check-circle me-2"></i>
+                    {% elif category in ('error', 'danger') %}<i class="bi bi-exclamation-circle me-2"></i>
+                    {% elif category == 'warning' %}<i class="bi bi-exclamation-triangle me-2"></i>
+                    {% elif category == 'info' %}<i class="bi bi-info-circle me-2"></i>
+                    {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
                 {% endfor %}
+            </div>
             {% endif %}
         {% endwith %}
-    </div>
 
-    <!-- Main Content -->
-    <main>
-        {% block content %}{% endblock %}
-    </main>
+        <main class="page-content">
 
-    {% block footer_extra %}{% endblock %}
+{% endif %}{# ── end authenticated wrapper open ── #}
 
-    <!-- Footer -->
-    <footer class="footer mt-auto py-3 bg-light">
-        <div class="container text-center">
-            <span class="text-muted">Case Manager &copy; 2026 | Gestión de Investigaciones Privadas</span>
+{# ── Unauthenticated: flash messages floating ── #}
+{% if not current_user.is_authenticated %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div style="position:fixed;top:1rem;right:1rem;z-index:9999;min-width:280px;max-width:400px;">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show shadow" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
-    </footer>
+        {% endfor %}
+    </div>
+    {% endif %}
+{% endwith %}
+{% endif %}
 
-    <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Custom JS -->
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{# ── Single block content — used by ALL child templates ── #}
+{% block content %}{% endblock %}
 
-    {% block extra_js %}{% endblock %}
+{# ── Close authenticated wrapper ── #}
+{% if current_user.is_authenticated %}
+
+        </main>
+
+        {% block footer_extra %}{% endblock %}
+
+    </div>{# /.main-wrapper #}
+</div>{# /.app-layout #}
+
+{% endif %}{# ── end authenticated wrapper close ── #}
+
+<!-- Bootstrap 5 JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Custom JS -->
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+{% if current_user.is_authenticated %}
+<script>
+(function() {
+    const sidebar   = document.getElementById('sidebar');
+    const backdrop  = document.getElementById('sidebarBackdrop');
+    const toggleBtn = document.getElementById('sidebarToggle');
+
+    function openSidebar()  { sidebar.classList.add('open');  backdrop.classList.add('show'); }
+    function closeSidebar() { sidebar.classList.remove('open'); backdrop.classList.remove('show'); }
+
+    if (toggleBtn) toggleBtn.addEventListener('click', function() {
+        sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+    });
+    if (backdrop) backdrop.addEventListener('click', closeSidebar);
+
+    // Highlight active nav link
+    const links   = sidebar.querySelectorAll('.sidebar-link');
+    const current = window.location.pathname;
+    links.forEach(function(link) {
+        const href = link.getAttribute('href');
+        if (href && href !== '#' && href !== '/' && current.startsWith(href)) {
+            link.classList.add('active');
+        }
+    });
+}());
+</script>
+{% endif %}
+
+{% block extra_js %}{% endblock %}
 </body>
 </html>

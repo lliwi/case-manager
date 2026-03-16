@@ -155,7 +155,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <div class="btn-group btn-group-sm" role="group">
+                                    <div class="d-flex gap-1">
                                         <form action="{{ url_for('monitoring.source_toggle', case_id=case.id, task_id=task.id, source_id=source.id) }}" method="post" class="d-inline">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-outline-{% if source.is_active %}warning{% else %}success{% endif %}" title="{% if source.is_active %}Desactivar{% else %}Activar{% endif %}">
@@ -164,7 +164,7 @@
                                         </form>
                                         <form action="{{ url_for('monitoring.source_delete', case_id=case.id, task_id=task.id, source_id=source.id) }}" method="post" class="d-inline" onsubmit="return confirm('¿Eliminar esta fuente? Se perderán todos los resultados asociados.');">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="btn btn-outline-danger" title="Eliminar">
+                                            <button type="submit" class="btn-action danger" title="Eliminar">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </form>
@@ -321,7 +321,7 @@
 
         <!-- Danger Zone -->
         <div class="card border-danger">
-            <div class="card-header bg-danger text-white">
+            <div class="card-header">
                 <h6 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Zona de peligro</h6>
             </div>
             <div class="card-body">

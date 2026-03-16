@@ -99,26 +99,28 @@
                             </h5>
                         </div>
                         <div class="card-body">
-                            <div class="row text-center">
-                                <div class="col-md-6 mb-3">
-                                    <div class="card bg-info text-white">
-                                        <div class="card-body">
-                                            <h3 class="mb-0">{{ api_key.usage_count }}</h3>
-                                            <small>Usos Totales</small>
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <div class="stat-card">
+                                        <div class="stat-card-icon info"><i class="bi bi-lightning-charge-fill"></i></div>
+                                        <div class="stat-card-body">
+                                            <div class="stat-card-value">{{ api_key.usage_count }}</div>
+                                            <div class="stat-card-label">Usos Totales</div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <div class="card bg-primary text-white">
-                                        <div class="card-body">
-                                            <h6 class="mb-0">Último Uso</h6>
-                                            <small>
+                                <div class="col-6">
+                                    <div class="stat-card">
+                                        <div class="stat-card-icon slate"><i class="bi bi-clock-history"></i></div>
+                                        <div class="stat-card-body">
+                                            <div class="stat-card-value" style="font-size:.8rem;letter-spacing:0;">
                                                 {% if api_key.last_used_at %}
                                                     {{ api_key.last_used_at.strftime('%d/%m/%Y %H:%M') }}
                                                 {% else %}
-                                                    Nunca utilizada
+                                                    Nunca
                                                 {% endif %}
-                                            </small>
+                                            </div>
+                                            <div class="stat-card-label">Último Uso</div>
                                         </div>
                                     </div>
                                 </div>
@@ -193,7 +195,7 @@
                     <!-- Service Info -->
                     {% if api_key.service_name == 'ipqualityscore' %}
                     <div class="card shadow-sm border-info">
-                        <div class="card-header bg-info text-white">
+                        <div class="card-header">
                             <h6 class="mb-0">
                                 <i class="bi bi-info-circle"></i> Información de IPQualityScore
                             </h6>

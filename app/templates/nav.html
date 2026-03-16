@@ -1,95 +1,169 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="{{ url_for('dashboard.index') }}">
-            <i class="bi bi-shield-check"></i> Case Manager
-        </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('dashboard.index') }}">
-                        <i class="bi bi-speedometer2"></i> Dashboard
-                    </a>
-                </li>
-                {% if current_user.is_detective() %}
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="casesDropdown" role="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-folder"></i> Casos
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{{ url_for('cases.index') }}">Mis Casos</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('cases.create') }}">Nuevo Caso</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{{ url_for('libro_registro.index') }}">Libro-registro</a></li>
-                    </ul>
-                </li>
-                {% if case %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}">
-                        <i class="bi bi-file-earmark-text"></i> Evidencias
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('osint.case_contacts', case_id=case.id) }}">
-                        <i class="bi bi-search"></i> OSINT
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('timeline.case_timeline', case_id=case.id) }}">
-                        <i class="bi bi-clock-history"></i> Timeline
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('graph.case_graph', case_id=case.id) }}">
-                        <i class="bi bi-diagram-3"></i> Grafo
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('reports.case_reports', case_id=case.id) }}">
-                        <i class="bi bi-file-pdf"></i> Informes
-                    </a>
-                </li>
-                {% endif %}
-                {% endif %}
-                {% if current_user.is_admin() %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.index') }}">
-                        <i class="bi bi-gear"></i> Admin
-                    </a>
-                </li>
-                {% endif %}
-            </ul>
-            <ul class="navbar-nav">
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-person-circle"></i> {{ current_user.nombre }}
-                        {% if current_user.mfa_enabled %}
-                        <span class="badge bg-success"><i class="bi bi-shield-check"></i></span>
-                        {% endif %}
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">
-                            <i class="bi bi-person"></i> Perfil
-                        </a></li>
-                        {% if not current_user.mfa_enabled %}
-                        <li><a class="dropdown-item" href="{{ url_for('auth.setup_mfa') }}">
-                            <i class="bi bi-shield-lock"></i> Configurar MFA
-                        </a></li>
-                        {% endif %}
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <form method="POST" action="{{ url_for('auth.logout') }}" class="d-inline">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="dropdown-item">
-                                    <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
-                </li>
-            </ul>
-        </div>
+<!-- Sidebar Brand -->
+<a class="sidebar-brand" href="{{ url_for('dashboard.index') }}">
+    <div class="sidebar-brand-icon">
+        <i class="bi bi-shield-check"></i>
     </div>
-</nav>
+    <div class="sidebar-brand-text">
+        <span class="sidebar-brand-title">Case Manager</span>
+        <span class="sidebar-brand-subtitle">Investigación Privada</span>
+    </div>
+</a>
+
+<!-- Navigation -->
+<ul class="sidebar-nav">
+
+    <!-- Dashboard -->
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('dashboard.index') }}">
+            <i class="bi bi-speedometer2"></i>
+            Dashboard
+        </a>
+    </li>
+
+    {% if current_user.is_detective() %}
+
+    <!-- INVESTIGACIONES -->
+    <li><span class="sidebar-section-label">Investigaciones</span></li>
+
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('cases.index') }}">
+            <i class="bi bi-folder2-open"></i>
+            Mis Casos
+        </a>
+    </li>
+
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('cases.create') }}">
+            <i class="bi bi-plus-square"></i>
+            Nuevo Caso
+        </a>
+    </li>
+
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('cases.search') }}">
+            <i class="bi bi-search"></i>
+            Buscar Caso
+        </a>
+    </li>
+
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('libro_registro.index') }}">
+            <i class="bi bi-journal-bookmark-fill"></i>
+            Libro-Registro
+        </a>
+    </li>
+
+    {% if case %}
+    <!-- CASO ACTIVO -->
+    <li>
+        <div class="sidebar-case-context" style="margin: .5rem .625rem;">
+            <div class="sidebar-case-context-label">Caso activo</div>
+            <div class="sidebar-case-context-name">{{ case.numero_orden }}</div>
+        </div>
+    </li>
+
+    <li><span class="sidebar-section-label">Caso actual</span></li>
+
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('evidence.case_evidence_list', case_id=case.id) }}">
+            <i class="bi bi-file-earmark-lock"></i>
+            Evidencias
+        </a>
+    </li>
+
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('osint.case_contacts', case_id=case.id) }}">
+            <i class="bi bi-person-lines-fill"></i>
+            OSINT
+        </a>
+    </li>
+
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('timeline.case_timeline', case_id=case.id) }}">
+            <i class="bi bi-clock-history"></i>
+            Timeline
+        </a>
+    </li>
+
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('graph.case_graph', case_id=case.id) }}">
+            <i class="bi bi-diagram-3"></i>
+            Grafo Relacional
+        </a>
+    </li>
+
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('reports.case_reports', case_id=case.id) }}">
+            <i class="bi bi-file-earmark-pdf"></i>
+            Informes
+        </a>
+    </li>
+    {% endif %}
+
+    <!-- HERRAMIENTAS -->
+    <li><span class="sidebar-section-label">Herramientas</span></li>
+
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('plugins.index') }}">
+            <i class="bi bi-plug"></i>
+            Plugins
+        </a>
+    </li>
+
+    {% endif %}
+
+    {% if current_user.is_admin() %}
+    <!-- ADMINISTRACIÓN -->
+    <li><span class="sidebar-section-label">Administración</span></li>
+
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('admin.index') }}">
+            <i class="bi bi-grid-3x3-gap"></i>
+            Panel Admin
+        </a>
+    </li>
+
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('admin.users') }}">
+            <i class="bi bi-people"></i>
+            Usuarios
+        </a>
+    </li>
+
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('admin.audit_logs') }}">
+            <i class="bi bi-journal-text"></i>
+            Logs de Auditoría
+        </a>
+    </li>
+
+    <li class="sidebar-item">
+        <a class="sidebar-link" href="{{ url_for('admin.settings') }}">
+            <i class="bi bi-sliders"></i>
+            Configuración
+        </a>
+    </li>
+    {% endif %}
+
+</ul>
+
+<!-- Sidebar Footer: user info -->
+<div class="sidebar-footer">
+    <a class="sidebar-user" href="{{ url_for('auth.profile') }}">
+        <div class="sidebar-avatar">
+            {{ current_user.nombre[0].upper() if current_user.nombre else 'U' }}
+        </div>
+        <div class="sidebar-user-info">
+            <div class="sidebar-user-name">{{ current_user.nombre }}</div>
+            <div class="sidebar-user-role">
+                {% if current_user.mfa_enabled %}
+                    <i class="bi bi-shield-check text-success"></i>
+                {% else %}
+                    <i class="bi bi-shield-x text-warning"></i>
+                {% endif %}
+                {{ current_user.roles[0].name if current_user.roles else 'Detective' }}
+            </div>
+        </div>
+        <i class="bi bi-chevron-right" style="color: var(--sidebar-text); font-size:.7rem;"></i>
+    </a>
+</div>

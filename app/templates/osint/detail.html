@@ -117,7 +117,7 @@
                     {% if contact.extra_data and contact.extra_data.get('x_profile') %}
                     {% set x_profile = contact.extra_data.x_profile.data %}
                     <div class="card shadow-sm mb-4">
-                        <div class="card-header bg-info text-white">
+                        <div class="card-header">
                             <h5 class="mb-0">
                                 <i class="bi bi-twitter-x"></i> Información de Perfil de X (Twitter)
                             </h5>
@@ -204,7 +204,7 @@
                     {% if contact.extra_data and contact.extra_data.get('x_tweets') %}
                     {% set x_tweets = contact.extra_data.x_tweets.data %}
                     <div class="card shadow-sm mb-4">
-                        <div class="card-header bg-primary text-white">
+                        <div class="card-header">
                             <h5 class="mb-0">
                                 <i class="bi bi-chat-dots"></i> Últimos Tweets ({{ x_tweets.tweet_count }})
                             </h5>

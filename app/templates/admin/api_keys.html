@@ -21,44 +21,40 @@
             </div>
 
             <!-- Statistics -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="card bg-primary text-white">
-                        <div class="card-body">
-                            <h5 class="card-title">
-                                <i class="bi bi-key-fill"></i> Total API Keys
-                            </h5>
-                            <h2 class="mb-0">{{ total_keys }}</h2>
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-card-icon primary"><i class="bi bi-key-fill"></i></div>
+                        <div class="stat-card-body">
+                            <div class="stat-card-value">{{ total_keys }}</div>
+                            <div class="stat-card-label">Total API Keys</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card bg-success text-white">
-                        <div class="card-body">
-                            <h5 class="card-title">
-                                <i class="bi bi-check-circle-fill"></i> Activas
-                            </h5>
-                            <h2 class="mb-0">{{ keys|selectattr('is_active')|list|length }}</h2>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-card-icon success"><i class="bi bi-check-circle-fill"></i></div>
+                        <div class="stat-card-body">
+                            <div class="stat-card-value">{{ keys|selectattr('is_active')|list|length }}</div>
+                            <div class="stat-card-label">Activas</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card bg-warning text-white">
-                        <div class="card-body">
-                            <h5 class="card-title">
-                                <i class="bi bi-pause-circle-fill"></i> Inactivas
-                            </h5>
-                            <h2 class="mb-0">{{ keys|rejectattr('is_active')|list|length }}</h2>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-card-icon warning"><i class="bi bi-pause-circle-fill"></i></div>
+                        <div class="stat-card-body">
+                            <div class="stat-card-value">{{ keys|rejectattr('is_active')|list|length }}</div>
+                            <div class="stat-card-label">Inactivas</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card bg-info text-white">
-                        <div class="card-body">
-                            <h5 class="card-title">
-                                <i class="bi bi-diagram-3-fill"></i> Servicios
-                            </h5>
-                            <h2 class="mb-0">{{ keys_by_service|length }}</h2>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-card-icon info"><i class="bi bi-diagram-3-fill"></i></div>
+                        <div class="stat-card-body">
+                            <div class="stat-card-value">{{ keys_by_service|length }}</div>
+                            <div class="stat-card-label">Servicios</div>
                         </div>
                     </div>
                 </div>
@@ -130,7 +126,7 @@
                                             <small>{{ key.created_by.email }}</small>
                                         </td>
                                         <td>
-                                            <div class="btn-group btn-group-sm" role="group">
+                                            <div class="d-flex gap-1">
                                                 <a href="{{ url_for('admin.api_key_detail', key_id=key.id) }}"
                                                    class="btn btn-outline-info"
                                                    title="Ver detalles">

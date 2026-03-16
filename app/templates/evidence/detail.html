@@ -40,7 +40,7 @@
 
         <!-- Preview Section -->
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-dark text-white">
+            <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-eye"></i> Vista Previa</h5>
             </div>
             <div class="card-body">
@@ -158,7 +158,7 @@
                         <!-- SECONDARY: AI Analysis (complementary) -->
                         {% if meta.ai_analysis %}
                             <div class="card border-info mb-3">
-                                <div class="card-header bg-info bg-opacity-10">
+                                <div class="card-header">
                                     <i class="bi bi-robot text-info"></i> <strong>Análisis de IA</strong> <small class="text-muted">(complementario)</small>
                                     {% if meta.ai_analysis.relevance_score %}
                                         <span class="badge bg-{% if meta.ai_analysis.relevance_score >= 0.7 %}danger{% elif meta.ai_analysis.relevance_score >= 0.4 %}warning{% else %}secondary{% endif %} float-end">
@@ -262,7 +262,7 @@
         <!-- Plugin Actions -->
         {% if applicable_plugins %}
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-info text-white">
+            <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-plugin"></i> Análisis Forense Disponible</h5>
             </div>
             <div class="card-body">
@@ -289,7 +289,7 @@
         <!-- Previous Analyses Results -->
         {% if previous_analyses %}
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-success text-white">
+            <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-clipboard-data"></i> Análisis Forenses Realizados</h5>
             </div>
             <div class="card-body">
@@ -587,7 +587,7 @@
 
         <!-- Evidence Details -->
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-primary text-white">
+            <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Información de la Evidencia</h5>
             </div>
             <div class="card-body">
@@ -621,7 +621,7 @@
 
         <!-- Cryptographic Hashes -->
         <div class="card shadow-sm mb-4 border-success">
-            <div class="card-header bg-success text-white">
+            <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Hashes Criptográficos</h5>
             </div>
             <div class="card-body">
@@ -919,7 +919,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Camera Info
         if (result.camera_info) {
-            html += '<div class="col-md-6 mb-3"><div class="card"><div class="card-header bg-primary text-white"><strong>Información de Cámara</strong></div><div class="card-body"><dl class="row mb-0">';
+            html += '<div class="col-md-6 mb-3"><div class="card"><div class="card-header"><strong>Información de Cámara</strong></div><div class="card-body"><dl class="row mb-0">';
             for (const [key, value] of Object.entries(result.camera_info)) {
                 if (value) {
                     html += `<dt class="col-sm-5">${key}:</dt><dd class="col-sm-7">${value}</dd>`;
@@ -930,7 +930,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // GPS Info
         if (result.gps) {
-            html += '<div class="col-md-6 mb-3"><div class="card"><div class="card-header bg-success text-white"><strong>Información GPS</strong></div><div class="card-body">';
+            html += '<div class="col-md-6 mb-3"><div class="card"><div class="card-header"><strong>Información GPS</strong></div><div class="card-body">';
             html += `<p><strong>Coordenadas:</strong><br>Lat: ${result.gps.latitude.toFixed(6)}, Lon: ${result.gps.longitude.toFixed(6)}</p>`;
             html += `<a href="https://www.google.com/maps?q=${result.gps.latitude},${result.gps.longitude}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-geo-alt"></i> Ver en Mapa</a>`;
             html += '</div></div></div>';
@@ -938,7 +938,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Datetime Info
         if (result.datetime_info) {
-            html += '<div class="col-md-6 mb-3"><div class="card"><div class="card-header bg-warning"><strong>Información de Fecha</strong></div><div class="card-body"><dl class="row mb-0">';
+            html += '<div class="col-md-6 mb-3"><div class="card"><div class="card-header"><strong>Información de Fecha</strong></div><div class="card-body"><dl class="row mb-0">';
             for (const [key, value] of Object.entries(result.datetime_info)) {
                 if (value) {
                     html += `<dt class="col-sm-5">${key}:</dt><dd class="col-sm-7">${value}</dd>`;
@@ -949,7 +949,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Image Info
         if (result.image_info) {
-            html += '<div class="col-md-6 mb-3"><div class="card"><div class="card-header bg-info text-white"><strong>Información de Imagen</strong></div><div class="card-body"><dl class="row mb-0">';
+            html += '<div class="col-md-6 mb-3"><div class="card"><div class="card-header"><strong>Información de Imagen</strong></div><div class="card-body"><dl class="row mb-0">';
             html += `<dt class="col-sm-5">Dimensiones:</dt><dd class="col-sm-7">${result.image_info.width} x ${result.image_info.height} px</dd>`;
             html += `<dt class="col-sm-5">Formato:</dt><dd class="col-sm-7">${result.image_info.format}</dd>`;
             html += `<dt class="col-sm-5">Modo:</dt><dd class="col-sm-7">${result.image_info.mode}</dd>`;
@@ -961,7 +961,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function formatPdfResults(result) {
-        let html = '<div class="card"><div class="card-header bg-primary text-white"><strong>Metadatos del PDF</strong></div><div class="card-body">';
+        let html = '<div class="card"><div class="card-header"><strong>Metadatos del PDF</strong></div><div class="card-body">';
         html += '<dl class="row">';
         for (const [key, value] of Object.entries(result)) {
             html += `<dt class="col-sm-4">${key}:</dt><dd class="col-sm-8">${value}</dd>`;

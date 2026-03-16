@@ -19,36 +19,40 @@
 </div>
 
 <!-- Statistics Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <h6 class="text-uppercase small">Total Evidencias</h6>
-                <div class="h3">{{ stats.total_count }}</div>
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-card-icon primary"><i class="bi bi-file-earmark-lock-fill"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-card-value">{{ stats.total_count }}</div>
+                <div class="stat-card-label">Total Evidencias</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <h6 class="text-uppercase small">Verificadas</h6>
-                <div class="h3">{{ stats.verified_count }}</div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-card-icon success"><i class="bi bi-patch-check-fill"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-card-value">{{ stats.verified_count }}</div>
+                <div class="stat-card-label">Verificadas</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <h6 class="text-uppercase small">Tamaño Total</h6>
-                <div class="h3">{{ stats.total_size_mb }} MB</div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-card-icon info"><i class="bi bi-hdd-fill"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-card-value">{{ stats.total_size_mb }} MB</div>
+                <div class="stat-card-label">Tamaño Total</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-warning text-white">
-            <div class="card-body">
-                <h6 class="text-uppercase small">Tasa de Verificación</h6>
-                <div class="h3">{{ stats.verification_rate }}%</div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-card-icon warning"><i class="bi bi-shield-check"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-card-value">{{ stats.verification_rate }}%</div>
+                <div class="stat-card-label">Tasa de Verificación</div>
             </div>
         </div>
     </div>

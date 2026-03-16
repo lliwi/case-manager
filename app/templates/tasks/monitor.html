@@ -27,49 +27,49 @@
     </div>
 
     <!-- Worker Statistics -->
-    <div class="row mb-4">
-        <div class="col">
-            <div class="card border-primary">
-                <div class="card-body text-center">
-                    <i class="bi bi-server text-primary" style="font-size: 2rem;"></i>
-                    <div class="h3 mt-2" id="total-workers">-</div>
-                    <div class="text-muted">Workers Activos</div>
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md">
+            <div class="stat-card">
+                <div class="stat-card-icon primary"><i class="bi bi-server"></i></div>
+                <div class="stat-card-body">
+                    <div class="stat-card-value" id="total-workers">-</div>
+                    <div class="stat-card-label">Workers Activos</div>
                 </div>
             </div>
         </div>
-        <div class="col">
-            <div class="card border-success">
-                <div class="card-body text-center">
-                    <i class="bi bi-play-circle text-success" style="font-size: 2rem;"></i>
-                    <div class="h3 mt-2" id="active-tasks">-</div>
-                    <div class="text-muted">Tareas Activas</div>
+        <div class="col-6 col-md">
+            <div class="stat-card">
+                <div class="stat-card-icon success"><i class="bi bi-play-circle-fill"></i></div>
+                <div class="stat-card-body">
+                    <div class="stat-card-value" id="active-tasks">-</div>
+                    <div class="stat-card-label">Tareas Activas</div>
                 </div>
             </div>
         </div>
-        <div class="col">
-            <div class="card" style="border-color: #6f42c1;">
-                <div class="card-body text-center">
-                    <i class="bi bi-binoculars" style="font-size: 2rem; color: #6f42c1;"></i>
-                    <div class="h3 mt-2" id="monitoring-tasks-count">-</div>
-                    <div class="text-muted">Monitorización</div>
+        <div class="col-6 col-md">
+            <div class="stat-card">
+                <div class="stat-card-icon info"><i class="bi bi-broadcast"></i></div>
+                <div class="stat-card-body">
+                    <div class="stat-card-value" id="monitoring-tasks-count">-</div>
+                    <div class="stat-card-label">Monitorización</div>
                 </div>
             </div>
         </div>
-        <div class="col">
-            <div class="card border-warning">
-                <div class="card-body text-center">
-                    <i class="bi bi-calendar-check text-warning" style="font-size: 2rem;"></i>
-                    <div class="h3 mt-2" id="beat-tasks">-</div>
-                    <div class="text-muted">Tareas Beat</div>
+        <div class="col-6 col-md">
+            <div class="stat-card">
+                <div class="stat-card-icon warning"><i class="bi bi-calendar-check"></i></div>
+                <div class="stat-card-body">
+                    <div class="stat-card-value" id="beat-tasks">-</div>
+                    <div class="stat-card-label">Tareas Beat</div>
                 </div>
             </div>
         </div>
-        <div class="col">
-            <div class="card border-info">
-                <div class="card-body text-center">
-                    <i class="bi bi-hourglass-split text-info" style="font-size: 2rem;"></i>
-                    <div class="h3 mt-2" id="reserved-tasks">-</div>
-                    <div class="text-muted">En Cola</div>
+        <div class="col-6 col-md">
+            <div class="stat-card">
+                <div class="stat-card-icon slate"><i class="bi bi-hourglass-split"></i></div>
+                <div class="stat-card-body">
+                    <div class="stat-card-value" id="reserved-tasks">-</div>
+                    <div class="stat-card-label">En Cola</div>
                 </div>
             </div>
         </div>
@@ -79,8 +79,8 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <i class="bi bi-server"></i> Workers Disponibles
+                <div class="card-header">
+                    <h5 class="card-title"><i class="bi bi-server"></i> Workers Disponibles</h5>
                 </div>
                 <div class="card-body">
                     <div id="workers-list" class="table-responsive">
@@ -109,9 +109,9 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-list-task"></i> Tareas Activas</span>
-                    <button class="btn btn-sm btn-light" onclick="refreshTasks()">
+                <div class="card-header">
+                    <h5 class="card-title"><i class="bi bi-list-task"></i> Tareas Activas</h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="refreshTasks()">
                         <i class="bi bi-arrow-clockwise"></i> Actualizar
                     </button>
                 </div>
@@ -143,8 +143,8 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header bg-purple text-white" style="background-color: #6f42c1;">
-                    <i class="bi bi-binoculars"></i> Tareas de Monitorización Activas
+                <div class="card-header">
+                    <h5 class="card-title"><i class="bi bi-broadcast"></i> Tareas de Monitorización Activas</h5>
                 </div>
                 <div class="card-body">
                     <div id="monitoring-tasks-list" class="table-responsive">
@@ -177,8 +177,8 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header bg-warning text-dark">
-                    <i class="bi bi-calendar-check"></i> Tareas Programadas (Celery Beat)
+                <div class="card-header">
+                    <h5 class="card-title"><i class="bi bi-calendar-check"></i> Tareas Programadas (Celery Beat)</h5>
                 </div>
                 <div class="card-body">
                     <div id="beat-schedule-list" class="table-responsive">
@@ -206,8 +206,8 @@
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header bg-info text-white">
-                    <i class="bi bi-flower1"></i> Flower - Monitoreo Avanzado
+                <div class="card-header">
+                    <h5 class="card-title"><i class="bi bi-flower1"></i> Flower — Monitoreo Avanzado</h5>
                 </div>
                 <div class="card-body">
                     <p>Accede al dashboard completo de Flower para monitoreo avanzado:</p>

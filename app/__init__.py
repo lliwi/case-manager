@@ -154,7 +154,7 @@ def register_cli_commands(app):
     """Register custom CLI commands."""
     import click
 
-    @app.cli.command()
+    @app.cli.command('init_db')
     def init_db():
         """Initialize the database."""
         db.create_all()
@@ -204,7 +204,7 @@ def register_cli_commands(app):
 
         click.echo(f'Admin user {email} created successfully.')
 
-    @app.cli.command()
+    @app.cli.command('init_neo4j')
     def init_neo4j():
         """Initialize Neo4j constraints and indexes."""
         from app.services.graph_service import GraphService

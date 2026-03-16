@@ -21,48 +21,44 @@
             </div>
 
             <!-- Statistics -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="card bg-primary text-white">
-                        <div class="card-body">
-                            <h5 class="card-title">
-                                <i class="bi bi-collection"></i> Total Contactos
-                            </h5>
-                            <h2 class="mb-0">{{ stats.total }}</h2>
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-card-icon primary"><i class="bi bi-collection-fill"></i></div>
+                        <div class="stat-card-body">
+                            <div class="stat-card-value">{{ stats.total }}</div>
+                            <div class="stat-card-label">Total Contactos</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card bg-success text-white">
-                        <div class="card-body">
-                            <h5 class="card-title">
-                                <i class="bi bi-check-circle"></i> Validados
-                            </h5>
-                            <h2 class="mb-0">{{ stats.validated }}</h2>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-card-icon success"><i class="bi bi-patch-check-fill"></i></div>
+                        <div class="stat-card-body">
+                            <div class="stat-card-value">{{ stats.validated }}</div>
+                            <div class="stat-card-label">Validados</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card bg-danger text-white">
-                        <div class="card-body">
-                            <h5 class="card-title">
-                                <i class="bi bi-exclamation-triangle"></i> Alto Riesgo
-                            </h5>
-                            <h2 class="mb-0">{{ stats.high_risk }}</h2>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-card-icon danger"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                        <div class="stat-card-body">
+                            <div class="stat-card-value">{{ stats.high_risk }}</div>
+                            <div class="stat-card-label">Alto Riesgo</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card bg-info text-white">
-                        <div class="card-body">
-                            <h5 class="card-title">
-                                <i class="bi bi-pie-chart"></i> Por Tipo
-                            </h5>
-                            <small>
-                                <i class="bi bi-envelope"></i> {{ stats.by_type.email }} |
-                                <i class="bi bi-telephone"></i> {{ stats.by_type.phone }} |
-                                <i class="bi bi-person-circle"></i> {{ stats.by_type.social_profile }}
-                            </small>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-card-icon info"><i class="bi bi-pie-chart-fill"></i></div>
+                        <div class="stat-card-body">
+                            <div class="stat-card-value" style="font-size:1rem;">
+                                <i class="bi bi-envelope"></i> {{ stats.by_type.email }}
+                                <i class="bi bi-telephone ms-1"></i> {{ stats.by_type.phone }}
+                                <i class="bi bi-person-circle ms-1"></i> {{ stats.by_type.social_profile }}
+                            </div>
+                            <div class="stat-card-label">Por Tipo</div>
                         </div>
                     </div>
                 </div>
@@ -164,7 +160,7 @@
                                             <small>{{ contact.created_at.strftime('%d/%m/%Y') }}</small>
                                         </td>
                                         <td>
-                                            <div class="btn-group btn-group-sm" role="group">
+                                            <div class="d-flex gap-1">
                                                 <a href="{{ url_for('osint.detail', case_id=case.id, contact_id=contact.id) }}"
                                                    class="btn btn-outline-info"
                                                    title="Ver detalles">

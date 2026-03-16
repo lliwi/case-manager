@@ -26,12 +26,18 @@
                     {% for report in reports %}
                         <div class="col-md-6 mb-4">
                             <div class="card h-100 shadow-sm">
-                                <div class="card-header {% if report.status.name == 'COMPLETED' %}bg-success text-white{% elif report.status.name == 'SIGNED' %}bg-primary text-white{% elif report.status.name == 'GENERATING' %}bg-warning{% elif report.status.name == 'FAILED' %}bg-danger text-white{% else %}bg-secondary text-white{% endif %}">
+                                <div class="card-header">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <h6 class="mb-0">
+                                        <h6 class="card-title mb-0">
                                             <i class="bi bi-file-earmark-text"></i> {{ report.report_type.value }}
                                         </h6>
-                                        <span class="badge {% if report.is_signed %}bg-light text-dark{% else %}bg-dark{% endif %}">
+                                        <span class="badge
+                                            {% if report.status.name == 'COMPLETED' %}badge-status-active
+                                            {% elif report.status.name == 'SIGNED' %}badge-status-active
+                                            {% elif report.status.name == 'GENERATING' %}badge-status-pending
+                                            {% elif report.status.name == 'FAILED' %}badge-status-blocked
+                                            {% else %}badge-status-closed{% endif %}">
+                                            {% if report.is_signed %}<i class="bi bi-patch-check-fill"></i> {% endif %}
                                             {{ report.status.value }}
                                         </span>
                                     </div>

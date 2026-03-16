@@ -66,23 +66,19 @@
                                         </td>
                                         <td class="small">{{ user.created_at.strftime('%d/%m/%Y') }}</td>
                                         <td>
-                                            <div class="btn-group btn-group-sm">
+                                            <div class="d-flex gap-1 align-items-center">
                                                 <a href="{{ url_for('admin.user_detail', user_id=user.id) }}"
-                                                   class="btn btn-outline-primary"
-                                                   title="Ver detalles">
+                                                   class="btn-action" title="Ver detalles">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
                                                 <a href="{{ url_for('admin.edit_user', user_id=user.id) }}"
-                                                   class="btn btn-outline-secondary"
-                                                   title="Editar usuario">
+                                                   class="btn-action" title="Editar usuario">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
-                                                <form method="POST"
-                                                      action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}"
-                                                      style="display: inline;">
+                                                <form method="POST" action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}">
                                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                                     <button type="submit"
-                                                            class="btn btn-outline-{% if user.is_active %}warning{% else %}success{% endif %}"
+                                                            class="btn-action {% if not user.is_active %}success{% endif %}"
                                                             title="{% if user.is_active %}Desactivar{% else %}Activar{% endif %}"
                                                             {% if user.id == current_user.id %}disabled{% endif %}>
                                                         <i class="bi bi-{% if user.is_active %}pause{% else %}play{% endif %}"></i>
@@ -91,12 +87,9 @@
                                                 {% if user.mfa_enabled %}
                                                 <form method="POST"
                                                       action="{{ url_for('admin.admin_disable_mfa', user_id=user.id) }}"
-                                                      style="display: inline;"
                                                       onsubmit="return confirm('¿Desactivar MFA para {{ user.email }}?')">
                                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                                    <button type="submit"
-                                                            class="btn btn-outline-danger"
-                                                            title="Desactivar MFA">
+                                                    <button type="submit" class="btn-action danger" title="Desactivar MFA">
                                                         <i class="bi bi-shield-x"></i>
                                                     </button>
                                                 </form>

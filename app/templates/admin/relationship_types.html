@@ -73,7 +73,7 @@
                         </td>
                         <td>
                             {% if type_stat.is_custom %}
-                                <div class="btn-group btn-group-sm" role="group">
+                                <div class="d-flex gap-1">
                                     <!-- Edit -->
                                     <a href="{{ url_for('admin.edit_relationship_type', type_id=type_stat.custom_id) }}"
                                        class="btn btn-outline-primary"

@@ -24,36 +24,40 @@
 </div>
 
 <!-- Statistics Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body py-3">
-                <h6 class="text-uppercase small mb-1">Tareas Totales</h6>
-                <div class="h3 mb-0">{{ tasks|length }}</div>
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-card-icon primary"><i class="bi bi-broadcast"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-card-value">{{ tasks|length }}</div>
+                <div class="stat-card-label">Tareas Totales</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-success text-white">
-            <div class="card-body py-3">
-                <h6 class="text-uppercase small mb-1">Activas</h6>
-                <div class="h3 mb-0">{{ tasks|selectattr('status.value', 'equalto', 'Activo')|list|length }}</div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-card-icon success"><i class="bi bi-play-circle-fill"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-card-value">{{ tasks|selectattr('status.value', 'equalto', 'Activo')|list|length }}</div>
+                <div class="stat-card-label">Activas</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-warning text-white">
-            <div class="card-body py-3">
-                <h6 class="text-uppercase small mb-1">Alertas Pendientes</h6>
-                <div class="h3 mb-0">{{ total_unread }}</div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-card-icon {{ 'danger' if total_unread > 0 else 'slate' }}"><i class="bi bi-bell-fill"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-card-value">{{ total_unread }}</div>
+                <div class="stat-card-label">Alertas Pendientes</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-info text-white">
-            <div class="card-body py-3">
-                <h6 class="text-uppercase small mb-1">Resultados Totales</h6>
-                <div class="h3 mb-0">{{ tasks|map(attribute='total_results')|sum }}</div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-card-icon info"><i class="bi bi-card-list"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-card-value">{{ tasks|map(attribute='total_results')|sum }}</div>
+                <div class="stat-card-label">Resultados Totales</div>
             </div>
         </div>
     </div>

@@ -45,7 +45,7 @@ pip-delete-this-directory.txt
 .pydevproject
 .settings/
 *.code-workspace
-
+.claude/
 # ===========================================
 # Flask & Application
 # ===========================================

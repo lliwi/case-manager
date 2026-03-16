@@ -66,36 +66,40 @@
 </div>
 
 <!-- Statistics -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <h6 class="text-uppercase small">Total Casos {{ year }}</h6>
-                <div class="h3">{{ stats.total_cases }}</div>
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-card-icon primary"><i class="bi bi-journal-bookmark-fill"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-card-value">{{ stats.total_cases }}</div>
+                <div class="stat-card-label">Total Casos {{ year }}</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <h6 class="text-uppercase small">Activos</h6>
-                <div class="h3">{{ stats.active_cases }}</div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-card-icon success"><i class="bi bi-folder2-open"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-card-value">{{ stats.active_cases }}</div>
+                <div class="stat-card-label">Activos</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <h6 class="text-uppercase small">Cerrados</h6>
-                <div class="h3">{{ stats.closed_cases }}</div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-card-icon slate"><i class="bi bi-archive-fill"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-card-value">{{ stats.closed_cases }}</div>
+                <div class="stat-card-label">Cerrados</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-warning text-white">
-            <div class="card-body">
-                <h6 class="text-uppercase small">Pendientes</h6>
-                <div class="h3">{{ stats.pending_cases }}</div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-card-icon warning"><i class="bi bi-hourglass-split"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-card-value">{{ stats.pending_cases }}</div>
+                <div class="stat-card-label">Pendientes</div>
             </div>
         </div>
     </div>

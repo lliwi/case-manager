@@ -25,43 +25,47 @@
             </div>
 
             <!-- Stats Cards -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="text-muted">Total Eventos</h6>
-                            <h3>{{ stats.total_events }}</h3>
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-card-icon primary"><i class="bi bi-clock-history"></i></div>
+                        <div class="stat-card-body">
+                            <div class="stat-card-value">{{ stats.total_events }}</div>
+                            <div class="stat-card-label">Total Eventos</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="text-muted">Con Evidencia</h6>
-                            <h3>{{ stats.events_with_evidence }}</h3>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-card-icon success"><i class="bi bi-file-earmark-lock-fill"></i></div>
+                        <div class="stat-card-body">
+                            <div class="stat-card-value">{{ stats.events_with_evidence }}</div>
+                            <div class="stat-card-label">Con Evidencia</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="text-muted">Sujetos</h6>
-                            <h3>{{ stats.subjects|length }}</h3>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-card-icon info"><i class="bi bi-people-fill"></i></div>
+                        <div class="stat-card-body">
+                            <div class="stat-card-value">{{ stats.subjects|length }}</div>
+                            <div class="stat-card-label">Sujetos</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="text-muted">Período</h6>
-                            <p class="mb-0">
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-card-icon slate"><i class="bi bi-calendar-range"></i></div>
+                        <div class="stat-card-body">
+                            <div class="stat-card-value" style="font-size:.875rem;letter-spacing:0;">
                                 {% if stats.date_range and stats.date_range.start %}
-                                    {{ stats.date_range.start.strftime('%d/%m/%Y') }}<br>
+                                    {{ stats.date_range.start.strftime('%d/%m/%Y') }} —
                                     {{ stats.date_range.end.strftime('%d/%m/%Y') }}
                                 {% else %}
-                                    -
+                                    —
                                 {% endif %}
-                            </p>
+                            </div>
+                            <div class="stat-card-label">Período</div>
                         </div>
                     </div>
                 </div>
