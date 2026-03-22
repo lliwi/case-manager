@@ -21,6 +21,7 @@ class OSINTContactForm(FlaskForm):
             ('phone', 'Teléfono'),
             ('social_profile', 'Perfil Social'),
             ('username', 'Nombre de Usuario'),
+            ('vehicle', 'Vehículo (Matrícula / VIN)'),
             ('other', 'Otro')
         ],
         validators=[DataRequired(message='Debe seleccionar un tipo de contacto')]
@@ -79,7 +80,7 @@ class OSINTContactForm(FlaskForm):
         render_kw={'class': 'form-select'}
     )
 
-    submit = SubmitField('Guardar Contacto')
+    submit = SubmitField('Guardar Elemento')
 
     def validate_contact_value(self, field):
         """Validate contact value based on contact type"""
@@ -97,6 +98,18 @@ class OSINTContactForm(FlaskForm):
             phone_pattern = r'^\+?[0-9\s\-()]{7,20}$'
             if not re.match(phone_pattern, value):
                 raise ValidationError('El formato del teléfono no es válido. Use formato internacional: +34612345678')
+
+        elif contact_type == 'vehicle':
+            # Spanish plate (modern 1234ABC, old XX1234XX) or VIN (17 chars)
+            clean = re.sub(r'[\s\-]', '', value).upper()
+            plate_modern = re.match(r'^[0-9]{4}[A-Z]{3}$', clean)
+            plate_old = re.match(r'^[A-Z]{1,2}[0-9]{4}[A-Z]{2}$', clean)
+            vin_pattern = re.match(r'^[A-HJ-NPR-Z0-9]{17}$', clean)
+            if not (plate_modern or plate_old or vin_pattern):
+                raise ValidationError(
+                    'Introduce una matrícula española (ej. 1234ABC) '
+                    'o un número de bastidor (VIN) de 17 caracteres.'
+                )
 
 
 class ValidateContactForm(FlaskForm):
@@ -133,6 +146,7 @@ class SearchContactForm(FlaskForm):
             ('phone', 'Teléfono'),
             ('social_profile', 'Perfil Social'),
             ('username', 'Nombre de Usuario'),
+            ('vehicle', 'Vehículo'),
             ('other', 'Otro')
         ],
         validators=[Optional()]

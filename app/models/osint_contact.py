@@ -195,6 +195,7 @@ class OSINTContact(db.Model):
             'phone': 'bi-telephone',
             'social_profile': 'bi-person-circle',
             'username': 'bi-person-badge',
+            'vehicle': 'bi-car-front',
             'other': 'bi-info-circle'
         }
         return type_icons.get(self.contact_type, 'bi-info-circle')

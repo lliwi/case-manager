@@ -28,8 +28,6 @@
                     <span class="badge bg-success">Teléfono</span>
                 {% elif node_type == 'email' %}
                     <span class="badge bg-warning">Email</span>
-                {% elif node_type == 'vehicle' %}
-                    <span class="badge bg-info">Vehículo</span>
                 {% elif node_type == 'address' %}
                     <span class="badge bg-secondary">Dirección</span>
                 {% elif node_type == 'social' %}
@@ -44,7 +42,7 @@
 
     <!-- Form -->
     <div class="card">
-        <div class="card-header bg-primary text-white">
+        <div class="card-header">
             <i class="bi bi-pencil"></i> Datos del Nodo
         </div>
         <div class="card-body">
@@ -95,4 +93,5 @@
         </div>
     </div>
 </div>
+
 {% endblock %}

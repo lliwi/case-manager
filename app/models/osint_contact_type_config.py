@@ -45,12 +45,20 @@ BUILTIN_CONTACT_TYPES = [
         'sort_order': 4,
     },
     {
+        'type_key': 'vehicle',
+        'display_name': 'Vehículo (Matrícula / VIN)',
+        'description': 'Matrícula española o número de bastidor (VIN) de un vehículo',
+        'icon_class': 'bi-car-front',
+        'color': 'info',
+        'sort_order': 5,
+    },
+    {
         'type_key': 'other',
         'display_name': 'Otro',
         'description': 'Otro tipo de contacto o identificador digital',
         'icon_class': 'bi-info-circle',
         'color': 'secondary',
-        'sort_order': 5,
+        'sort_order': 6,
     },
 ]
 

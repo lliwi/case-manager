@@ -113,6 +113,126 @@
                         </div>
                     </div>
 
+                    <!-- Vehicle Registry Data -->
+                    {% if contact.contact_type == 'vehicle' and contact.extra_data and contact.extra_data.get('vehicle_lookup') %}
+                    {% set vl = contact.extra_data.vehicle_lookup %}
+                    {% set vd = vl.vehicle_data %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-car-front"></i> Datos del Vehículo
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Vehicle header -->
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                {% if vd.brand_image %}
+                                <img src="{{ vd.brand_image }}" alt="{{ vd.make }}" style="height:40px;" onerror="this.style.display='none'">
+                                {% endif %}
+                                <div>
+                                    <h4 class="mb-0">{{ vd.label or (vd.make ~ ' ' ~ vd.model) }}</h4>
+                                    {% if vd.tecdoc_description %}
+                                    <small class="text-muted">{{ vd.tecdoc_description }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="row g-3">
+                                <!-- Identification -->
+                                <div class="col-md-6">
+                                    <h6 class="text-muted mb-2"><i class="bi bi-card-text"></i> Identificación</h6>
+                                    <dl class="row mb-0 small">
+                                        {% if vd.plate %}
+                                        <dt class="col-5">Matrícula</dt>
+                                        <dd class="col-7"><code class="fs-6">{{ vd.plate }}</code></dd>
+                                        {% endif %}
+                                        <dt class="col-5">Marca</dt>
+                                        <dd class="col-7">{{ vd.make }}</dd>
+                                        <dt class="col-5">Modelo</dt>
+                                        <dd class="col-7">{{ vd.model }}</dd>
+                                        {% if vd.version %}
+                                        <dt class="col-5">Versión</dt>
+                                        <dd class="col-7">{{ vd.version }}</dd>
+                                        {% endif %}
+                                        {% if vd.commercial_name and vd.commercial_name != vd.model %}
+                                        <dt class="col-5">Nombre comercial</dt>
+                                        <dd class="col-7">{{ vd.commercial_name }}</dd>
+                                        {% endif %}
+                                        {% if vd.body_type %}
+                                        <dt class="col-5">Carrocería</dt>
+                                        <dd class="col-7">{{ vd.body_type }}</dd>
+                                        {% endif %}
+                                        {% if vd.platform_code %}
+                                        <dt class="col-5">Plataforma</dt>
+                                        <dd class="col-7"><code>{{ vd.platform_code }}</code></dd>
+                                        {% endif %}
+                                    </dl>
+                                </div>
+
+                                <!-- Engine -->
+                                <div class="col-md-6">
+                                    <h6 class="text-muted mb-2"><i class="bi bi-gear"></i> Motor</h6>
+                                    <dl class="row mb-0 small">
+                                        {% if vd.engine_code %}
+                                        <dt class="col-5">Código motor</dt>
+                                        <dd class="col-7">
+                                            <code>{{ vd.engine_code }}</code>
+                                            {% if vd.engine_codes and vd.engine_codes|length > 1 %}
+                                            <br><small class="text-muted">Otros: {{ vd.engine_codes|join(', ') }}</small>
+                                            {% endif %}
+                                        </dd>
+                                        {% endif %}
+                                        {% if vd.engine_cc %}
+                                        <dt class="col-5">Cilindrada</dt>
+                                        <dd class="col-7">{{ vd.engine_cc }} cc{% if vd.engine_liters %} ({{ vd.engine_liters }}L){% endif %}</dd>
+                                        {% endif %}
+                                        {% if vd.power_kw %}
+                                        <dt class="col-5">Potencia</dt>
+                                        <dd class="col-7">{{ vd.power_kw }} kW{% if vd.power_hp %} / {{ vd.power_hp }} CV{% endif %}</dd>
+                                        {% endif %}
+                                        {% if vd.fuel_type %}
+                                        <dt class="col-5">Combustible</dt>
+                                        <dd class="col-7">{{ vd.fuel_type }}</dd>
+                                        {% endif %}
+                                    </dl>
+                                </div>
+                            </div>
+
+                            <!-- Dates & TecDoc -->
+                            <div class="row g-3 mt-1">
+                                <div class="col-md-6">
+                                    <h6 class="text-muted mb-2"><i class="bi bi-calendar"></i> Fechas</h6>
+                                    <dl class="row mb-0 small">
+                                        {% if vd.first_registration %}
+                                        <dt class="col-5">Primera matric.</dt>
+                                        <dd class="col-7">{{ vd.first_registration }}</dd>
+                                        {% endif %}
+                                        {% if vd.year_start %}
+                                        <dt class="col-5">Años modelo</dt>
+                                        <dd class="col-7">{{ vd.year_start }}{% if vd.year_end %} – {{ vd.year_end }}{% endif %}</dd>
+                                        {% endif %}
+                                    </dl>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-muted mb-2"><i class="bi bi-book"></i> TecDoc</h6>
+                                    <dl class="row mb-0 small">
+                                        {% if vd.tecdoc_ktype %}
+                                        <dt class="col-5">K-Type</dt>
+                                        <dd class="col-7"><code>{{ vd.tecdoc_ktype }}</code></dd>
+                                        {% endif %}
+                                    </dl>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 pt-2 border-top small text-muted">
+                                <i class="bi bi-clock"></i> Datos obtenidos el {{ vl.fetched_at[:10] }}
+                                por {{ vl.fetched_by }}
+                                — Fuente: {{ vl.source }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- X (Twitter) Profile Information -->
                     {% if contact.extra_data and contact.extra_data.get('x_profile') %}
                     {% set x_profile = contact.extra_data.x_profile.data %}
@@ -839,6 +959,13 @@
                                 </form>
                                 {% endif %}
 
+                                {% if contact.contact_type == 'vehicle' and case %}
+                                <button type="button" class="btn btn-primary w-100" id="vehicleLookupBtn">
+                                    <i class="bi bi-car-front"></i> Consultar Registro de Vehículos
+                                </button>
+                                <div id="vehicleLookupStatus" class="small mt-1" style="display:none;"></div>
+                                {% endif %}
+
                                 {% if contact.contact_type in ['social_profile', 'username'] %}
                                     {% if is_twitter %}
                                     <!-- X API Profile Lookup -->
@@ -1301,5 +1428,56 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Vehicle lookup
+const vehicleBtn = document.getElementById('vehicleLookupBtn');
+if (vehicleBtn) {
+    async function doVehicleLookup() {
+        const btn = vehicleBtn;
+        const status = document.getElementById('vehicleLookupStatus');
+        const originalHtml = btn.innerHTML;
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Consultando…';
+        status.style.display = 'block';
+        status.className = 'small mt-1 text-secondary';
+        status.textContent = 'Consultando registro de vehículos…';
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const headers = { 'Content-Type': 'application/json' };
+            if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+
+            const resp = await fetch("{{ url_for('osint.vehicle_lookup', case_id=case.id, contact_id=contact.id) if case else '#' }}", {
+                method: 'POST',
+                headers: headers,
+            });
+            const data = await resp.json();
+
+            if (data.success) {
+                status.className = 'small mt-1 text-success';
+                status.textContent = data.message;
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                status.className = 'small mt-1 text-danger';
+                status.textContent = data.error;
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        } catch (e) {
+            status.className = 'small mt-1 text-danger';
+            status.textContent = 'Error de red. Comprueba la conexión.';
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+
+    vehicleBtn.addEventListener('click', doVehicleLookup);
+
+    // Auto-execute lookup if vehicle has no data yet
+    {% if contact.contact_type == 'vehicle' and (not contact.extra_data or not contact.extra_data.get('vehicle_lookup')) %}
+    doVehicleLookup();
+    {% endif %}
+}
 </script>
 {% endblock %}

@@ -57,11 +57,14 @@ class PluginManager:
             from app.plugins.osint.instagram_profile_lookup import InstagramProfileLookupPlugin
             from app.plugins.osint.instagram_posts_lookup import InstagramPostsLookupPlugin
 
+            from app.plugins.osint.vehicle_registry import VehicleRegistryPlugin
+
             self.pm.register(IPQualityScoreValidatorPlugin())
             self.pm.register(XProfileLookupPlugin())
             self.pm.register(XTweetsLookupPlugin())
             self.pm.register(InstagramProfileLookupPlugin())
             self.pm.register(InstagramPostsLookupPlugin())
+            self.pm.register(VehicleRegistryPlugin())
 
             self._plugins_loaded = True
             logger.info(f"Loaded {len(self.pm.get_plugins())} plugins")
@@ -204,6 +207,18 @@ class PluginManager:
                 'success': False,
                 'error': str(e)
             }
+
+    def execute_vehicle_lookup(self, plate_or_vin: str, **kwargs) -> Dict[str, Any]:
+        """
+        Look up vehicle data by license plate or VIN.
+
+        Args:
+            plate_or_vin: Spanish matrícula (e.g. '1234ABC') or 17-char VIN.
+
+        Returns:
+            dict: Lookup results with vehicle_data on success.
+        """
+        return self.execute_osint_plugin('vehicle_registry', plate_or_vin, **kwargs)
 
     def validate_dni_nie(self, identifier: str) -> Dict[str, Any]:
         """

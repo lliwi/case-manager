@@ -116,13 +116,13 @@
                                 </div>
                             {% endif %}
                             <div class="form-text">
-                                Vincula este contacto a un caso específico (opcional)
+                                Vincula este elemento a un caso específico (opcional)
                             </div>
                         </div>
                         {% else %}
                         <div class="alert alert-info">
                             <i class="bi bi-info-circle"></i>
-                            Este contacto se creará automáticamente asociado al caso <strong>{{ case.numero_orden }}</strong>
+                            Este elemento se creará automáticamente asociado al caso <strong>{{ case.numero_orden }}</strong>
                         </div>
                         {% endif %}
 
@@ -153,8 +153,9 @@
                     </h6>
                     <ul class="mb-0 small">
                         <li><strong>Validación automática:</strong> Los emails y teléfonos pueden ser validados con IPQualityScore después de crearlos</li>
-                        <li><strong>Casos:</strong> Puedes vincular contactos a casos para organizarlos mejor</li>
-                        <li><strong>Etiquetas:</strong> Usa etiquetas para categorizar contactos (ej: alto-riesgo, verificado, principal)</li>
+                        <li><strong>Vehículos:</strong> Introduce una matrícula o VIN y consulta los datos del vehículo automáticamente tras crearlo</li>
+                        <li><strong>Casos:</strong> Puedes vincular elementos a casos para organizarlos mejor</li>
+                        <li><strong>Etiquetas:</strong> Usa etiquetas para categorizar elementos (ej: alto-riesgo, verificado, principal)</li>
                         <li><strong>Descripción:</strong> Documenta el contexto para mantener trazabilidad de la investigación</li>
                     </ul>
                 </div>
@@ -167,19 +168,78 @@
 document.addEventListener('DOMContentLoaded', function() {
     const contactTypeSelect = document.getElementById('contact_type');
     const contactValueInput = document.getElementById('contact_value');
+    const contactValueLabel = contactValueInput.closest('.mb-3').querySelector('.form-label');
+    const contactValueHelp  = contactValueInput.closest('.mb-3').querySelector('.form-text');
+    const nameInput         = document.getElementById('name');
+    const nameLabel         = nameInput.closest('.mb-3').querySelector('.form-label');
+    const nameHelp          = nameInput.closest('.mb-3').querySelector('.form-text');
+    const descInput         = document.getElementById('description');
+    const descHelp          = descInput.closest('.mb-3').querySelector('.form-text');
+    const sourceInput       = document.getElementById('source');
+    const sourceHelp        = sourceInput.closest('.mb-3').querySelector('.form-text');
+    const typeHelp          = contactTypeSelect.closest('.mb-3').querySelector('.form-text');
 
-    // Update placeholder based on contact type
+    const defaults = {
+        typeHelp:   typeHelp.innerHTML,
+        valueLabel: contactValueLabel.textContent,
+        valueHelp:  contactValueHelp.innerHTML,
+        valuePH:    contactValueInput.placeholder,
+        nameLabel:  nameLabel.textContent,
+        nameHelp:   nameHelp.textContent,
+        namePH:     nameInput.placeholder,
+        descHelp:   descHelp.textContent,
+        descPH:     descInput.placeholder,
+        sourceHelp: sourceHelp.textContent,
+        sourcePH:   sourceInput.placeholder,
+    };
+
+    const vehicleConfig = {
+        typeHelp:   'Selecciona el tipo de elemento que deseas añadir a la investigación',
+        valueLabel: 'Matrícula o Número de Bastidor (VIN)',
+        valueHelp:  '<strong>Formatos aceptados:</strong><br>• Matrícula moderna: 1234ABC<br>• Matrícula antigua: M1234AB<br>• VIN (bastidor): 17 caracteres alfanuméricos',
+        valuePH:    'Ej. 1234ABC o WVWZZZ3CZWE123456',
+        nameLabel:  'Descripción del vehículo',
+        nameHelp:   'Marca, modelo o identificación rápida del vehículo (opcional, se rellena automáticamente al consultar)',
+        namePH:     'Ej. AUDI A4 1.9 TDI',
+        descHelp:   'Contexto: relación con el caso, dónde se observó, relevancia para la investigación',
+        descPH:     'Ej. Vehículo observado en la vigilancia del 15/03, aparcado frente al domicilio...',
+        sourceHelp: 'Origen de la información (ej: vigilancia, testimonio, documentación del caso)',
+        sourcePH:   'Ej. Vigilancia, informe del cliente, documentación judicial...',
+    };
+
+    const contactPlaceholders = {
+        'email': 'usuario@example.com',
+        'phone': '+34612345678',
+        'social_profile': '@username o https://twitter.com/username',
+        'username': 'nombre_usuario',
+        'vehicle': vehicleConfig.valuePH,
+        'other': 'Valor del contacto'
+    };
+
+    function applyConfig(isVehicle) {
+        const cfg = isVehicle ? vehicleConfig : defaults;
+        typeHelp.innerHTML           = cfg.typeHelp;
+        contactValueLabel.textContent = cfg.valueLabel;
+        contactValueHelp.innerHTML    = cfg.valueHelp;
+        nameLabel.textContent         = cfg.nameLabel;
+        nameHelp.textContent          = cfg.nameHelp;
+        nameInput.placeholder         = cfg.namePH;
+        descHelp.textContent          = cfg.descHelp;
+        descInput.placeholder         = cfg.descPH;
+        sourceHelp.textContent        = cfg.sourceHelp;
+        sourceInput.placeholder       = cfg.sourcePH;
+    }
+
     contactTypeSelect.addEventListener('change', function() {
         const type = this.value;
-        const placeholders = {
-            'email': 'usuario@example.com',
-            'phone': '+34612345678',
-            'social_profile': '@username o https://twitter.com/username',
-            'username': 'nombre_usuario',
-            'other': 'Valor del contacto'
-        };
-        contactValueInput.placeholder = placeholders[type] || placeholders['other'];
+        contactValueInput.placeholder = contactPlaceholders[type] || contactPlaceholders['other'];
+        applyConfig(type === 'vehicle');
     });
+
+    // Apply on load if vehicle is pre-selected (e.g. edit mode)
+    if (contactTypeSelect.value === 'vehicle') {
+        applyConfig(true);
+    }
 });
 </script>
 {% endblock %}

@@ -74,8 +74,16 @@
                                                         {% if not plugin.available %}
                                                             <span class="badge bg-warning text-dark">No disponible</span>
                                                         {% endif %}
+                                                        {% if plugin.requires_api_key %}
+                                                            <span class="badge bg-secondary">API Key</span>
+                                                        {% endif %}
                                                     </h6>
                                                     <p class="mb-1 small text-muted">{{ plugin.description }}</p>
+                                                    {% if plugin.supported_formats %}
+                                                    <small class="text-muted">
+                                                        Formatos: {{ plugin.supported_formats|join(', ') }}
+                                                    </small>
+                                                    {% endif %}
                                                 </div>
                                                 <div>
                                                     <a href="{{ url_for('plugins.plugin_detail', plugin_name=plugin.name) }}"

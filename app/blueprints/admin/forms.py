@@ -85,6 +85,7 @@ class ApiKeyForm(FlaskForm):
         'Servicio',
         choices=[
             ('ipqualityscore', 'IPQualityScore (Email/Phone Validation)'),
+            ('rapidapi', 'RapidAPI (Vehículos - Matrícula/VIN España)'),
             ('x_api', 'X API (Twitter)'),
             ('apify', 'Apify (Instagram, Web Scraping)'),
             ('openai', 'OpenAI (GPT-4 Vision - Análisis de Imágenes)'),

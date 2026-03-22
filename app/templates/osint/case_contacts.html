@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Contactos OSINT - {{ case.numero_orden }} - Case Manager{% endblock %}
+{% block title %}Elementos OSINT - {{ case.numero_orden }} - Case Manager{% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
@@ -9,14 +9,14 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h2>
-                        <i class="bi bi-search"></i> Contactos OSINT
+                        <i class="bi bi-search"></i> Elementos OSINT
                     </h2>
                     <p class="text-muted mb-0">
                         Caso: <strong>{{ case.numero_orden }}</strong> - {{ case.objeto_investigacion[:80] }}
                     </p>
                 </div>
                 <a href="{{ url_for('osint.create', case_id=case.id) }}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> Nuevo Contacto
+                    <i class="bi bi-plus-circle"></i> Nuevo Elemento
                 </a>
             </div>
 
@@ -27,7 +27,7 @@
                         <div class="stat-card-icon primary"><i class="bi bi-collection-fill"></i></div>
                         <div class="stat-card-body">
                             <div class="stat-card-value">{{ stats.total }}</div>
-                            <div class="stat-card-label">Total Contactos</div>
+                            <div class="stat-card-label">Total Elementos</div>
                         </div>
                     </div>
                 </div>
@@ -180,6 +180,15 @@
                                                     <i class="bi bi-lightning"></i>
                                                 </button>
                                                 {% endif %}
+                                                {% if contact.contact_type == 'vehicle' and not (contact.extra_data and contact.extra_data.get('vehicle_lookup')) %}
+                                                <button type="button"
+                                                        class="btn btn-outline-primary vehicle-lookup-btn"
+                                                        data-contact-id="{{ contact.id }}"
+                                                        data-case-id="{{ case.id }}"
+                                                        title="Consultar vehículo">
+                                                    <i class="bi bi-car-front"></i>
+                                                </button>
+                                                {% endif %}
                                             </div>
                                         </td>
                                     </tr>
@@ -192,10 +201,10 @@
             {% else %}
                 <div class="alert alert-info text-center">
                     <i class="bi bi-info-circle"></i>
-                    <h5 class="mt-2">No hay contactos OSINT en este caso</h5>
-                    <p class="mb-3">Añade tu primer contacto para comenzar a gestionar investigaciones OSINT en este caso.</p>
+                    <h5 class="mt-2">No hay elementos OSINT en este caso</h5>
+                    <p class="mb-3">Añade tu primer elemento para comenzar a gestionar investigaciones OSINT en este caso.</p>
                     <a href="{{ url_for('osint.create', case_id=case.id) }}" class="btn btn-primary">
-                        <i class="bi bi-plus-circle"></i> Crear Primer Contacto
+                        <i class="bi bi-plus-circle"></i> Crear Primer Elemento
                     </a>
                 </div>
             {% endif %}
@@ -219,6 +228,53 @@
 document.addEventListener('DOMContentLoaded', function() {
     const validateButtons = document.querySelectorAll('.validate-btn');
     const validationToast = new bootstrap.Toast(document.getElementById('validationToast'));
+
+    // Vehicle lookup buttons
+    document.querySelectorAll('.vehicle-lookup-btn').forEach(button => {
+        button.addEventListener('click', async function() {
+            const contactId = this.getAttribute('data-contact-id');
+            const caseId = this.getAttribute('data-case-id');
+            const originalHtml = this.innerHTML;
+
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                const headers = { 'Content-Type': 'application/json' };
+                if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+
+                const response = await fetch(`/osint/case/${caseId}/${contactId}/vehicle-lookup`, {
+                    method: 'POST',
+                    headers: headers
+                });
+                const data = await response.json();
+
+                const toastTitle = document.getElementById('validationToastTitle');
+                const toastBody = document.getElementById('validationToastBody');
+
+                if (data.success) {
+                    toastTitle.textContent = 'Vehículo Identificado';
+                    toastBody.innerHTML = `<div class="text-success">${data.message}</div>`;
+                    validationToast.show();
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    toastTitle.textContent = 'Error';
+                    toastBody.innerHTML = `<div class="text-danger">${data.error}</div>`;
+                    validationToast.show();
+                }
+            } catch (error) {
+                const toastTitle = document.getElementById('validationToastTitle');
+                const toastBody = document.getElementById('validationToastBody');
+                toastTitle.textContent = 'Error';
+                toastBody.innerHTML = `<div class="text-danger">Error: ${error.message}</div>`;
+                validationToast.show();
+            } finally {
+                this.disabled = false;
+                this.innerHTML = originalHtml;
+            }
+        });
+    });
 
     validateButtons.forEach(button => {
         button.addEventListener('click', async function() {

@@ -74,7 +74,7 @@ def index():
     }
 
     # Count by type
-    for contact_type in ['email', 'phone', 'social_profile', 'username', 'other']:
+    for contact_type in ['email', 'phone', 'social_profile', 'username', 'vehicle', 'other']:
         stats['by_type'][contact_type] = OSINTContact.query.filter_by(
             is_deleted=False,
             contact_type=contact_type
@@ -119,14 +119,14 @@ def create(case_id):
                 tags=form.tags.data
             )
 
-            flash(f'Contacto OSINT "{contact.contact_value}" creado exitosamente.', 'success')
+            flash(f'Elemento OSINT "{contact.contact_value}" creado exitosamente.', 'success')
             return redirect(url_for('osint.detail', case_id=case_id, contact_id=contact.id))
 
         except Exception as e:
             db.session.rollback()
             flash(f'Error al crear el contacto: {str(e)}', 'danger')
 
-    return render_template('osint/form.html', form=form, case=case, title='Nuevo Contacto OSINT')
+    return render_template('osint/form.html', form=form, case=case, title='Nuevo Elemento OSINT')
 
 
 @osint.route('/create', methods=['GET', 'POST'])
@@ -157,7 +157,7 @@ def create_no_case():
                 tags=form.tags.data
             )
 
-            flash(f'Contacto OSINT "{contact.contact_value}" creado exitosamente.', 'success')
+            flash(f'Elemento OSINT "{contact.contact_value}" creado exitosamente.', 'success')
 
             # Redirect based on whether it has a case
             if contact.case_id:
@@ -169,7 +169,7 @@ def create_no_case():
             db.session.rollback()
             flash(f'Error al crear el contacto: {str(e)}', 'danger')
 
-    return render_template('osint/form.html', form=form, title='Nuevo Contacto OSINT')
+    return render_template('osint/form.html', form=form, title='Nuevo Elemento OSINT')
 
 
 @osint.route('/case/<int:case_id>/<int:contact_id>')
@@ -279,7 +279,7 @@ def edit(case_id, contact_id):
 
             db.session.commit()
 
-            flash(f'Contacto OSINT "{contact.contact_value}" actualizado exitosamente.', 'success')
+            flash(f'Elemento OSINT "{contact.contact_value}" actualizado exitosamente.', 'success')
             return redirect(url_for('osint.detail', case_id=case_id, contact_id=contact.id))
 
         except Exception as e:
@@ -289,7 +289,7 @@ def edit(case_id, contact_id):
     return render_template('osint/form.html',
                           case=case,
                           form=form,
-                          title='Editar Contacto OSINT',
+                          title='Editar Elemento OSINT',
                           contact=contact)
 
 
@@ -327,7 +327,7 @@ def edit_no_case(contact_id):
 
             db.session.commit()
 
-            flash(f'Contacto OSINT "{contact.contact_value}" actualizado exitosamente.', 'success')
+            flash(f'Elemento OSINT "{contact.contact_value}" actualizado exitosamente.', 'success')
 
             # Redirect based on whether it has a case
             if contact.case_id:
@@ -341,7 +341,7 @@ def edit_no_case(contact_id):
 
     return render_template('osint/form.html',
                           form=form,
-                          title='Editar Contacto OSINT',
+                          title='Editar Elemento OSINT',
                           contact=contact)
 
 
@@ -364,7 +364,7 @@ def delete(case_id, contact_id):
 
     try:
         contact.soft_delete(current_user.id)
-        flash(f'Contacto OSINT "{contact.contact_value}" eliminado exitosamente.', 'success')
+        flash(f'Elemento OSINT "{contact.contact_value}" eliminado exitosamente.', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Error al eliminar el contacto: {str(e)}', 'danger')
@@ -384,7 +384,7 @@ def delete_no_case(contact_id):
 
     try:
         contact.soft_delete(current_user.id)
-        flash(f'Contacto OSINT "{contact.contact_value}" eliminado exitosamente.', 'success')
+        flash(f'Elemento OSINT "{contact.contact_value}" eliminado exitosamente.', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Error al eliminar el contacto: {str(e)}', 'danger')
@@ -1063,7 +1063,7 @@ def case_contacts(case_id):
         'by_type': {}
     }
 
-    for contact_type in ['email', 'phone', 'social_profile', 'username', 'other']:
+    for contact_type in ['email', 'phone', 'social_profile', 'username', 'vehicle', 'other']:
         stats['by_type'][contact_type] = OSINTContact.query.filter_by(
             case_id=case_id,
             is_deleted=False,
@@ -1466,6 +1466,65 @@ def _run_pdl_enrich(contact):
             'success': False,
             'error': f'Error al enriquecer persona: {str(e)}',
         }), 500
+
+
+# ─────────────────────────────────────────────────────────────
+# Vehicle Registry Lookup
+# ─────────────────────────────────────────────────────────────
+
+@osint.route('/case/<int:case_id>/<int:contact_id>/vehicle-lookup', methods=['POST'])
+@login_required
+@require_detective()
+def vehicle_lookup(case_id, contact_id):
+    """Execute vehicle registry lookup for a vehicle-type contact."""
+    case = Case.query.get_or_404(case_id)
+    contact = OSINTContact.query.get_or_404(contact_id)
+
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Sin permiso'}), 403
+
+    if contact.is_deleted or contact.case_id != case_id:
+        return jsonify({'success': False, 'error': 'Contacto no válido'}), 400
+
+    if contact.contact_type != 'vehicle':
+        return jsonify({'success': False, 'error': 'Este contacto no es de tipo vehículo'}), 400
+
+    from app.plugins import plugin_manager
+    result = plugin_manager.execute_vehicle_lookup(contact.contact_value)
+
+    inner = result.get('result') or {}
+
+    if result.get('success') and inner.get('success'):
+        vehicle_data = inner.get('vehicle_data', {})
+        source = inner.get('source', '')
+
+        # Store results in extra_data
+        from sqlalchemy.orm.attributes import flag_modified
+        if not contact.extra_data:
+            contact.extra_data = {}
+        contact.extra_data['vehicle_lookup'] = {
+            'vehicle_data': vehicle_data,
+            'source': source,
+            'query': inner.get('query', contact.contact_value),
+            'query_type': inner.get('query_type', ''),
+            'fetched_at': datetime.utcnow().isoformat(),
+            'fetched_by': current_user.email,
+        }
+        # Update contact name with vehicle label if not set
+        if not contact.name and vehicle_data.get('label'):
+            contact.name = vehicle_data['label']
+        flag_modified(contact, 'extra_data')
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f"Datos obtenidos: {vehicle_data.get('label', 'Vehículo identificado')} (Fuente: {source})",
+            'vehicle_data': vehicle_data,
+            'source': source,
+        })
+
+    error_msg = inner.get('error') or result.get('error') or 'Error desconocido en la consulta.'
+    return jsonify({'success': False, 'error': error_msg}), 400
 
 
 # Image Proxy for Instagram (to bypass CORS restrictions)
