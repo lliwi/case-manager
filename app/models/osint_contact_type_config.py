@@ -143,6 +143,29 @@ class OSINTContactTypeConfig(db.Model):
                 return t['icon_class']
         return 'bi-info-circle'
 
+    @classmethod
+    def sync_builtin_types(cls):
+        """
+        Ensure all BUILTIN_CONTACT_TYPES exist in the database.
+
+        Inserts missing types and updates display metadata for existing ones.
+        Safe to call on every startup.
+        """
+        for bt in BUILTIN_CONTACT_TYPES:
+            existing = cls.query.filter_by(type_key=bt['type_key']).first()
+            if existing is None:
+                db.session.add(cls(
+                    type_key=bt['type_key'],
+                    display_name=bt['display_name'],
+                    description=bt['description'],
+                    icon_class=bt['icon_class'],
+                    color=bt['color'],
+                    sort_order=bt['sort_order'],
+                    is_builtin=True,
+                    is_active=True,
+                ))
+        db.session.commit()
+
     def contact_count(self):
         """Return the number of non-deleted OSINTContacts using this type."""
         from app.models.osint_contact import OSINTContact

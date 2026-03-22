@@ -241,10 +241,18 @@ def configure_logging(app):
 
 
 def initialize_plugins(app):
-    """Initialize the plugin system."""
+    """Initialize the plugin system and sync builtin OSINT contact types."""
     try:
         from app.plugins import plugin_manager
         plugin_manager.init_app(app)
         app.logger.info('Plugin system initialized')
     except Exception as e:
         app.logger.warning(f'Failed to initialize plugin system: {e}')
+
+    # Ensure all builtin OSINT contact types exist in the DB
+    try:
+        with app.app_context():
+            from app.models.osint_contact_type_config import OSINTContactTypeConfig
+            OSINTContactTypeConfig.sync_builtin_types()
+    except Exception as e:
+        app.logger.warning(f'Failed to sync builtin contact types: {e}')
