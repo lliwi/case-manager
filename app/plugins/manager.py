@@ -79,10 +79,20 @@ class PluginManager:
         Returns:
             list: Plugin information dictionaries
         """
+        from app.models.api_key import ApiKey
+
         plugins = []
         for plugin in self.pm.get_plugins():
             if hasattr(plugin, 'get_info'):
-                plugins.append(plugin.get_info())
+                info = plugin.get_info()
+                # If 'available' not explicitly set, determine from API key
+                if 'available' not in info:
+                    if info.get('requires_api_key'):
+                        api_service = info.get('api_service', '')
+                        info['available'] = ApiKey.get_active_key(api_service) is not None
+                    else:
+                        info['available'] = True
+                plugins.append(info)
         return plugins
 
     def get_plugin_by_name(self, name: str) -> Optional[Any]:

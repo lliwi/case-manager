@@ -72,10 +72,13 @@
                                                     <h6 class="mb-1">
                                                         <i class="bi bi-plugin"></i> {{ plugin.display_name }}
                                                         {% if not plugin.available %}
+                                                            {% if plugin.requires_api_key %}
+                                                            <span class="badge bg-warning text-dark">Sin API Key</span>
+                                                            {% else %}
                                                             <span class="badge bg-warning text-dark">No disponible</span>
-                                                        {% endif %}
-                                                        {% if plugin.requires_api_key %}
-                                                            <span class="badge bg-secondary">API Key</span>
+                                                            {% endif %}
+                                                        {% elif plugin.requires_api_key %}
+                                                            <span class="badge bg-success">API Key configurada</span>
                                                         {% endif %}
                                                     </h6>
                                                     <p class="mb-1 small text-muted">{{ plugin.description }}</p>

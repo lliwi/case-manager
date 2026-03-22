@@ -62,7 +62,6 @@ class VehicleRegistryPlugin:
             'supported_formats': ['plate', 'vin'],
             'requires_api_key': True,
             'api_service': 'rapidapi',
-            'available': True,
         }
 
     @hookimpl
@@ -190,14 +189,20 @@ class VehicleRegistryPlugin:
     def _normalize_response(self, data: dict) -> dict:
         """Normalise Autoways/RapidAPI response to internal vehicle_data schema."""
         return {
+            # Identification
+            'plate':              data.get('AWN_immat', ''),
+            'vin':                data.get('AWN_VIN', ''),
             'make':               data.get('AWN_marque', ''),
             'model':              data.get('AWN_modele', ''),
             'version':            data.get('AWN_version', ''),
             'label':              data.get('AWN_label', ''),
             'commercial_name':    data.get('AWN_nom_commercial', ''),
-            'year_start':         data.get('AWN_annee_de_debut_modele', ''),
-            'year_end':           data.get('AWN_annee_de_fin_modele', ''),
-            'first_registration': data.get('AWN_date_mise_en_circulation', ''),
+            'color':              data.get('AWN_couleur', ''),
+            'body_type':          data.get('AWN_style_carrosserie', ''),
+            'platform_code':      data.get('AWN_code_platform', ''),
+            'serial_number':      data.get('AWN_numero_de_serie', ''),
+
+            # Engine & Performance
             'fuel_type':          data.get('AWN_energie', ''),
             'engine_code':        data.get('AWN_code_moteur', ''),
             'engine_codes':       data.get('AWN_codes_moteur', []),
@@ -205,12 +210,38 @@ class VehicleRegistryPlugin:
             'engine_liters':      data.get('AWN_cylindree_liters', ''),
             'power_kw':           data.get('AWN_puissance_KW', ''),
             'power_hp':           data.get('AWN_puissance_chevaux', ''),
-            'body_type':          data.get('AWN_style_carrosserie', ''),
-            'plate':              data.get('AWN_immat', ''),
-            'platform_code':      data.get('AWN_code_platform', ''),
+            'fiscal_power':       data.get('AWN_puissance_fiscale', ''),
+            'gearbox_type':       data.get('AWN_type_boite_vites', ''),
+            'num_gears':          data.get('AWN_nbr_vitesses', ''),
+            'max_speed':          data.get('AWN_max_speed', ''),
+
+            # Dimensions & Weight
+            'num_doors':          data.get('AWN_nbr_portes', ''),
+            'num_seats':          data.get('AWN_nbr_places', ''),
+            'length_mm':          data.get('AWN_longueur', ''),
+            'width_mm':           data.get('AWN_largeur', ''),
+            'height_mm':          data.get('AWN_hauteur', ''),
+            'ptac_kg':            data.get('AWN_PTAC', ''),
+
+            # Emissions & Consumption
+            'co2_emissions':      data.get('AWN_emission_co_2', ''),
+            'euro_standard':      data.get('AWN_norme_euro_standardise', ''),
+            'mixed_consumption':  data.get('AWN_consommation_mixte', ''),
+
+            # Tyres
+            'tyres':              data.get('AWN_pneus', ''),
+
+            # Dates
+            'first_registration': data.get('AWN_date_mise_en_circulation', ''),
+            'year_start':         data.get('AWN_annee_de_debut_modele', ''),
+            'year_end':           data.get('AWN_annee_de_fin_modele', ''),
+
+            # TecDoc
             'tecdoc_ktype':       data.get('AWN_k_type', ''),
             'tecdoc_ktypes':      data.get('AWN_k_types', []),
             'tecdoc_description': data.get('AWN_tecdoc_modele_description', ''),
+
+            # Images
             'brand_image':        data.get('AWN_marque_image', ''),
             'model_image':        data.get('AWN_model_image', ''),
         }

@@ -146,6 +146,10 @@
                                         <dt class="col-5">Matrícula</dt>
                                         <dd class="col-7"><code class="fs-6">{{ vd.plate }}</code></dd>
                                         {% endif %}
+                                        {% if vd.vin %}
+                                        <dt class="col-5">VIN / Bastidor</dt>
+                                        <dd class="col-7"><code class="fs-6">{{ vd.vin }}</code></dd>
+                                        {% endif %}
                                         <dt class="col-5">Marca</dt>
                                         <dd class="col-7">{{ vd.make }}</dd>
                                         <dt class="col-5">Modelo</dt>
@@ -158,9 +162,25 @@
                                         <dt class="col-5">Nombre comercial</dt>
                                         <dd class="col-7">{{ vd.commercial_name }}</dd>
                                         {% endif %}
+                                        {% if vd.color %}
+                                        <dt class="col-5">Color</dt>
+                                        <dd class="col-7">{{ vd.color }}</dd>
+                                        {% endif %}
                                         {% if vd.body_type %}
                                         <dt class="col-5">Carrocería</dt>
                                         <dd class="col-7">{{ vd.body_type }}</dd>
+                                        {% endif %}
+                                        {% if vd.num_doors %}
+                                        <dt class="col-5">Puertas</dt>
+                                        <dd class="col-7">{{ vd.num_doors }}</dd>
+                                        {% endif %}
+                                        {% if vd.num_seats %}
+                                        <dt class="col-5">Plazas</dt>
+                                        <dd class="col-7">{{ vd.num_seats }}</dd>
+                                        {% endif %}
+                                        {% if vd.serial_number %}
+                                        <dt class="col-5">Nº Serie</dt>
+                                        <dd class="col-7"><code>{{ vd.serial_number }}</code></dd>
                                         {% endif %}
                                         {% if vd.platform_code %}
                                         <dt class="col-5">Plataforma</dt>
@@ -169,9 +189,9 @@
                                     </dl>
                                 </div>
 
-                                <!-- Engine -->
+                                <!-- Engine & Performance -->
                                 <div class="col-md-6">
-                                    <h6 class="text-muted mb-2"><i class="bi bi-gear"></i> Motor</h6>
+                                    <h6 class="text-muted mb-2"><i class="bi bi-gear"></i> Motor y Rendimiento</h6>
                                     <dl class="row mb-0 small">
                                         {% if vd.engine_code %}
                                         <dt class="col-5">Código motor</dt>
@@ -190,17 +210,71 @@
                                         <dt class="col-5">Potencia</dt>
                                         <dd class="col-7">{{ vd.power_kw }} kW{% if vd.power_hp %} / {{ vd.power_hp }} CV{% endif %}</dd>
                                         {% endif %}
+                                        {% if vd.fiscal_power %}
+                                        <dt class="col-5">Potencia fiscal</dt>
+                                        <dd class="col-7">{{ vd.fiscal_power }} CVf</dd>
+                                        {% endif %}
                                         {% if vd.fuel_type %}
                                         <dt class="col-5">Combustible</dt>
                                         <dd class="col-7">{{ vd.fuel_type }}</dd>
+                                        {% endif %}
+                                        {% if vd.gearbox_type %}
+                                        <dt class="col-5">Caja de cambios</dt>
+                                        <dd class="col-7">{{ vd.gearbox_type }}{% if vd.num_gears %} ({{ vd.num_gears }} vel.){% endif %}</dd>
+                                        {% endif %}
+                                        {% if vd.max_speed %}
+                                        <dt class="col-5">Vel. máxima</dt>
+                                        <dd class="col-7">{{ vd.max_speed }} km/h</dd>
                                         {% endif %}
                                     </dl>
                                 </div>
                             </div>
 
-                            <!-- Dates & TecDoc -->
+                            <!-- Dimensions, Emissions & Dates -->
                             <div class="row g-3 mt-1">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
+                                    <h6 class="text-muted mb-2"><i class="bi bi-arrows-fullscreen"></i> Dimensiones</h6>
+                                    <dl class="row mb-0 small">
+                                        {% if vd.length_mm %}
+                                        <dt class="col-5">Largo</dt>
+                                        <dd class="col-7">{{ vd.length_mm }} mm</dd>
+                                        {% endif %}
+                                        {% if vd.width_mm %}
+                                        <dt class="col-5">Ancho</dt>
+                                        <dd class="col-7">{{ vd.width_mm }} mm</dd>
+                                        {% endif %}
+                                        {% if vd.height_mm %}
+                                        <dt class="col-5">Alto</dt>
+                                        <dd class="col-7">{{ vd.height_mm }} mm</dd>
+                                        {% endif %}
+                                        {% if vd.ptac_kg %}
+                                        <dt class="col-5">PTAC</dt>
+                                        <dd class="col-7">{{ vd.ptac_kg }} kg</dd>
+                                        {% endif %}
+                                        {% if vd.tyres %}
+                                        <dt class="col-5">Neumáticos</dt>
+                                        <dd class="col-7">{{ vd.tyres }}</dd>
+                                        {% endif %}
+                                    </dl>
+                                </div>
+                                <div class="col-md-4">
+                                    <h6 class="text-muted mb-2"><i class="bi bi-cloud-haze"></i> Emisiones y Consumo</h6>
+                                    <dl class="row mb-0 small">
+                                        {% if vd.co2_emissions %}
+                                        <dt class="col-5">CO₂</dt>
+                                        <dd class="col-7">{{ vd.co2_emissions }} g/km</dd>
+                                        {% endif %}
+                                        {% if vd.euro_standard %}
+                                        <dt class="col-5">Norma Euro</dt>
+                                        <dd class="col-7">{{ vd.euro_standard }}</dd>
+                                        {% endif %}
+                                        {% if vd.mixed_consumption %}
+                                        <dt class="col-5">Consumo mixto</dt>
+                                        <dd class="col-7">{{ vd.mixed_consumption }} L/100km</dd>
+                                        {% endif %}
+                                    </dl>
+                                </div>
+                                <div class="col-md-4">
                                     <h6 class="text-muted mb-2"><i class="bi bi-calendar"></i> Fechas</h6>
                                     <dl class="row mb-0 small">
                                         {% if vd.first_registration %}
@@ -212,9 +286,7 @@
                                         <dd class="col-7">{{ vd.year_start }}{% if vd.year_end %} – {{ vd.year_end }}{% endif %}</dd>
                                         {% endif %}
                                     </dl>
-                                </div>
-                                <div class="col-md-6">
-                                    <h6 class="text-muted mb-2"><i class="bi bi-book"></i> TecDoc</h6>
+                                    <h6 class="text-muted mb-2 mt-3"><i class="bi bi-book"></i> TecDoc</h6>
                                     <dl class="row mb-0 small">
                                         {% if vd.tecdoc_ktype %}
                                         <dt class="col-5">K-Type</dt>
