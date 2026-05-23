@@ -164,8 +164,7 @@ def register_cli_commands(app):
     @click.option('--email', prompt=True, help='Admin email')
     @click.option('--password', prompt=True, hide_input=True,
                   confirmation_prompt=True, help='Admin password')
-    @click.option('--tip', prompt=True, help='TIP number')
-    def create_admin(email, password, tip):
+    def create_admin(email, password):
         """Create an admin user."""
         from app.models.user import User, Role
         from app.services.audit_service import log_action
@@ -192,7 +191,6 @@ def register_cli_commands(app):
         user = User(
             email=email,
             nombre='Administrator',
-            tip_number=tip,
             is_active=True
         )
         user.set_password(password)
