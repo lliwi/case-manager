@@ -2,9 +2,7 @@
 Vehicle Registry Lookup Plugin.
 
 OSINT plugin for looking up vehicle details by Spanish license plate (matrícula)
-or VIN (número de bastidor) using the Autoways API via RapidAPI.
-
-API: api-license-plate-spain-matricula-api-espana (RapidAPI / Autoways)
+or VIN (número de bastidor) via RapidAPI (api-license-plate-spain).
 """
 import re
 import logging
@@ -18,8 +16,8 @@ hookimpl = pluggy.HookimplMarker("casemanager")
 logger = logging.getLogger(__name__)
 
 # RapidAPI endpoint
-_RAPIDAPI_HOST = 'api-license-plate-spain-matricula-api-espana.p.rapidapi.com'
-_RAPIDAPI_URL = f'https://{_RAPIDAPI_HOST}/'
+_RAPIDAPI_HOST = 'api-license-plate-spain.p.rapidapi.com'
+_RAPIDAPI_URL = f'https://{_RAPIDAPI_HOST}/es'
 
 # Regex patterns for input detection
 _PLATE_MODERN = re.compile(r'^[0-9]{4}[A-Z]{3}$')          # Modern: 1234ABC
@@ -115,9 +113,9 @@ class VehicleRegistryPlugin:
 
     def _query_rapidapi(self, query: str, query_type: str, api_key: str, api_key_obj) -> dict:
         """Query the Autoways API via RapidAPI for plate or VIN."""
-        params = {'country': 'es'}
+        params = {}
         if query_type == 'plate':
-            params['plaque'] = query
+            params['plate'] = query
         else:
             params['vin'] = query
 
@@ -146,27 +144,23 @@ class VehicleRegistryPlugin:
             resp.raise_for_status()
             payload = resp.json()
 
-            # Check API-level errors
-            if payload.get('error'):
-                return {
-                    'success': False, 'query': query, 'query_type': query_type,
-                    'error': payload.get('message', 'Error en la consulta.'),
-                }
-
-            data = payload.get('data', {})
-            if not data:
+            # API returns a list of matching records
+            if not payload or (isinstance(payload, list) and len(payload) == 0):
                 return {
                     'success': False, 'query': query, 'query_type': query_type,
                     'error': f'No se encontraron datos para {query}.',
                 }
 
+            # Take the first result as the primary record
+            data = payload[0] if isinstance(payload, list) else payload
+
             return {
                 'success': True,
                 'query': query,
                 'query_type': query_type,
-                'source': 'RapidAPI / Autoways (DGT)',
+                'source': 'RapidAPI / DGT (api-license-plate-spain)',
                 'vehicle_data': self._normalize_response(data),
-                'raw': data,
+                'raw': payload,
             }
 
         except requests.exceptions.Timeout:
@@ -187,61 +181,72 @@ class VehicleRegistryPlugin:
     # ------------------------------------------------------------------
 
     def _normalize_response(self, data: dict) -> dict:
-        """Normalise Autoways/RapidAPI response to internal vehicle_data schema."""
+        """Normalise DGT/RapidAPI response to internal vehicle_data schema."""
         return {
             # Identification
-            'plate':              data.get('AWN_immat', ''),
-            'vin':                data.get('AWN_VIN', ''),
-            'make':               data.get('AWN_marque', ''),
-            'model':              data.get('AWN_modele', ''),
-            'version':            data.get('AWN_version', ''),
-            'label':              data.get('AWN_label', ''),
-            'commercial_name':    data.get('AWN_nom_commercial', ''),
-            'color':              data.get('AWN_couleur', ''),
-            'body_type':          data.get('AWN_style_carrosserie', ''),
-            'platform_code':      data.get('AWN_code_platform', ''),
-            'serial_number':      data.get('AWN_numero_de_serie', ''),
+            'plate':              data.get('MATRICULA', ''),
+            'vin':                data.get('VIN', ''),
+            'make':               data.get('MARCA', ''),
+            'model':              data.get('MODELO', ''),
+            'version':            data.get('TPMOTOR', ''),
+            'label':              '',
+            'commercial_name':    '',
+            'color':              data.get('COLOR', ''),
+            'body_type':          data.get('CARROCERIA', ''),
+            'platform_code':      '',
+            'serial_number':      '',
 
             # Engine & Performance
-            'fuel_type':          data.get('AWN_energie', ''),
-            'engine_code':        data.get('AWN_code_moteur', ''),
-            'engine_codes':       data.get('AWN_codes_moteur', []),
-            'engine_cc':          data.get('AWN_cylindre_capacite', ''),
-            'engine_liters':      data.get('AWN_cylindree_liters', ''),
-            'power_kw':           data.get('AWN_puissance_KW', ''),
-            'power_hp':           data.get('AWN_puissance_chevaux', ''),
-            'fiscal_power':       data.get('AWN_puissance_fiscale', ''),
-            'gearbox_type':       data.get('AWN_type_boite_vites', ''),
-            'num_gears':          data.get('AWN_nbr_vitesses', ''),
-            'max_speed':          data.get('AWN_max_speed', ''),
+            'fuel_type':          data.get('TYMOTOR', ''),
+            'engine_code':        data.get('MOTOR', ''),
+            'engine_codes':       [],
+            'engine_cc':          '',
+            'engine_liters':      '',
+            'power_kw':           data.get('KWs', ''),
+            'power_hp':           '',
+            'fiscal_power':       '',
+            'gearbox_type':       '',
+            'num_gears':          '',
+            'max_speed':          '',
+
+            # Drivetrain
+            'drivetrain':         data.get('TRACCION', ''),
+            'injection':          data.get('INYECCION', ''),
 
             # Dimensions & Weight
-            'num_doors':          data.get('AWN_nbr_portes', ''),
-            'num_seats':          data.get('AWN_nbr_places', ''),
-            'length_mm':          data.get('AWN_longueur', ''),
-            'width_mm':           data.get('AWN_largeur', ''),
-            'height_mm':          data.get('AWN_hauteur', ''),
-            'ptac_kg':            data.get('AWN_PTAC', ''),
+            'num_doors':          '',
+            'num_seats':          '',
+            'length_mm':          '',
+            'width_mm':           '',
+            'height_mm':          '',
+            'ptac_kg':            '',
 
             # Emissions & Consumption
-            'co2_emissions':      data.get('AWN_emission_co_2', ''),
-            'euro_standard':      data.get('AWN_norme_euro_standardise', ''),
-            'mixed_consumption':  data.get('AWN_consommation_mixte', ''),
+            'co2_emissions':      '',
+            'euro_standard':      '',
+            'mixed_consumption':  '',
 
             # Tyres
-            'tyres':              data.get('AWN_pneus', ''),
+            'tyres':              '',
 
             # Dates
-            'first_registration': data.get('AWN_date_mise_en_circulation', ''),
-            'year_start':         data.get('AWN_annee_de_debut_modele', ''),
-            'year_end':           data.get('AWN_annee_de_fin_modele', ''),
+            'first_registration': data.get('FECHA_MATRICULACION', ''),
+            'year_start':         '',
+            'year_end':           '',
 
             # TecDoc
-            'tecdoc_ktype':       data.get('AWN_k_type', ''),
-            'tecdoc_ktypes':      data.get('AWN_k_types', []),
-            'tecdoc_description': data.get('AWN_tecdoc_modele_description', ''),
+            'tecdoc_ktype':       data.get('ID_KTYPE', ''),
+            'tecdoc_ktypes':      [],
+            'tecdoc_description': '',
 
-            # Images
-            'brand_image':        data.get('AWN_marque_image', ''),
-            'model_image':        data.get('AWN_model_image', ''),
+            # IDs
+            'brand_id':           data.get('IDMARCA', ''),
+            'model_id':           data.get('IDMODELO', ''),
+            'tecdoc_brand_id':    data.get('ID_MARCA_TECDOC', ''),
+            'tecdoc_model_id':    data.get('ID_MODELO_TECDOC', ''),
+            'country':            data.get('PAIS', ''),
+
+            # Images (not provided by this API)
+            'brand_image':        '',
+            'model_image':        '',
         }
