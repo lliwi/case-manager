@@ -24,6 +24,7 @@ class PDLService:
 
     BASE_URL = "https://api.peopledatalabs.com/v5"
     PERSON_ENRICH_ENDPOINT = "/person/enrich"
+    PERSON_SEARCH_ENDPOINT = "/person/search"
 
     # Bootstrap Icons per social network
     NETWORK_ICONS = {
@@ -341,6 +342,102 @@ class PDLService:
             # Raw for audit
             'raw_data': data,
         }
+
+    def search_persons(
+        self,
+        name: Optional[str] = None,
+        email: Optional[str] = None,
+        phone: Optional[str] = None,
+        profile: Optional[str] = None,
+        company: Optional[str] = None,
+        location: Optional[str] = None,
+        size: int = 5,
+    ) -> Dict[str, Any]:
+        """
+        Search for multiple person candidates using the PDL Person Search API.
+
+        Returns up to `size` matching person records.
+        """
+        must = []
+        should = []
+
+        if email:
+            must.append({"term": {"emails.address": email.lower()}})
+        if phone:
+            must.append({"term": {"phone_numbers.number": phone}})
+        if profile:
+            must.append({"term": {"profiles.url": profile}})
+        if name:
+            should.append({"match": {"full_name": name}})
+        if company:
+            should.append({"match": {"job_company_name": company}})
+        if location:
+            should.append({"match": {"location_name": location}})
+
+        if not must and not should:
+            return {
+                'success': False,
+                'error': 'Se requiere al menos un parámetro de búsqueda.',
+                'persons': [],
+                'total': 0,
+            }
+
+        query: Dict[str, Any] = {"bool": {}}
+        if must:
+            query["bool"]["must"] = must
+        if should:
+            query["bool"]["should"] = should
+
+        headers = {
+            'X-Api-Key': self.api_key,
+            'Content-Type': 'application/json',
+        }
+
+        try:
+            response = requests.post(
+                f"{self.BASE_URL}{self.PERSON_SEARCH_ENDPOINT}",
+                json={'query': query, 'size': size, 'pretty': False},
+                headers=headers,
+                timeout=self.timeout,
+            )
+
+            if response.status_code == 200:
+                raw = response.json()
+                self.api_key_model.increment_usage()
+                data_list = raw.get('data', [])
+                total = raw.get('total', len(data_list))
+                persons = [
+                    self._process_response({'data': pd, 'likelihood': 0, 'matched': []})
+                    for pd in data_list
+                ]
+                return {'success': True, 'persons': persons, 'total': total}
+
+            elif response.status_code == 404:
+                return {'success': True, 'persons': [], 'total': 0}
+            elif response.status_code == 401:
+                return {'success': False, 'error': 'API Key de PeopleDataLabs inválida.', 'persons': [], 'total': 0}
+            elif response.status_code == 402:
+                return {'success': False, 'error': 'Créditos de PeopleDataLabs agotados.', 'persons': [], 'total': 0}
+            elif response.status_code == 429:
+                return {'success': False, 'error': 'Límite de tasa de PDL excedido.', 'persons': [], 'total': 0}
+            else:
+                try:
+                    err_body = response.json()
+                    err_msg = (err_body.get('error', {}) or {}).get('message') or str(err_body)
+                except Exception:
+                    err_msg = response.text[:200]
+                logger.error("PDL Search %s: %s", response.status_code, err_msg)
+                return {
+                    'success': False,
+                    'error': f'Error PDL ({response.status_code}): {err_msg}',
+                    'persons': [], 'total': 0,
+                }
+
+        except requests.exceptions.Timeout:
+            return {'success': False, 'error': 'Tiempo de espera agotado.', 'persons': [], 'total': 0}
+        except requests.exceptions.RequestException as e:
+            logger.error(f"PDL Search request error: {e}")
+            return {'success': False, 'error': str(e), 'persons': [], 'total': 0}
 
     def test_connection(self) -> Dict[str, Any]:
         """

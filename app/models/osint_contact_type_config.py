@@ -13,12 +13,20 @@ from app.extensions import db
 # Default configuration for the 5 built-in contact types (used as fallback)
 BUILTIN_CONTACT_TYPES = [
     {
+        'type_key': 'person',
+        'display_name': 'Persona',
+        'description': 'Persona investigada (nombre completo)',
+        'icon_class': 'bi-person-fill',
+        'color': 'danger',
+        'sort_order': 1,
+    },
+    {
         'type_key': 'email',
         'display_name': 'Email',
         'description': 'Dirección de correo electrónico',
         'icon_class': 'bi-envelope',
         'color': 'primary',
-        'sort_order': 1,
+        'sort_order': 2,
     },
     {
         'type_key': 'phone',
@@ -26,7 +34,7 @@ BUILTIN_CONTACT_TYPES = [
         'description': 'Número de teléfono (fijo o móvil)',
         'icon_class': 'bi-telephone',
         'color': 'success',
-        'sort_order': 2,
+        'sort_order': 3,
     },
     {
         'type_key': 'social_profile',
@@ -34,7 +42,7 @@ BUILTIN_CONTACT_TYPES = [
         'description': 'Perfil en redes sociales (URL o nombre de usuario)',
         'icon_class': 'bi-person-circle',
         'color': 'info',
-        'sort_order': 3,
+        'sort_order': 4,
     },
     {
         'type_key': 'username',
@@ -42,7 +50,7 @@ BUILTIN_CONTACT_TYPES = [
         'description': 'Nombre de usuario en plataformas digitales',
         'icon_class': 'bi-person-badge',
         'color': 'warning',
-        'sort_order': 4,
+        'sort_order': 5,
     },
     {
         'type_key': 'vehicle',
@@ -50,7 +58,7 @@ BUILTIN_CONTACT_TYPES = [
         'description': 'Matrícula española o número de bastidor (VIN) de un vehículo',
         'icon_class': 'bi-car-front',
         'color': 'info',
-        'sort_order': 5,
+        'sort_order': 6,
     },
     {
         'type_key': 'other',
@@ -58,7 +66,7 @@ BUILTIN_CONTACT_TYPES = [
         'description': 'Otro tipo de contacto o identificador digital',
         'icon_class': 'bi-info-circle',
         'color': 'secondary',
-        'sort_order': 6,
+        'sort_order': 7,
     },
 ]
 
@@ -148,7 +156,7 @@ class OSINTContactTypeConfig(db.Model):
         """
         Ensure all BUILTIN_CONTACT_TYPES exist in the database.
 
-        Inserts missing types and updates display metadata for existing ones.
+        Inserts missing types and updates sort_order for existing ones.
         Safe to call on every startup.
         """
         for bt in BUILTIN_CONTACT_TYPES:
@@ -164,6 +172,11 @@ class OSINTContactTypeConfig(db.Model):
                     is_builtin=True,
                     is_active=True,
                 ))
+            else:
+                existing.display_name = bt['display_name']
+                existing.description = bt['description']
+                existing.sort_order = bt['sort_order']
+                existing.is_builtin = True
         db.session.commit()
 
     def contact_count(self):

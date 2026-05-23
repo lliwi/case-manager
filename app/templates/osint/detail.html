@@ -1173,6 +1173,70 @@
     </div>
 </div>
 
+<!-- PDL Import Modal -->
+<div class="modal fade" id="pdlImportModal" tabindex="-1" aria-labelledby="pdlImportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header text-white" style="background-color:#1a1a2e;">
+                <h5 class="modal-title" id="pdlImportModalLabel">
+                    <i class="bi bi-people-fill me-2"></i>PeopleDataLabs — Seleccionar persona y datos
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+
+                <!-- Candidate selection -->
+                <p class="small text-muted mb-2" id="pdlCandidatesCount"></p>
+                <div id="pdlCandidatesList"></div>
+                <p id="pdlNoCandidates" class="text-muted d-none">No se encontraron personas en PeopleDataLabs con los datos proporcionados.</p>
+
+                <hr id="pdlItemsDivider" class="d-none">
+
+                <!-- Items to import (visible after selecting a candidate) -->
+                <div id="pdlImportItemsSection" class="d-none">
+                    <h6 class="mb-2 text-muted"><i class="bi bi-box-arrow-in-down me-1"></i>Datos a añadir al sistema:</h6>
+
+                    <div id="pdlImportNameRow" class="mb-2 d-none">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="pdlImportUpdateName" checked>
+                            <label class="form-check-label small" for="pdlImportUpdateName">
+                                Actualizar nombre del contacto: <strong id="pdlImportNameValue"></strong>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="pdlImportEmailsSection" class="d-none mb-2">
+                        <p class="small text-muted mb-1"><i class="bi bi-envelope me-1"></i>Emails</p>
+                        <div id="pdlImportEmailsList"></div>
+                    </div>
+
+                    <div id="pdlImportPhonesSection" class="d-none mb-2">
+                        <p class="small text-muted mb-1"><i class="bi bi-telephone me-1"></i>Teléfonos</p>
+                        <div id="pdlImportPhonesList"></div>
+                    </div>
+
+                    <div id="pdlImportProfilesSection" class="d-none mb-2">
+                        <p class="small text-muted mb-1"><i class="bi bi-share me-1"></i>Perfiles sociales</p>
+                        <div id="pdlImportProfilesList"></div>
+                    </div>
+
+                    <p id="pdlImportEmpty" class="text-muted small d-none">Esta persona no tiene emails, teléfonos ni perfiles para añadir.</p>
+                </div>
+
+            </div>
+            <div class="modal-footer d-flex justify-content-between align-items-center">
+                <small class="text-muted">Los elementos ya existentes en el sistema se omitirán automáticamente.</small>
+                <div>
+                    <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-dark" id="pdlImportConfirmBtn" disabled>
+                        <i class="bi bi-plus-circle me-1"></i>Añadir seleccionados
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Toast for validation results -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
     <div id="validationToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
@@ -1375,7 +1439,150 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Handle PeopleDataLabs enrichment form
+    // ── PeopleDataLabs — búsqueda multi-candidato ────────────────────
+    const pdlImportModal = new bootstrap.Modal(document.getElementById('pdlImportModal'));
+    let pdlImportUrl = null;
+    let pdlCandidates = [];
+    let pdlSelectedIndex = -1;
+
+    function pdlBuildCheckItem(type, value, label) {
+        const safeId = `pdlItem_${type}_${btoa(unescape(encodeURIComponent(value))).replace(/[^a-zA-Z0-9]/g, '').substring(0, 40)}`;
+        return `<div class="form-check mb-1">
+            <input class="form-check-input pdl-import-item" type="checkbox"
+                   id="${safeId}" data-type="${type}" data-value="${value}" checked>
+            <label class="form-check-label small" for="${safeId}">${label}</label>
+        </div>`;
+    }
+
+    function pdlSelectCandidate(index) {
+        pdlSelectedIndex = index;
+        const person = pdlCandidates[index];
+
+        // Highlight selected card
+        document.querySelectorAll('.pdl-candidate-card').forEach((card, i) => {
+            card.classList.toggle('border-primary', i === index);
+            card.classList.toggle('bg-primary', i === index);
+            card.classList.toggle('bg-opacity-10', i === index);
+        });
+
+        // Show divider + items section
+        document.getElementById('pdlItemsDivider').classList.remove('d-none');
+        document.getElementById('pdlImportItemsSection').classList.remove('d-none');
+
+        // Name
+        const nameRow = document.getElementById('pdlImportNameRow');
+        const nameVal = document.getElementById('pdlImportNameValue');
+        {% if not contact.name %}
+        if (person.full_name) {
+            nameVal.textContent = person.full_name;
+            nameRow.classList.remove('d-none');
+        } else {
+            nameRow.classList.add('d-none');
+        }
+        {% else %}
+        nameRow.classList.add('d-none');
+        {% endif %}
+
+        let hasItems = false;
+
+        // Emails
+        const emailsSec = document.getElementById('pdlImportEmailsSection');
+        const emailsList = document.getElementById('pdlImportEmailsList');
+        if (person.emails && person.emails.length) {
+            emailsList.innerHTML = person.emails.map(e => pdlBuildCheckItem('email', e, e)).join('');
+            emailsSec.classList.remove('d-none');
+            hasItems = true;
+        } else { emailsSec.classList.add('d-none'); }
+
+        // Phones
+        const phonesSec = document.getElementById('pdlImportPhonesSection');
+        const phonesList = document.getElementById('pdlImportPhonesList');
+        if (person.phones && person.phones.length) {
+            phonesList.innerHTML = person.phones.map(p => pdlBuildCheckItem('phone', p, p)).join('');
+            phonesSec.classList.remove('d-none');
+            hasItems = true;
+        } else { phonesSec.classList.add('d-none'); }
+
+        // Social profiles (with URL only)
+        const profilesSec = document.getElementById('pdlImportProfilesSection');
+        const profilesList = document.getElementById('pdlImportProfilesList');
+        const profilesWithUrl = (person.profiles || []).filter(p => p.url);
+        if (profilesWithUrl.length) {
+            profilesList.innerHTML = profilesWithUrl.map(p => {
+                const lbl = `<i class="bi ${p.icon || 'bi-globe'} me-1"></i><strong>${p.label}</strong>` +
+                    (p.username ? ` · @${p.username}` : '') +
+                    ` <small class="text-muted">${p.url}</small>`;
+                return pdlBuildCheckItem('social_profile', p.url, lbl);
+            }).join('');
+            profilesSec.classList.remove('d-none');
+            hasItems = true;
+        } else { profilesSec.classList.add('d-none'); }
+
+        document.getElementById('pdlImportEmpty').classList.toggle('d-none', hasItems);
+        document.getElementById('pdlImportConfirmBtn').disabled = false;
+    }
+
+    // Expose globally so inline onclick in dynamic HTML can call it
+    window.pdlSelectCandidate = pdlSelectCandidate;
+
+    function showPdlImportModal(candidates, importUrl) {
+        pdlImportUrl = importUrl;
+        pdlCandidates = candidates;
+        pdlSelectedIndex = -1;
+
+        // Reset
+        document.getElementById('pdlItemsDivider').classList.add('d-none');
+        document.getElementById('pdlImportItemsSection').classList.add('d-none');
+        document.getElementById('pdlImportConfirmBtn').disabled = true;
+
+        const countEl  = document.getElementById('pdlCandidatesCount');
+        const listEl   = document.getElementById('pdlCandidatesList');
+        const noneEl   = document.getElementById('pdlNoCandidates');
+
+        if (!candidates || candidates.length === 0) {
+            listEl.innerHTML = '';
+            countEl.textContent = '';
+            noneEl.classList.remove('d-none');
+        } else {
+            noneEl.classList.add('d-none');
+            countEl.textContent = `Se encontraron ${candidates.length} candidato(s). Selecciona una persona:`;
+
+            listEl.innerHTML = candidates.map((person, i) => {
+                const loc    = person.locations && person.locations.length ? (person.locations[0].name || '') : '';
+                const job    = [person.job_title, person.job_company_name].filter(Boolean).join(' · ');
+                const emails = (person.emails || []).length;
+                const phones = (person.phones || []).length;
+                const profs  = (person.profiles || []).filter(p => p.url).length;
+
+                return `<div class="pdl-candidate-card border rounded p-2 mb-2"
+                             style="cursor:pointer;" onclick="pdlSelectCandidate(${i})">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi bi-person-circle fs-4 text-secondary mt-1 flex-shrink-0"></i>
+                        <div class="flex-grow-1 overflow-hidden">
+                            <div class="fw-semibold">${person.full_name || '(sin nombre)'}</div>
+                            ${job  ? `<div class="small text-muted text-truncate">${job}</div>` : ''}
+                            ${loc  ? `<div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>${loc}</div>` : ''}
+                            <div class="mt-1">
+                                ${emails ? `<span class="badge bg-light text-dark me-1">${emails} email${emails>1?'s':''}</span>` : ''}
+                                ${phones ? `<span class="badge bg-light text-dark me-1">${phones} tel${phones>1?'s':''}</span>` : ''}
+                                ${profs  ? `<span class="badge bg-light text-dark">${profs} perfil${profs>1?'es':''}</span>` : ''}
+                            </div>
+                        </div>
+                        <i class="bi bi-chevron-right text-muted mt-1 flex-shrink-0"></i>
+                    </div>
+                </div>`;
+            }).join('');
+
+            // Auto-select when only one result
+            if (candidates.length === 1) {
+                setTimeout(() => pdlSelectCandidate(0), 80);
+            }
+        }
+
+        pdlImportModal.show();
+    }
+
+    // PDL search form submission
     const pdlForms = document.querySelectorAll('.pdl-form');
 
     pdlForms.forEach(form => {
@@ -1384,45 +1591,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const submitButton = form.querySelector('button[type="submit"]');
             const originalHtml = submitButton.innerHTML;
-
             submitButton.disabled = true;
-            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Consultando PDL...';
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Buscando en PDL...';
 
             try {
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
                 const formData = new FormData(form);
-
                 const headers = {};
-                if (csrfToken) {
-                    headers['X-CSRFToken'] = csrfToken;
-                }
+                if (csrfToken) headers['X-CSRFToken'] = csrfToken;
 
-                const response = await fetch(form.action, {
-                    method: 'POST',
-                    headers: headers,
-                    body: formData
-                });
-
+                const response = await fetch(form.action, { method: 'POST', headers, body: formData });
                 const data = await response.json();
 
-                const toastTitle = document.getElementById('validationToastTitle');
-                const toastBody = document.getElementById('validationToastBody');
-
                 if (data.success) {
-                    const profiles = data.result && data.result.profiles ? data.result.profiles.length : 0;
-                    toastTitle.textContent = '✓ PeopleDataLabs — Enriquecimiento Completado';
-                    toastBody.innerHTML = `<div class="text-success">${data.message}<br><small>Probabilidad: ${data.result.likelihood}/10 · ${profiles} perfil(es) social(es) encontrado(s)</small></div>`;
-                    validationToast.show();
-                    setTimeout(() => location.reload(), 2500);
+                    const importUrl = form.action.replace('pdl-enrich', 'pdl-import');
+                    showPdlImportModal(data.candidates || [], importUrl);
                 } else {
+                    const toastTitle = document.getElementById('validationToastTitle');
+                    const toastBody  = document.getElementById('validationToastBody');
                     toastTitle.textContent = '✗ Error PDL';
                     toastBody.innerHTML = `<div class="text-danger">${data.error || 'Error al consultar PeopleDataLabs'}</div>`;
                     validationToast.show();
                 }
-
             } catch (error) {
                 const toastTitle = document.getElementById('validationToastTitle');
-                const toastBody = document.getElementById('validationToastBody');
+                const toastBody  = document.getElementById('validationToastBody');
                 toastTitle.textContent = '✗ Error';
                 toastBody.innerHTML = `<div class="text-danger">Error: ${error.message}</div>`;
                 validationToast.show();
@@ -1431,6 +1624,65 @@ document.addEventListener('DOMContentLoaded', function() {
                 submitButton.innerHTML = originalHtml;
             }
         });
+    });
+
+    // PDL import confirm button
+    document.getElementById('pdlImportConfirmBtn').addEventListener('click', async function() {
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Añadiendo...';
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const headers = { 'Content-Type': 'application/json' };
+            if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+
+            const checkedItems = [...document.querySelectorAll('.pdl-import-item:checked')].map(el => ({
+                type: el.dataset.type,
+                value: el.dataset.value,
+            }));
+
+            const nameCheckbox = document.getElementById('pdlImportUpdateName');
+            const nameRow      = document.getElementById('pdlImportNameRow');
+            const updateName   = (nameCheckbox && !nameRow.classList.contains('d-none') && nameCheckbox.checked)
+                ? document.getElementById('pdlImportNameValue').textContent.trim()
+                : null;
+
+            const selectedPerson = pdlSelectedIndex >= 0 ? pdlCandidates[pdlSelectedIndex] : null;
+
+            const response = await fetch(pdlImportUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ items: checkedItems, update_name: updateName, person_data: selectedPerson }),
+            });
+
+            const data = await response.json();
+            pdlImportModal.hide();
+
+            const toastTitle = document.getElementById('validationToastTitle');
+            const toastBody  = document.getElementById('validationToastBody');
+
+            if (data.success) {
+                toastTitle.textContent = '✓ Contactos añadidos';
+                toastBody.innerHTML = `<div class="text-success">${data.message}</div>`;
+                validationToast.show();
+                setTimeout(() => location.reload(), 1800);
+            } else {
+                toastTitle.textContent = '✗ Error al importar';
+                toastBody.innerHTML = `<div class="text-danger">${data.error}</div>`;
+                validationToast.show();
+            }
+        } catch (error) {
+            const toastTitle = document.getElementById('validationToastTitle');
+            const toastBody  = document.getElementById('validationToastBody');
+            toastTitle.textContent = '✗ Error';
+            toastBody.innerHTML = `<div class="text-danger">Error: ${error.message}</div>`;
+            validationToast.show();
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
     });
 
     // Handle save tweet as evidence

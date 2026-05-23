@@ -191,6 +191,7 @@ class OSINTContact(db.Model):
             String: Bootstrap icon class
         """
         type_icons = {
+            'person': 'bi-person-fill',
             'email': 'bi-envelope',
             'phone': 'bi-telephone',
             'social_profile': 'bi-person-circle',

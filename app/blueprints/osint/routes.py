@@ -74,7 +74,7 @@ def index():
     }
 
     # Count by type
-    for contact_type in ['email', 'phone', 'social_profile', 'username', 'vehicle', 'other']:
+    for contact_type in ['person', 'email', 'phone', 'social_profile', 'username', 'vehicle', 'other']:
         stats['by_type'][contact_type] = OSINTContact.query.filter_by(
             is_deleted=False,
             contact_type=contact_type
@@ -1063,7 +1063,7 @@ def case_contacts(case_id):
         'by_type': {}
     }
 
-    for contact_type in ['email', 'phone', 'social_profile', 'username', 'vehicle', 'other']:
+    for contact_type in ['person', 'email', 'phone', 'social_profile', 'username', 'vehicle', 'other']:
         stats['by_type'][contact_type] = OSINTContact.query.filter_by(
             case_id=case_id,
             is_deleted=False,
@@ -1409,63 +1409,147 @@ def pdl_enrich_no_case(contact_id):
     return _run_pdl_enrich(contact)
 
 
-def _run_pdl_enrich(contact):
-    """Shared logic for PDL person enrichment."""
-    from app.plugins.osint.pdl_person_enrich import PDLPersonEnrichPlugin
+@osint.route('/case/<int:case_id>/<int:contact_id>/pdl-import', methods=['POST'])
+@login_required
+@require_detective()
+def pdl_import(case_id, contact_id):
+    """Create OSINT contacts from selected PDL enrichment results."""
+    case = Case.query.get_or_404(case_id)
+    contact = OSINTContact.query.get_or_404(contact_id)
 
-    # Read optional extra parameters from POST body
+    if not current_user.is_admin() and case.detective_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Sin permiso'}), 403
+
+    if case.is_deleted or contact.is_deleted or contact.case_id != case_id:
+        return jsonify({'success': False, 'error': 'Contacto no válido'}), 400
+
+    return _run_pdl_import(contact, case_id)
+
+
+@osint.route('/<int:contact_id>/pdl-import', methods=['POST'])
+@login_required
+def pdl_import_no_case(contact_id):
+    """Create OSINT contacts from selected PDL enrichment results (global view)."""
+    contact = OSINTContact.query.get_or_404(contact_id)
+
+    if contact.is_deleted:
+        return jsonify({'success': False, 'error': 'Contacto eliminado'}), 404
+
+    return _run_pdl_import(contact, contact.case_id)
+
+
+def _run_pdl_import(contact, case_id):
+    """Create new OSINT contacts for each item selected from PDL results and store the person."""
+    try:
+        body = request.get_json() or {}
+        items = body.get('items', [])
+        update_name = (body.get('update_name') or '').strip()
+        person_data = body.get('person_data')
+
+        created_count = 0
+        skipped = []
+
+        if update_name and not contact.name:
+            contact.name = update_name
+
+        # Persist the selected person profile in extra_data
+        if person_data:
+            if not contact.extra_data:
+                contact.extra_data = {}
+            contact.extra_data['pdl_enrichment'] = {
+                'data': person_data,
+                'fetched_at': datetime.utcnow().isoformat(),
+                'fetched_by': current_user.email,
+                'params': {'name': update_name},
+            }
+            flag_modified(contact, 'extra_data')
+
+        for item in items:
+            item_type = item.get('type', '').strip()
+            value = item.get('value', '').strip()
+            if not value or item_type not in ('email', 'phone', 'social_profile'):
+                continue
+
+            existing = OSINTContact.query.filter_by(
+                contact_value=value, is_deleted=False
+            ).first()
+            if existing:
+                skipped.append(value)
+                continue
+
+            OSINTContact.create(
+                contact_type=item_type,
+                contact_value=value,
+                created_by_id=current_user.id,
+                name=contact.name or '',
+                description=f'Descubierto mediante PeopleDataLabs desde {contact.contact_value}',
+                source='PeopleDataLabs',
+                case_id=case_id,
+                tags='osint,pdl',
+            )
+            created_count += 1
+
+        db.session.commit()
+
+        msg = f'{created_count} contacto(s) añadido(s)'
+        if skipped:
+            msg += f', {len(skipped)} ya existían'
+        msg += '.'
+
+        return jsonify({'success': True, 'created': created_count, 'skipped': len(skipped), 'message': msg})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error importing PDL results: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _run_pdl_enrich(contact):
+    """Search PDL for multiple person candidates and return them for user selection."""
     company = (request.form.get('company') or '').strip()
     location = (request.form.get('location') or '').strip()
     name = (request.form.get('name') or contact.name or '').strip()
 
     try:
-        plugin = PDLPersonEnrichPlugin()
-        result = plugin.lookup(
-            query=contact.contact_value,
-            query_type=contact.contact_type,
-            name=name,
-            company=company,
-            location=location,
-        )
+        api_key_obj = ApiKey.get_active_key('peopledatalabs')
+        if not api_key_obj:
+            return jsonify({
+                'success': False,
+                'error': 'No hay API Key activa para PeopleDataLabs. '
+                         'Añade una en Administración → API Keys.',
+            }), 400
+
+        from app.services.pdl_service import PDLService
+        service = PDLService(api_key_obj)
+
+        kwargs = {'name': name, 'company': company, 'location': location, 'size': 5}
+        if contact.contact_type == 'email':
+            kwargs['email'] = contact.contact_value
+        elif contact.contact_type == 'phone':
+            kwargs['phone'] = contact.contact_value
+        elif contact.contact_type == 'social_profile':
+            kwargs['profile'] = contact.contact_value
+
+        result = service.search_persons(**kwargs)
 
         if not result.get('success'):
             return jsonify(result), 400
 
-        # Persist result in contact extra_data
-        if not contact.extra_data:
-            contact.extra_data = {}
-
-        contact.extra_data['pdl_enrichment'] = {
-            'data': result,
-            'fetched_at': datetime.utcnow().isoformat(),
-            'fetched_by': current_user.email,
-            'params': {
-                'name': name,
-                'company': company,
-                'location': location,
-            },
-        }
-        flag_modified(contact, 'extra_data')
-
-        # Update contact name if not set and PDL returned a full name
-        if not contact.name and result.get('full_name'):
-            contact.name = result['full_name']
-
-        db.session.commit()
+        candidates = result.get('persons', [])
+        for c in candidates:
+            c.pop('raw_data', None)
 
         return jsonify({
             'success': True,
-            'message': 'Enriquecimiento PDL completado exitosamente.',
-            'result': result,
+            'candidates': candidates,
+            'total': result.get('total', len(candidates)),
+            'message': f"Se encontraron {result.get('total', len(candidates))} candidato(s).",
         })
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error executing PDL person enrichment: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Error al enriquecer persona: {str(e)}',
-        }), 500
+        logger.error(f"Error executing PDL person search: {e}")
+        return jsonify({'success': False, 'error': f'Error al buscar en PDL: {e}'}), 500
 
 
 # ─────────────────────────────────────────────────────────────
