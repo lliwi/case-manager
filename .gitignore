@@ -65,6 +65,7 @@ instance/
 docker/postgres/ssl/*.crt
 docker/postgres/ssl/*.key
 docker/postgres/ssl/*.pem
+docker/postgres/ssl/*.srl
 !docker/postgres/ssl/.gitkeep
 
 # ===========================================

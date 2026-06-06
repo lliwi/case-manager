@@ -28,7 +28,7 @@ openssl req -new -x509 -days $CA_DAYS -key ca.key -out ca.crt \
 
 # 3. Generate server private key
 echo "[3/6] Generating server private key..."
-openssl genrsa -out server.key 2048
+openssl genrsa -out server.key 4096
 
 # 4. Generate server certificate signing request
 echo "[4/6] Generating server CSR..."

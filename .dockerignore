@@ -1,0 +1,34 @@
+# Secrets — never send private keys / certificates into the build context
+docker/postgres/ssl/*.key
+docker/postgres/ssl/*.crt
+docker/postgres/ssl/*.pem
+docker/postgres/ssl/*.srl
+**/*.key
+**/*.pem
+**/*.p12
+.env
+.env.*
+!.env.example
+
+# Python / build noise
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# VCS / IDE
+.git/
+.gitignore
+.idea/
+.vscode/
+
+# Data & logs (user data, not build inputs)
+data/
+logs/
+*.log
