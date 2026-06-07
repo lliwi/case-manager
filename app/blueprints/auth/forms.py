@@ -4,6 +4,7 @@ Authentication forms.
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField
 from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError
+from flask_login import current_user
 from app.models.user import User
 
 
@@ -68,9 +69,18 @@ class ProfileForm(FlaskForm):
     """User profile edit form."""
     nombre = StringField('Nombre', validators=[DataRequired(), Length(min=2, max=200)])
     apellidos = StringField('Apellidos', validators=[Length(max=200)])
+    tip_number = StringField('Número TIP', validators=[Length(max=20)])
     despacho = StringField('Despacho', validators=[Length(max=200)])
     telefono = StringField('Teléfono', validators=[Length(max=20)])
     submit = SubmitField('Guardar Cambios')
+
+    def validate_tip_number(self, tip_number):
+        """Ensure the TIP is unique (ignoring the current user's own record)."""
+        if not tip_number.data:
+            return
+        user = User.query.filter_by(tip_number=tip_number.data).first()
+        if user and user.id != current_user.id:
+            raise ValidationError('Este número TIP ya está registrado por otro usuario.')
 
 
 class ChangePasswordForm(FlaskForm):

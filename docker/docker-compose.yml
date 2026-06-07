@@ -89,6 +89,7 @@ services:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
       EVIDENCE_ENCRYPTION_KEY: ${EVIDENCE_ENCRYPTION_KEY}
+      API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY}
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-}
     volumes:
       - ../app:/app/app
@@ -120,6 +121,7 @@ services:
     command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
     environment:
       FLASK_APP: wsgi.py
+      SECRET_KEY: ${SECRET_KEY}
       DATABASE_URL: ${DATABASE_URL}
       # Database SSL/TLS configuration
       DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-require}
@@ -131,6 +133,7 @@ services:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
       EVIDENCE_ENCRYPTION_KEY: ${EVIDENCE_ENCRYPTION_KEY}
+      API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY}
     volumes:
       - ../app:/app/app
       - evidence_data:/app/data/evidence
@@ -157,6 +160,7 @@ services:
     command: celery -A app.tasks.celery_app beat --loglevel=info
     environment:
       FLASK_APP: wsgi.py
+      SECRET_KEY: ${SECRET_KEY}
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
@@ -172,12 +176,19 @@ services:
       context: ..
       dockerfile: docker/celery/Dockerfile
     container_name: casemanager_flower
-    command: sh -c "sleep 10 && celery -A app.tasks.celery_app flower --port=5555"
+    # Flower exposes task queue internals (including task arguments that may
+    # contain PII / OSINT data) and worker controls. It MUST require auth.
+    command: sh -c "sleep 10 && celery -A app.tasks.celery_app flower --port=5555 --basic_auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:?FLOWER_PASSWORD must be set}"
     environment:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      FLOWER_USER: ${FLOWER_USER:-admin}
+      FLOWER_PASSWORD: ${FLOWER_PASSWORD}
+    # Bind only to localhost on the host so Flower is not reachable from the
+    # network directly; access it via an authenticated reverse proxy or an
+    # SSH tunnel. Remove the 127.0.0.1 prefix only if you know what you do.
     ports:
-      - "5555:5555"
+      - "127.0.0.1:5555:5555"
     depends_on:
       - redis
       - celery_worker

@@ -239,7 +239,7 @@
                     </div>
                     <div class="card-body">
                         <p class="mb-1"><strong>{{ case.detective.nombre if case.detective else '-' }}</strong></p>
-                        <small class="text-muted">TIP: {{ case.detective_tip }}</small>
+                        <small class="text-muted">TIP: {{ case.detective_tip or '—' }}</small>
                         {% if case.despacho %}
                             <p class="mb-0 mt-2 small"><i class="bi bi-building"></i> {{ case.despacho }}</p>
                         {% endif %}

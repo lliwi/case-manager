@@ -83,6 +83,7 @@ def login():
 
 
 @auth_bp.route('/verify-mfa', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def verify_mfa():
     """Verify MFA token."""
     pending_user_id = session.get('pending_user_id')
@@ -234,6 +235,7 @@ def profile():
     if form.validate_on_submit() and 'profile_submit' in request.form:
         current_user.nombre = form.nombre.data
         current_user.apellidos = form.apellidos.data
+        current_user.tip_number = form.tip_number.data or None
         current_user.despacho = form.despacho.data
         current_user.telefono = form.telefono.data
         db.session.commit()

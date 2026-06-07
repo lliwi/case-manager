@@ -102,12 +102,13 @@ def export_csv():
     output.write(csv_data.encode('utf-8-sig'))  # UTF-8 with BOM for Excel
     output.seek(0)
 
-    # Determine filename
+    # Determine filename (fall back to the user id when no TIP is set)
     if detective_id and current_user.is_admin():
         detective = User.query.get(detective_id)
-        filename = f"libro_registro_{year}_{detective.tip_number}.csv"
+        tip = detective.tip_number or f"user{detective.id}"
     else:
-        filename = f"libro_registro_{year}_{current_user.tip_number}.csv"
+        tip = current_user.tip_number or f"user{current_user.id}"
+    filename = f"libro_registro_{year}_{tip}.csv"
 
     return send_file(
         output,

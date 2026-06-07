@@ -87,7 +87,7 @@ class Case(db.Model):
 
     # Detective assignment
     detective_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    detective_tip = db.Column(db.String(20), nullable=False)  # Denormalized for audit
+    detective_tip = db.Column(db.String(20), nullable=True)  # Denormalized for audit (optional)
     despacho = db.Column(db.String(200))  # Detective's office
 
     # Case status and priority

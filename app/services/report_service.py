@@ -523,7 +523,7 @@ class ReportService:
             ['Versión:', f'v{report.version}'],
             ['Fecha de Generación:', datetime.now().strftime('%d/%m/%Y %H:%M:%S')],
             ['Investigador:', report.created_by.nombre],
-            ['TIP:', report.created_by.tip_number],
+            ['TIP:', report.created_by.tip_number or 'No especificado'],
         ]
 
         metadata_table = Table(metadata, colWidths=[5*cm, 10*cm])

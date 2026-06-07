@@ -105,7 +105,7 @@
                                                 {{ case.fecha_inicio.strftime('%d/%m/%Y') if case.fecha_inicio else '-' }}
                                                 |
                                                 <i class="bi bi-person-badge"></i>
-                                                TIP: {{ case.detective_tip }}
+                                                TIP: {{ case.detective_tip or '—' }}
                                             </small>
                                         </div>
                                         <div class="text-end">

@@ -42,9 +42,14 @@
                                 <small class="text-muted">El email no se puede modificar</small>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Número TIP</label>
-                                <input type="text" class="form-control" value="{{ current_user.tip_number }}" disabled>
-                                <small class="text-muted">El TIP no se puede modificar</small>
+                                {{ form.tip_number.label(class="form-label") }}
+                                {{ form.tip_number(class="form-control" + (" is-invalid" if form.tip_number.errors else "")) }}
+                                {% if form.tip_number.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.tip_number.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="text-muted">Tarjeta de Identidad Profesional (obligatorio para crear casos)</small>
                             </div>
                         </div>
 

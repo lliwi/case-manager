@@ -100,7 +100,7 @@
                                 <dd class="col-sm-7">{{ report.created_by.nombre }}</dd>
 
                                 <dt class="col-sm-5">TIP:</dt>
-                                <dd class="col-sm-7">{{ report.created_by.tip_number }}</dd>
+                                <dd class="col-sm-7">{{ report.created_by.tip_number or '—' }}</dd>
                             </dl>
 
                             {% if report.file_size %}

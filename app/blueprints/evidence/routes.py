@@ -355,13 +355,26 @@ def preview_evidence(evidence_id):
             notes=f'Evidence previewed by {current_user.nombre}'
         )
 
-        # Serve file inline (not as attachment)
-        return send_file(
+        # Content types that can execute scripts in our own origin (stored XSS
+        # risk) must never be rendered inline. Force them to download instead.
+        ACTIVE_CONTENT_TYPES = {
+            'text/html', 'application/xhtml+xml', 'image/svg+xml',
+            'text/xml', 'application/xml', 'application/javascript',
+            'text/javascript',
+        }
+        mime_type = evidence.mime_type or 'application/octet-stream'
+        serve_inline = mime_type.lower() not in ACTIVE_CONTENT_TYPES
+
+        response = send_file(
             decrypted_path,
-            as_attachment=False,
+            as_attachment=not serve_inline,
             download_name=evidence.original_filename,
-            mimetype=evidence.mime_type
+            mimetype=mime_type
         )
+        # Prevent MIME sniffing and sandbox anything served inline.
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['Content-Security-Policy'] = "sandbox; default-src 'none'"
+        return response
 
     except Exception as e:
         abort(500)

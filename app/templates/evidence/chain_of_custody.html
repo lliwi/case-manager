@@ -107,7 +107,7 @@
                                             <p class="mb-1">
                                                 <i class="bi bi-person-badge"></i>
                                                 {{ entry.user.nombre }}
-                                                <small class="text-muted">(TIP: {{ entry.user.tip_number }})</small>
+                                                <small class="text-muted">{% if entry.user.tip_number %}(TIP: {{ entry.user.tip_number }}){% endif %}</small>
                                             </p>
 
                                             {% if entry.notes %}

@@ -45,7 +45,7 @@
                                             </a>
                                         </td>
                                         <td>{{ user.nombre }} {{ user.apellidos }}</td>
-                                        <td><code class="small">{{ user.tip_number }}</code></td>
+                                        <td><code class="small">{{ user.tip_number or '—' }}</code></td>
                                         <td>
                                             {% for role in user.roles %}
                                                 <span class="badge bg-secondary">{{ role.name }}</span>

@@ -150,6 +150,7 @@ desktop.ini
 *.old
 tmp/
 temp/
+_tmptest_claude/
 
 # ===========================================
 # Jupyter Notebooks

@@ -45,7 +45,7 @@
                         <option value="">Todos</option>
                         {% for detective in detectives %}
                             <option value="{{ detective.id }}" {{ 'selected' if detective.id == selected_detective_id else '' }}>
-                                {{ detective.nombre }} (TIP: {{ detective.tip_number }})
+                                {{ detective.nombre }} {% if detective.tip_number %}(TIP: {{ detective.tip_number }}){% endif %}
                             </option>
                         {% endfor %}
                     </select>
@@ -142,7 +142,7 @@
                                         {{ case.legitimacy_type.value }}
                                     </span>
                                 </td>
-                                <td>{{ case.detective_tip }}</td>
+                                <td>{{ case.detective_tip or '—' }}</td>
                                 <td>
                                     {% if case.status.name == 'CERRADO' %}
                                         <span class="badge bg-secondary small">{{ case.status.value }}</span>

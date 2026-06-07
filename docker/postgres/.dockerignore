@@ -1,6 +1,0 @@
-# Never include private keys / certificates in the postgres build context.
-# Certificates are generated fresh at build time inside the image.
-ssl/*.key
-ssl/*.crt
-ssl/*.pem
-ssl/*.srl

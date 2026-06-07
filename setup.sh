@@ -87,6 +87,7 @@ if [ ! -f "docker/.env" ]; then
         NEO4J_PASSWORD=$(python3 -c "import secrets; print(secrets.token_hex(16))" 2>/dev/null || openssl rand -hex 16)
         REDIS_PASSWORD=$(python3 -c "import secrets; print(secrets.token_hex(16))" 2>/dev/null || openssl rand -hex 16)
         ENCRYPTION_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32)
+        FLOWER_PASSWORD=$(python3 -c "import secrets; print(secrets.token_hex(16))" 2>/dev/null || openssl rand -hex 16)
 
         # Update .env file with generated values
         sed -i "s/SECRET_KEY=.*/SECRET_KEY=${SECRET_KEY}/" docker/.env
@@ -94,6 +95,7 @@ if [ ! -f "docker/.env" ]; then
         sed -i "s/NEO4J_PASSWORD=.*/NEO4J_PASSWORD=${NEO4J_PASSWORD}/" docker/.env
         sed -i "s/REDIS_PASSWORD=.*/REDIS_PASSWORD=${REDIS_PASSWORD}/" docker/.env
         sed -i "s/EVIDENCE_ENCRYPTION_KEY=.*/EVIDENCE_ENCRYPTION_KEY=${ENCRYPTION_KEY}/" docker/.env
+        sed -i "s/FLOWER_PASSWORD=.*/FLOWER_PASSWORD=${FLOWER_PASSWORD}/" docker/.env
 
         # Update DATABASE_URL with new postgres password
         sed -i "s|DATABASE_URL=.*|DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/case_manager|" docker/.env
@@ -111,6 +113,18 @@ if [ ! -f "docker/.env" ]; then
     fi
 else
     print_success "Environment file already exists (docker/.env)"
+
+    # Ensure newer required variables exist in older .env files.
+    if ! grep -q "^FLOWER_PASSWORD=" docker/.env; then
+        FLOWER_PASSWORD=$(python3 -c "import secrets; print(secrets.token_hex(16))" 2>/dev/null || openssl rand -hex 16)
+        {
+            echo ""
+            echo "# Flower (Celery monitoring) basic auth - added automatically"
+            echo "FLOWER_USER=admin"
+            echo "FLOWER_PASSWORD=${FLOWER_PASSWORD}"
+        } >> docker/.env
+        print_warning "Added missing FLOWER_PASSWORD to docker/.env"
+    fi
 fi
 
 # Step 3: Generate SSL certificates for PostgreSQL

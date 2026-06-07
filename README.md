@@ -76,8 +76,7 @@ docker-compose exec web flask init-neo4j
 # Crear usuario administrador
 docker-compose exec web flask create-admin \
   --email admin@example.com \
-  --password YourSecurePassword \
-  --tip TIP123456
+  --password YourSecurePassword 
 ```
 
 ### 5. Acceder a la aplicación

@@ -123,6 +123,15 @@ def create_user():
     password = request.form.get('password')
     role_ids = request.form.getlist('roles')
 
+    # Validate required fields and password strength
+    if not email or not nombre:
+        flash('El email y el nombre son obligatorios', 'error')
+        return redirect(url_for('admin.create_user'))
+
+    if not password or len(password) < 8:
+        flash('La contraseña debe tener al menos 8 caracteres', 'error')
+        return redirect(url_for('admin.create_user'))
+
     # Validate
     if User.query.filter_by(email=email).first():
         flash('El email ya está registrado', 'error')

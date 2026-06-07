@@ -338,7 +338,8 @@ def search():
             User.roles.any(name='detective')
         ).all()
         form.detective.choices = [('', 'Todos')] + [
-            (str(d.id), f"{d.nombre} (TIP: {d.tip_number})") for d in detectives
+            (str(d.id), f"{d.nombre} (TIP: {d.tip_number})" if d.tip_number else d.nombre)
+            for d in detectives
         ]
 
     # Build query

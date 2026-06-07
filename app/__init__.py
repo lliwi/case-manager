@@ -31,6 +31,16 @@ def create_app(config_name=None):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
 
+    # Fail fast on insecure secrets in production. Never run with the
+    # well-known development fallback SECRET_KEY outside of dev/testing,
+    # otherwise session cookies and CSRF tokens can be forged.
+    if not app.config['DEBUG'] and not app.config['TESTING']:
+        if app.config.get('SECRET_KEY') in (None, '', 'dev-secret-key-change-in-production'):
+            raise RuntimeError(
+                'SECRET_KEY must be set to a strong, unique value in production. '
+                'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
+            )
+
     # Configure ProxyFix for proper IP detection behind proxies
     # x_for=2: Trust X-Forwarded-For through 2 proxies (external proxy + Nginx)
     # x_proto=1: Trust X-Forwarded-Proto header
