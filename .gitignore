@@ -184,3 +184,8 @@ config.local.py
 CLAUDE.md
 DEV_STATUS.md
 Requisitos App Investigación Privada Flask.md
+
+# Restored/exported secrets (never commit)
+docker/restored_secrets.env
+api_keys_export.json
+api_keys_export.json.gpg

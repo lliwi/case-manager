@@ -51,10 +51,23 @@ log_info "Temporary directory: $TEMP_DIR"
 # Change to docker directory for docker-compose
 cd "$DOCKER_DIR"
 
-# Load environment variables
-if [ -f "$PROJECT_DIR/.env" ]; then
-    export $(grep -v '^#' "$PROJECT_DIR/.env" | xargs)
-fi
+# Load environment variables (the real env lives in docker/.env)
+ENV_FILE=""
+for candidate in "$DOCKER_DIR/.env" "$PROJECT_DIR/.env"; do
+    if [ -f "$candidate" ]; then ENV_FILE="$candidate"; break; fi
+done
+
+# Read a single value from the env file (safe with +,/,= in values)
+get_env() {
+    [ -n "$ENV_FILE" ] && grep -E "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2- || true
+}
+
+# Export the variables this script needs without xargs/source pitfalls
+for _k in POSTGRES_USER POSTGRES_DB NEO4J_USER NEO4J_PASSWORD \
+          SECRET_KEY EVIDENCE_ENCRYPTION_KEY API_KEY_ENCRYPTION_KEY; do
+    _v=$(get_env "$_k")
+    [ -n "$_v" ] && export "$_k=$_v"
+done
 
 # 1. Backup PostgreSQL (using pg_dump for consistent backup while running)
 log_info "Backing up PostgreSQL database..."
@@ -105,8 +118,16 @@ VOLUMES=(
 
 # Get the project name for volume naming
 PROJECT_NAME=$(basename "$PROJECT_DIR" | tr '[:upper:]' '[:lower:]' | tr ' ' '_')
-COMPOSE_PROJECT=$(docker compose config --format json 2>/dev/null | grep -o '"name":"[^"]*"' | head -1 | cut -d'"' -f4)
-COMPOSE_PROJECT=${COMPOSE_PROJECT:-docker}
+# Detect the effective Compose project name (used to build volume names).
+# Compose may print "name": "..." with a space, so parse robustly.
+COMPOSE_PROJECT=$(docker compose config --format json 2>/dev/null \
+    | python3 -c "import json,sys; print(json.load(sys.stdin).get('name',''))" 2>/dev/null || true)
+if [ -z "$COMPOSE_PROJECT" ]; then
+    COMPOSE_PROJECT=$(docker compose config --format json 2>/dev/null \
+        | grep -oE '"name": *"[^"]*"' | head -1 | sed -E 's/.*: *"([^"]*)".*/\1/')
+fi
+COMPOSE_PROJECT=${COMPOSE_PROJECT:-$PROJECT_NAME}
+log_info "Compose project: $COMPOSE_PROJECT"
 
 for vol_map in "${VOLUMES[@]}"; do
     vol_name="${vol_map%%:*}"
@@ -137,13 +158,42 @@ for vol_map in "${VOLUMES[@]}"; do
     fi
 done
 
-# 4. Export API keys (from database)
+# 4. Export API keys (from database). Values stay ENCRYPTED; they are only
+#    usable together with the encryption secret exported in step 4b.
 log_info "Exporting API keys..."
 docker compose exec -T postgres psql -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-case_manager}" -t -A -c \
     "SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json) FROM (
-        SELECT service_name, key_name, encrypted_key, description, is_active, created_at, last_used_at, usage_count
+        SELECT service_name, key_name, api_key_encrypted, description, is_active, created_at, last_used_at, usage_count
         FROM api_keys WHERE is_deleted = false
     ) t;" > "$BACKUP_WORK_DIR/api_keys.json" 2>/dev/null || log_warn "API keys export failed"
+
+# 4b. Export encryption secrets (gpg-encrypted) so the backup is self-sufficient.
+#     Without these, the API keys AND all evidence cannot be decrypted after a
+#     restore on another host. Set BACKUP_SECRETS_PASSPHRASE to enable.
+log_info "Exporting encryption secrets..."
+if [ -z "${BACKUP_SECRETS_PASSPHRASE:-}" ]; then
+    log_warn "BACKUP_SECRETS_PASSPHRASE not set -> encryption keys NOT included."
+    log_warn "  Run with: BACKUP_SECRETS_PASSPHRASE='your-strong-pass' ./backup.sh"
+    log_warn "  Otherwise API keys/evidence can't be decrypted on a fresh restore."
+elif ! command -v gpg >/dev/null 2>&1; then
+    log_warn "gpg not installed -> encryption keys NOT included (apt/pacman install gnupg)."
+else
+    SECRETS_TMP=$(mktemp)
+    {
+        echo "# Case Manager encryption secrets - $(date -Iseconds)"
+        echo "SECRET_KEY=${SECRET_KEY:-}"
+        echo "EVIDENCE_ENCRYPTION_KEY=${EVIDENCE_ENCRYPTION_KEY:-}"
+        echo "API_KEY_ENCRYPTION_KEY=${API_KEY_ENCRYPTION_KEY:-}"
+    } > "$SECRETS_TMP"
+    if gpg --batch --yes --pinentry-mode loopback \
+           --passphrase "$BACKUP_SECRETS_PASSPHRASE" \
+           -c -o "$BACKUP_WORK_DIR/secrets.env.gpg" "$SECRETS_TMP" 2>/dev/null; then
+        log_info "Encryption secrets exported (secrets.env.gpg, AES-256 / gpg)"
+    else
+        log_warn "Failed to encrypt secrets with gpg"
+    fi
+    shred -u "$SECRETS_TMP" 2>/dev/null || rm -f "$SECRETS_TMP"
+fi
 
 # 5. Create manifest
 log_info "Creating manifest..."
@@ -161,7 +211,8 @@ cat > "$BACKUP_WORK_DIR/manifest.json" << EOF
         "uploads": $([ -f "$BACKUP_WORK_DIR/uploads.tar.gz" ] && echo "true" || echo "false"),
         "exports": $([ -f "$BACKUP_WORK_DIR/exports.tar.gz" ] && echo "true" || echo "false"),
         "reports": $([ -f "$BACKUP_WORK_DIR/reports.tar.gz" ] && echo "true" || echo "false"),
-        "api_keys": $([ -s "$BACKUP_WORK_DIR/api_keys.json" ] && echo "true" || echo "false")
+        "api_keys": $([ -s "$BACKUP_WORK_DIR/api_keys.json" ] && echo "true" || echo "false"),
+        "secrets": $([ -f "$BACKUP_WORK_DIR/secrets.env.gpg" ] && echo "true" || echo "false")
     },
     "sizes": {
         "database": "$(du -h "$BACKUP_WORK_DIR/database.dump" 2>/dev/null | cut -f1 || echo "0")",
@@ -197,4 +248,8 @@ log_info "Size: $FINAL_SIZE"
 log_info "SHA256: $CHECKSUM"
 log_info ""
 log_info "To restore, run:"
-log_info "  ./restore.sh ${BACKUP_NAME}.tar.gz"
+if [ -f "$BACKUP_WORK_DIR/secrets.env.gpg" ] 2>/dev/null || [ -n "${BACKUP_SECRETS_PASSPHRASE:-}" ]; then
+    log_info "  BACKUP_SECRETS_PASSPHRASE='your-pass' ./restore.sh ${BACKUP_NAME}.tar.gz"
+else
+    log_info "  ./restore.sh ${BACKUP_NAME}.tar.gz"
+fi

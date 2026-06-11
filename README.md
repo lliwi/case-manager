@@ -141,6 +141,65 @@ docker-compose exec web flask db upgrade
 # Abrir http://localhost:5555
 ```
 
+## Copias de Seguridad
+
+El sistema incluye scripts de backup/restauración basados en volúmenes Docker, ejecutados desde el host (`backup/`).
+
+### Qué incluye un backup
+
+- **PostgreSQL**: volcado completo (`pg_dump`), incluye casos, usuarios, auditoría y las **API keys** (cifradas).
+- **Neo4j**: directorio de datos del grafo.
+- **Evidencias** y carpetas de **uploads / exports / reports**.
+- **API keys** (`api_keys.json`, cifradas) y **manifest** con checksum SHA-256.
+- **Secretos de cifrado** (`secrets.env.gpg`, opcional) → ver más abajo.
+
+Los backups se guardan en `data/backups/` como `backup_AAAAMMDD_HHMMSS.tar.gz` + su `.sha256`.
+
+### Crear un backup
+
+```bash
+# Backup básico (los datos cifrados se incluyen, pero NO las claves de cifrado)
+./backup/backup.sh
+
+# Backup AUTOSUFICIENTE (recomendado): incluye también las claves de cifrado,
+# cifradas con gpg usando tu passphrase
+BACKUP_SECRETS_PASSPHRASE='una-passphrase-fuerte' ./backup/backup.sh
+```
+
+> ⚠️ **Importante**: las evidencias y las API keys se almacenan **cifradas** con
+> `EVIDENCE_ENCRYPTION_KEY` / `API_KEY_ENCRYPTION_KEY` (en `docker/.env`). Sin esas
+> claves, un backup **no se puede descifrar** al restaurarlo en otra máquina. Usa
+> `BACKUP_SECRETS_PASSPHRASE` para incluirlas (cifradas) en el propio backup, o
+> guarda `docker/.env` de forma segura por separado.
+
+### Listar backups
+
+```bash
+./backup/list.sh
+```
+
+### Restaurar un backup
+
+> La restauración **detiene los contenedores** de aplicación y **sobrescribe** los datos actuales.
+
+```bash
+# Restaurar (misma passphrase usada al crear el backup, si incluía secretos)
+BACKUP_SECRETS_PASSPHRASE='una-passphrase-fuerte' ./backup/restore.sh backup_AAAAMMDD_HHMMSS.tar.gz
+
+# Si el backup incluía secretos, se descifran a docker/restored_secrets.env.
+# Fusiónalos en docker/.env y borra el fichero temporal:
+shred -u docker/restored_secrets.env
+
+# Reconstruir/levantar si hiciera falta:
+docker compose -f docker/docker-compose.yml up -d
+```
+
+### Recomendaciones
+
+- Guarda la **passphrase** del backup en un lugar distinto del propio backup (gestor de secretos).
+- Programa backups periódicos (p. ej. cron) y verifica el `.sha256`.
+- Requiere `gpg` instalado en el host para incluir/descifrar los secretos.
+
 ## Seguridad
 
 ### Cumplimiento Legal (Ley 5/2014)

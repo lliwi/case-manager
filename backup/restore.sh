@@ -134,9 +134,15 @@ if [ -f "$PROJECT_DIR/.env" ]; then
     export $(grep -v '^#' "$PROJECT_DIR/.env" | xargs)
 fi
 
-# Get compose project name
-COMPOSE_PROJECT=$(docker compose config --format json 2>/dev/null | grep -o '"name":"[^"]*"' | head -1 | cut -d'"' -f4)
-COMPOSE_PROJECT=${COMPOSE_PROJECT:-docker}
+# Get compose project name (Compose may print "name": "..." with a space).
+COMPOSE_PROJECT=$(docker compose config --format json 2>/dev/null \
+    | python3 -c "import json,sys; print(json.load(sys.stdin).get('name',''))" 2>/dev/null || true)
+if [ -z "$COMPOSE_PROJECT" ]; then
+    COMPOSE_PROJECT=$(docker compose config --format json 2>/dev/null \
+        | grep -oE '"name": *"[^"]*"' | head -1 | sed -E 's/.*: *"([^"]*)".*/\1/')
+fi
+COMPOSE_PROJECT=${COMPOSE_PROJECT:-$(basename "$PROJECT_DIR" | tr '[:upper:]' '[:lower:]' | tr ' ' '_')}
+log_info "Compose project: $COMPOSE_PROJECT"
 
 log_step "Stopping application containers..."
 docker compose stop web celery_worker celery_beat flower nginx 2>/dev/null || true
@@ -250,9 +256,36 @@ for vol_map in "${VOLUMES[@]}"; do
     fi
 done
 
-# 4. Restore API keys (if encrypted keys in backup)
+# 4. API keys are part of the PostgreSQL dump (encrypted) — restored already.
 if [ -f "$BACKUP_CONTENT_DIR/api_keys.json" ] && [ -s "$BACKUP_CONTENT_DIR/api_keys.json" ]; then
-    log_step "API keys are included in the database backup (no separate restore needed)"
+    log_step "API keys are included in the database backup (restored, still encrypted)"
+fi
+
+# 4b. Restore encryption secrets (so API keys + evidence can be decrypted).
+if [ -f "$BACKUP_CONTENT_DIR/secrets.env.gpg" ]; then
+    log_step "Encryption secrets found in backup (secrets.env.gpg)"
+    if [ -z "${BACKUP_SECRETS_PASSPHRASE:-}" ]; then
+        log_warn "BACKUP_SECRETS_PASSPHRASE not set -> not decrypting secrets."
+        log_warn "  Decrypt manually: gpg -d '$BACKUP_CONTENT_DIR/secrets.env.gpg'"
+        log_warn "  (then merge the values into docker/.env)"
+    elif ! command -v gpg >/dev/null 2>&1; then
+        log_warn "gpg not installed -> cannot decrypt secrets.env.gpg"
+    else
+        RESTORED_SECRETS="$DOCKER_DIR/restored_secrets.env"
+        if gpg --batch --yes --pinentry-mode loopback \
+               --passphrase "$BACKUP_SECRETS_PASSPHRASE" \
+               -d "$BACKUP_CONTENT_DIR/secrets.env.gpg" > "$RESTORED_SECRETS" 2>/dev/null; then
+            chmod 600 "$RESTORED_SECRETS"
+            log_info "Decrypted encryption secrets to: $RESTORED_SECRETS"
+            log_warn "ACTION REQUIRED: merge these keys into docker/.env, then DELETE the file:"
+            sed 's/=.*/=<hidden>/' "$RESTORED_SECRETS" | grep -E '^[A-Z]' | sed 's/^/    /'
+            log_warn "  Without matching keys, API keys and evidence will NOT decrypt."
+            log_warn "  After merging: shred -u '$RESTORED_SECRETS'"
+        else
+            rm -f "$RESTORED_SECRETS"
+            log_warn "Could not decrypt secrets.env.gpg (wrong passphrase?)"
+        fi
+    fi
 fi
 
 # Cleanup
