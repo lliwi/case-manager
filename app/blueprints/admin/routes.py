@@ -68,7 +68,7 @@ def index():
 @audit_action('ADMIN_USERS_LIST_VIEWED', 'admin')
 def users():
     """List all users."""
-    users = User.query.order_by(User.created_at.desc()).all()
+    users = User.query.filter_by(is_deleted=False).order_by(User.created_at.desc()).all()
 
     return render_template(
         'admin/users.html',
@@ -233,6 +233,43 @@ def toggle_user_status(user_id):
     status = 'activado' if user.is_active else 'desactivado'
     flash(f'Usuario {user.email} {status} exitosamente', 'success')
 
+    return redirect(url_for('admin.users'))
+
+
+@admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
+@login_required
+@require_role('admin')
+@audit_action('ADMIN_USER_DELETE', 'admin')
+def delete_user(user_id):
+    """Soft-delete a user (kept for the audit trail; login is blocked)."""
+    user = User.query.get_or_404(user_id)
+
+    # Cannot delete yourself
+    if user.id == current_user.id:
+        flash('No puedes eliminar tu propia cuenta', 'error')
+        return redirect(url_for('admin.users'))
+
+    # Cannot delete the last active administrator
+    if user.is_admin():
+        other_admins = (
+            db.session.query(User.id)
+            .join(User.roles)
+            .filter(
+                Role.name == 'admin',
+                User.id != user.id,
+                User.is_active == True,  # noqa: E712
+                User.is_deleted == False,  # noqa: E712
+            )
+            .count()
+        )
+        if other_admins == 0:
+            flash('No puedes eliminar el último administrador activo.', 'error')
+            return redirect(url_for('admin.users'))
+
+    user.soft_delete(current_user._get_current_object())
+    db.session.commit()
+
+    flash(f'Usuario {user.email} eliminado correctamente.', 'success')
     return redirect(url_for('admin.users'))
 
 

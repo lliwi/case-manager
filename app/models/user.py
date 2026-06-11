@@ -52,6 +52,11 @@ class User(UserMixin, db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     email_verified = db.Column(db.Boolean, default=False)
 
+    # Soft delete (users are never hard-deleted to preserve the audit trail)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    deleted_at = db.Column(db.DateTime)
+    deleted_by_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -105,6 +110,17 @@ class User(UserMixin, db.Model):
         """Update last login timestamp."""
         self.last_login = datetime.utcnow()
         db.session.commit()
+
+    def soft_delete(self, by_user=None):
+        """Soft-delete the user: mark deleted and deactivate (login is blocked).
+
+        The record is kept so the audit trail and historical references remain
+        intact (forensic/legal requirement).
+        """
+        self.is_deleted = True
+        self.is_active = False
+        self.deleted_at = datetime.utcnow()
+        self.deleted_by_id = by_user.id if by_user else None
 
     def __repr__(self):
         return f'<User {self.email}>'

@@ -90,6 +90,15 @@
                                 <i class="bi bi-shield-x"></i> Desactivar MFA
                             </button>
                             {% endif %}
+                            {% if user.id != current_user.id %}
+                            <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id) }}" class="d-inline"
+                                  onsubmit="return confirm('¿Eliminar al usuario {{ user.email }}? Su cuenta quedará desactivada y no podrá iniciar sesión. Se conserva en la auditoría.')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="bi bi-trash"></i> Eliminar
+                                </button>
+                            </form>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
