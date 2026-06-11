@@ -189,3 +189,6 @@ Requisitos App Investigación Privada Flask.md
 docker/restored_secrets.env
 api_keys_export.json
 api_keys_export.json.gpg
+
+# Production compose (host-specific network/IPs - keep out of repo)
+docker/docker-compose.prod.yml
